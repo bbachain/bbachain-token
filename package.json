@@ -13,6 +13,7 @@
     "@bbachain/wallet-adapter-base": "0.1.4",
     "@bbachain/wallet-adapter-react": "0.1.4",
     "@bbachain/wallet-adapter-react-ui": "0.1.4",
+    "@bbachain/wallet-adapter-wallets": "^0.1.7",
     "@bbachain/web3.js": "1.1.3",
     "@tabler/icons-react": "^3.11.0",
     "@tanstack/react-query": "^5.51.11",

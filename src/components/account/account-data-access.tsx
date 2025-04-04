@@ -1,12 +1,14 @@
 'use client'
 
-import {TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID} from '@bbachain/spl-token'
+import {createInitializeMintInstruction, getMinimumBalanceForRentExemptMint, MINT_SIZE, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID} from '@bbachain/spl-token'
 import {useConnection, useWallet} from '@bbachain/wallet-adapter-react'
 import {
   BBA_DALTON_UNIT,
   Connection,
+  Keypair,
   PublicKey,
   SystemProgram,
+  Transaction,
   TransactionMessage,
   TransactionSignature,
   VersionedTransaction,
@@ -173,4 +175,133 @@ async function createTransaction({
     transaction,
     latestBlockhash,
   }
+}
+
+export function useTokenCreator({ address }: { address: PublicKey }) {
+  const wallet = useWallet();
+  const { connection } = useConnection();
+  const transactionToast = useTransactionToast();
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["token-creator", { endpoint: connection.rpcEndpoint }],
+    mutationFn: async (input: {
+      tokenName: string;
+      tokenSymbol: string;
+      tokenDecimals: number;
+    }) => {
+      try {
+        // Get the latest blockhash to use in our transaction
+        const daltons = await getMinimumBalanceForRentExemptMint(connection);
+        const latestBlockhash = await connection.getLatestBlockhash();
+        const mintKeypair = Keypair.generate();
+        const programId = new PublicKey(
+          "metabUBuFKTWPWAAARaQdNXUH6Sxk5tFGQjGEgWCvaX"
+        );
+
+        // Create instructions to create a new mint account
+        const createAccountTx = new Transaction().add(
+          SystemProgram.createAccount({
+            fromPubkey: address,
+            newAccountPubkey: mintKeypair.publicKey,
+            space: MINT_SIZE,
+            daltons,
+            programId: TOKEN_PROGRAM_ID,
+          }),
+          createInitializeMintInstruction(
+            mintKeypair.publicKey,
+            input.tokenDecimals,
+            address,
+            null,
+            TOKEN_PROGRAM_ID
+          )
+        );
+        createAccountTx.recentBlockhash = latestBlockhash.blockhash;
+        createAccountTx.feePayer = address;
+
+        // Paritially sign the transaction with the mint keypair
+        createAccountTx.partialSign(mintKeypair);
+        const createSignature = await wallet.sendTransaction(
+          createAccountTx,
+          connection
+        );
+
+        await connection.confirmTransaction(
+          { signature: createSignature, ...latestBlockhash },
+          "confirmed"
+        );
+
+        // Create the metadata account
+        const [metadataPda, bump] = PublicKey.findProgramAddressSync(
+          [Buffer.from("metadata"), mintKeypair.publicKey.toBuffer()],
+          programId
+        );
+
+        // Prepare the metadata
+        const nameBuffer = Buffer.from(input.tokenName, "utf8");
+        const symbolBuffer = Buffer.from(input.tokenSymbol, "utf8");
+        const uriBuffer = Buffer.from("https://github.com/anza-xyz/wallet-adapter", "utf8");
+        const instructionData = Buffer.concat([
+          Buffer.from([0]), // Variant 0 = Initialize
+          Buffer.from(new Uint32Array([nameBuffer.length]).buffer), // Name length (u32)
+          nameBuffer, 
+          Buffer.from(new Uint32Array([symbolBuffer.length]).buffer), // Symbol length (u32)
+          symbolBuffer, 
+          Buffer.from(new Uint32Array([uriBuffer.length]).buffer), // URI length (u32)
+          uriBuffer, 
+        ] as any);
+
+        const metadataTx = new Transaction().add({
+          keys: [
+            { pubkey: metadataPda, isSigner: false, isWritable: true },
+            { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: false },
+            { pubkey: address, isSigner: true, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          ],
+          programId,
+          data: instructionData,
+        });
+        metadataTx.recentBlockhash = latestBlockhash.blockhash;
+        metadataTx.feePayer = address;
+
+        const metadataSignature = await wallet.sendTransaction(
+          metadataTx,
+          connection
+        );
+
+        await connection.confirmTransaction(
+          { signature: metadataSignature, ...latestBlockhash },
+          "confirmed"
+        );
+
+        return metadataSignature;
+      } catch (error: unknown) {
+        console.log("error", `Transaction failed! ${error}`);
+
+        return;
+      }
+    },
+    onSuccess: (signature) => {
+      if (signature) {
+        transactionToast(signature);
+      }
+      return Promise.all([
+        client.invalidateQueries({
+          queryKey: [
+            "get-balance",
+            { endpoint: connection.rpcEndpoint, address },
+          ],
+        }),
+        client.invalidateQueries({
+          queryKey: [
+            "get-signatures",
+            { endpoint: connection.rpcEndpoint, address },
+          ],
+        }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(`Transaction failed! ${error}`);
+    },
+  });
 }

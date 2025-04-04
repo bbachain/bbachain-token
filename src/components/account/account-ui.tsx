@@ -13,6 +13,7 @@ import {
   useGetSignatures,
   useGetTokenAccounts,
   useRequestAirdrop,
+  useTokenCreator,
   useTransferBBA,
 } from './account-data-access'
 
@@ -66,12 +67,14 @@ export function AccountButtons({ address }: { address: PublicKey }) {
   const [showAirdropModal, setShowAirdropModal] = useState(false)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
   const [showSendModal, setShowSendModal] = useState(false)
+  const [showTokenCreator, setShowTokenCreator] = useState(false)
 
   return (
     <div>
       <ModalAirdrop hide={() => setShowAirdropModal(false)} address={address} show={showAirdropModal} />
       <ModalReceive address={address} show={showReceiveModal} hide={() => setShowReceiveModal(false)} />
       <ModalSend address={address} show={showSendModal} hide={() => setShowSendModal(false)} />
+      <TokenCreator address={address} show={showTokenCreator} hide={() => setShowTokenCreator(false)} />
       <div className="space-x-2">
         <button
           disabled={cluster.network?.includes('mainnet')}
@@ -89,6 +92,9 @@ export function AccountButtons({ address }: { address: PublicKey }) {
         </button>
         <button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowReceiveModal(true)}>
           Receive
+        </button>
+        <button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowTokenCreator(true)}>
+          Create Token
         </button>
       </div>
     </div>
@@ -346,6 +352,65 @@ function ModalSend({ hide, show, address }: { hide: () => void; show: boolean; a
         className="input input-bordered w-full"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
+      />
+    </AppModal>
+  )
+}
+
+function TokenCreator({ hide, show, address }: { hide: () => void; show: boolean; address: PublicKey }) {
+  const wallet = useWallet()
+  const mutation = useTokenCreator({ address })
+  const [tokenName, setTokenName] = useState('My Token Kelly')
+  const [tokenSymbol, setTokenSymbol] = useState('MTK')
+  const [tokenDecimals, setTokenDecimals] = useState('9')
+
+  if (!address || !wallet.sendTransaction) {
+    return <div>Wallet not connected</div>
+  }
+
+  return (
+    <AppModal
+      hide={hide}
+      show={show}
+      title="Token Creator"
+      submitDisabled={!tokenName || !tokenSymbol || mutation.isPending}
+      submitLabel="Create Token"
+      submit={() => {
+        mutation
+          .mutateAsync({
+            tokenName,
+            tokenSymbol,
+            tokenDecimals: parseInt(tokenDecimals),
+          })
+          .then(() => hide())
+      }}
+    >
+      <input
+        disabled={mutation.isPending}
+        type="text"
+        step="any"
+        placeholder="Token Name"
+        className="input input-bordered w-full"
+        value={tokenName}
+        onChange={(e) => setTokenName(e.target.value)}
+      />
+      <input
+        disabled={mutation.isPending}
+        type="text"
+        step="any"
+        placeholder="Token Symbol"
+        className="input input-bordered w-full"
+        value={tokenSymbol}
+        onChange={(e) => setTokenSymbol(e.target.value)}
+      />
+      <input
+        disabled={mutation.isPending}
+        type="text"
+        step="any"
+        placeholder="Token Decimals"
+        className="input input-bordered w-full"
+        value={tokenDecimals}
+        onChange={(e) => setTokenDecimals(e.target.value)}
       />
     </AppModal>
   )
