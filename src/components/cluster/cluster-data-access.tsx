@@ -31,7 +31,7 @@ export const defaultClusters: Cluster[] = [
   },
 ]
 
-const clusterAtom = atomWithStorage<Cluster>('bbachain-cluster', defaultClusters[0])
+const clusterAtom = atomWithStorage<Cluster>('bbachain-cluster', defaultClusters[1])
 const clustersAtom = atomWithStorage<Cluster[]>('bbachain-clusters', defaultClusters)
 
 const activeClustersAtom = atom<Cluster[]>((get) => {

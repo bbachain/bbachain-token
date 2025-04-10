@@ -9,409 +9,348 @@ import { AppModal, ellipsify } from '../ui/ui-layout'
 import { useCluster } from '../cluster/cluster-data-access'
 import { ExplorerLink } from '../cluster/cluster-ui'
 import {
-  useGetBalance,
-  useGetSignatures,
-  useGetTokenAccounts,
-  useRequestAirdrop,
-  useTokenCreator,
-  useTransferBBA,
+	useGetBalance,
+	useGetSignatures,
+	useGetTokenAccounts,
+	useRequestAirdrop,
+	useTransferBBA
 } from './account-data-access'
 
 export function AccountBalance({ address }: { address: PublicKey }) {
-  const query = useGetBalance({ address })
+	const query = useGetBalance({ address })
 
-  return (
-    <div>
-      <h1 className="text-5xl font-bold cursor-pointer" onClick={() => query.refetch()}>
-        {query.data ? <BalanceComponent balance={query.data} /> : '...'} BBA
-      </h1>
-    </div>
-  )
+	return (
+		<div>
+			<h1 className="text-5xl font-bold cursor-pointer" onClick={() => query.refetch()}>
+				{query.data ? <BalanceComponent balance={query.data} /> : '...'} BBA
+			</h1>
+		</div>
+	)
 }
 export function AccountChecker() {
-  const { publicKey } = useWallet()
-  if (!publicKey) {
-    return null
-  }
-  return <AccountBalanceCheck address={publicKey} />
+	const { publicKey } = useWallet()
+	if (!publicKey) {
+		return null
+	}
+	return <AccountBalanceCheck address={publicKey} />
 }
 export function AccountBalanceCheck({ address }: { address: PublicKey }) {
-  const { cluster } = useCluster()
-  const mutation = useRequestAirdrop({ address })
-  const query = useGetBalance({ address })
+	const { cluster } = useCluster()
+	const mutation = useRequestAirdrop({ address })
+	const query = useGetBalance({ address })
 
-  if (query.isLoading) {
-    return null
-  }
-  if (query.isError || !query.data) {
-    return (
-      <div className="alert alert-warning text-warning-content/80 rounded-none flex justify-center">
-        <span>
-          You are connected to <strong>{cluster.name}</strong> but your account is not found on this cluster.
-        </span>
-        <button
-          className="btn btn-xs btn-neutral"
-          onClick={() => mutation.mutateAsync(1).catch((err) => console.log(err))}
-        >
-          Request Airdrop
-        </button>
-      </div>
-    )
-  }
-  return null
+	if (query.isLoading) {
+		return null
+	}
+	if (query.isError || !query.data) {
+		return (
+			<div className="alert alert-warning text-warning-content/80 rounded-none flex justify-center">
+				<span>
+					You are connected to <strong>{cluster.name}</strong> but your account is not found on this cluster.
+				</span>
+				<button
+					className="btn btn-xs btn-neutral"
+					onClick={() => mutation.mutateAsync(1).catch((err) => console.log(err))}
+				>
+					Request Airdrop
+				</button>
+			</div>
+		)
+	}
+	return null
 }
 
 export function AccountButtons({ address }: { address: PublicKey }) {
-  const wallet = useWallet()
-  const { cluster } = useCluster()
-  const [showAirdropModal, setShowAirdropModal] = useState(false)
-  const [showReceiveModal, setShowReceiveModal] = useState(false)
-  const [showSendModal, setShowSendModal] = useState(false)
-  const [showTokenCreator, setShowTokenCreator] = useState(false)
+	const wallet = useWallet()
+	const { cluster } = useCluster()
+	const [showAirdropModal, setShowAirdropModal] = useState(false)
+	const [showReceiveModal, setShowReceiveModal] = useState(false)
+	const [showSendModal, setShowSendModal] = useState(false)
+	const [showTokenCreator, setShowTokenCreator] = useState(false)
 
-  return (
-    <div>
-      <ModalAirdrop hide={() => setShowAirdropModal(false)} address={address} show={showAirdropModal} />
-      <ModalReceive address={address} show={showReceiveModal} hide={() => setShowReceiveModal(false)} />
-      <ModalSend address={address} show={showSendModal} hide={() => setShowSendModal(false)} />
-      <TokenCreator address={address} show={showTokenCreator} hide={() => setShowTokenCreator(false)} />
-      <div className="space-x-2">
-        <button
-          disabled={cluster.network?.includes('mainnet')}
-          className="btn btn-xs lg:btn-md btn-outline"
-          onClick={() => setShowAirdropModal(true)}
-        >
-          Airdrop
-        </button>
-        <button
-          disabled={wallet.publicKey?.toString() !== address.toString()}
-          className="btn btn-xs lg:btn-md btn-outline"
-          onClick={() => setShowSendModal(true)}
-        >
-          Send
-        </button>
-        <button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowReceiveModal(true)}>
-          Receive
-        </button>
-        <button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowTokenCreator(true)}>
-          Create Token
-        </button>
-      </div>
-    </div>
-  )
+	return (
+		<div>
+			<ModalAirdrop hide={() => setShowAirdropModal(false)} address={address} show={showAirdropModal} />
+			<ModalReceive address={address} show={showReceiveModal} hide={() => setShowReceiveModal(false)} />
+			<ModalSend address={address} show={showSendModal} hide={() => setShowSendModal(false)} />
+			<div className="space-x-2">
+				<button
+					disabled={cluster.network?.includes('mainnet')}
+					className="btn btn-xs lg:btn-md btn-outline"
+					onClick={() => setShowAirdropModal(true)}
+				>
+					Airdrop
+				</button>
+				<button
+					disabled={wallet.publicKey?.toString() !== address.toString()}
+					className="btn btn-xs lg:btn-md btn-outline"
+					onClick={() => setShowSendModal(true)}
+				>
+					Send
+				</button>
+				<button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowReceiveModal(true)}>
+					Receive
+				</button>
+				<button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowTokenCreator(true)}>
+					Create Token
+				</button>
+			</div>
+		</div>
+	)
 }
 
 export function AccountTokens({ address }: { address: PublicKey }) {
-  const [showAll, setShowAll] = useState(false)
-  const query = useGetTokenAccounts({ address })
-  const client = useQueryClient()
-  const items = useMemo(() => {
-    if (showAll) return query.data
-    return query.data?.slice(0, 5)
-  }, [query.data, showAll])
+	const [showAll, setShowAll] = useState(false)
+	const query = useGetTokenAccounts({ address })
+	const client = useQueryClient()
+	const items = useMemo(() => {
+		if (showAll) return query.data
+		return query.data?.slice(0, 5)
+	}, [query.data, showAll])
 
-  return (
-    <div className="space-y-2">
-      <div className="justify-between">
-        <div className="flex justify-between">
-          <h2 className="text-2xl font-bold">Token Accounts</h2>
-          <div className="space-x-2">
-            {query.isLoading ? (
-              <span className="loading loading-spinner"></span>
-            ) : (
-              <button
-                className="btn btn-sm btn-outline"
-                onClick={async () => {
-                  await query.refetch()
-                  await client.invalidateQueries({
-                    queryKey: ['getTokenAccountBalance'],
-                  })
-                }}
-              >
-                <IconRefresh size={16} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-      {query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
-      {query.isSuccess && (
-        <div>
-          {query.data.length === 0 ? (
-            <div>No token accounts found.</div>
-          ) : (
-            <table className="table border-4 rounded-lg border-separate border-base-300">
-              <thead>
-                <tr>
-                  <th>Public Key</th>
-                  <th>Mint</th>
-                  <th className="text-right">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items?.map(({ account, pubkey }) => (
-                  <tr key={pubkey.toString()}>
-                    <td>
-                      <div className="flex space-x-2">
-                        <span className="font-mono">
-                          <ExplorerLink label={ellipsify(pubkey.toString())} path={`account/${pubkey.toString()}`} />
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex space-x-2">
-                        <span className="font-mono">
-                          <ExplorerLink
-                            label={ellipsify(account.data.parsed.info.mint)}
-                            path={`account/${account.data.parsed.info.mint.toString()}`}
-                          />
-                        </span>
-                      </div>
-                    </td>
-                    <td className="text-right">
-                      <span className="font-mono">{account.data.parsed.info.tokenAmount.uiAmount}</span>
-                    </td>
-                  </tr>
-                ))}
+	return (
+		<div className="space-y-2">
+			<div className="justify-between">
+				<div className="flex justify-between">
+					<h2 className="text-2xl font-bold">Token Accounts</h2>
+					<div className="space-x-2">
+						{query.isLoading ? (
+							<span className="loading loading-spinner"></span>
+						) : (
+							<button
+								className="btn btn-sm btn-outline"
+								onClick={async () => {
+									await query.refetch()
+									await client.invalidateQueries({
+										queryKey: ['getTokenAccountBalance']
+									})
+								}}
+							>
+								<IconRefresh size={16} />
+							</button>
+						)}
+					</div>
+				</div>
+			</div>
+			{query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
+			{query.isSuccess && (
+				<div>
+					{query.data.length === 0 ? (
+						<div>No token accounts found.</div>
+					) : (
+						<table className="table border-4 rounded-lg border-separate border-base-300">
+							<thead>
+								<tr>
+									<th>Public Key</th>
+									<th>Mint</th>
+									<th className="text-right">Balance</th>
+								</tr>
+							</thead>
+							<tbody>
+								{items?.map(({ account, pubkey }) => (
+									<tr key={pubkey.toString()}>
+										<td>
+											<div className="flex space-x-2">
+												<span className="font-mono">
+													<ExplorerLink label={ellipsify(pubkey.toString())} path={`account/${pubkey.toString()}`} />
+												</span>
+											</div>
+										</td>
+										<td>
+											<div className="flex space-x-2">
+												<span className="font-mono">
+													<ExplorerLink
+														label={ellipsify(account.data.parsed.info.mint)}
+														path={`account/${account.data.parsed.info.mint.toString()}`}
+													/>
+												</span>
+											</div>
+										</td>
+										<td className="text-right">
+											<span className="font-mono">{account.data.parsed.info.tokenAmount.uiAmount}</span>
+										</td>
+									</tr>
+								))}
 
-                {(query.data?.length ?? 0) > 5 && (
-                  <tr>
-                    <td colSpan={4} className="text-center">
-                      <button className="btn btn-xs btn-outline" onClick={() => setShowAll(!showAll)}>
-                        {showAll ? 'Show Less' : 'Show All'}
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  )
+								{(query.data?.length ?? 0) > 5 && (
+									<tr>
+										<td colSpan={4} className="text-center">
+											<button className="btn btn-xs btn-outline" onClick={() => setShowAll(!showAll)}>
+												{showAll ? 'Show Less' : 'Show All'}
+											</button>
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					)}
+				</div>
+			)}
+		</div>
+	)
 }
 
 export function AccountTransactions({ address }: { address: PublicKey }) {
-  const query = useGetSignatures({ address })
-  const [showAll, setShowAll] = useState(false)
+	const query = useGetSignatures({ address })
+	const [showAll, setShowAll] = useState(false)
 
-  const items = useMemo(() => {
-    if (showAll) return query.data
-    return query.data?.slice(0, 5)
-  }, [query.data, showAll])
+	const items = useMemo(() => {
+		if (showAll) return query.data
+		return query.data?.slice(0, 5)
+	}, [query.data, showAll])
 
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <h2 className="text-2xl font-bold">Transaction History</h2>
-        <div className="space-x-2">
-          {query.isLoading ? (
-            <span className="loading loading-spinner"></span>
-          ) : (
-            <button className="btn btn-sm btn-outline" onClick={() => query.refetch()}>
-              <IconRefresh size={16} />
-            </button>
-          )}
-        </div>
-      </div>
-      {query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
-      {query.isSuccess && (
-        <div>
-          {query.data.length === 0 ? (
-            <div>No transactions found.</div>
-          ) : (
-            <table className="table border-4 rounded-lg border-separate border-base-300">
-              <thead>
-                <tr>
-                  <th>Signature</th>
-                  <th className="text-right">Slot</th>
-                  <th>Block Time</th>
-                  <th className="text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items?.map((item) => (
-                  <tr key={item.signature}>
-                    <th className="font-mono">
-                      <ExplorerLink path={`tx/${item.signature}`} label={ellipsify(item.signature, 8)} />
-                    </th>
-                    <td className="font-mono text-right">
-                      <ExplorerLink path={`block/${item.slot}`} label={item.slot.toString()} />
-                    </td>
-                    <td>{new Date((item.blockTime ?? 0) * 1000).toISOString()}</td>
-                    <td className="text-right">
-                      {item.err ? (
-                        <div className="badge badge-error" title={JSON.stringify(item.err)}>
-                          Failed
-                        </div>
-                      ) : (
-                        <div className="badge badge-success">Success</div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {(query.data?.length ?? 0) > 5 && (
-                  <tr>
-                    <td colSpan={4} className="text-center">
-                      <button className="btn btn-xs btn-outline" onClick={() => setShowAll(!showAll)}>
-                        {showAll ? 'Show Less' : 'Show All'}
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  )
+	return (
+		<div className="space-y-2">
+			<div className="flex justify-between">
+				<h2 className="text-2xl font-bold">Transaction History</h2>
+				<div className="space-x-2">
+					{query.isLoading ? (
+						<span className="loading loading-spinner"></span>
+					) : (
+						<button className="btn btn-sm btn-outline" onClick={() => query.refetch()}>
+							<IconRefresh size={16} />
+						</button>
+					)}
+				</div>
+			</div>
+			{query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
+			{query.isSuccess && (
+				<div>
+					{query.data.length === 0 ? (
+						<div>No transactions found.</div>
+					) : (
+						<table className="table border-4 rounded-lg border-separate border-base-300">
+							<thead>
+								<tr>
+									<th>Signature</th>
+									<th className="text-right">Slot</th>
+									<th>Block Time</th>
+									<th className="text-right">Status</th>
+								</tr>
+							</thead>
+							<tbody>
+								{items?.map((item) => (
+									<tr key={item.signature}>
+										<th className="font-mono">
+											<ExplorerLink path={`tx/${item.signature}`} label={ellipsify(item.signature, 8)} />
+										</th>
+										<td className="font-mono text-right">
+											<ExplorerLink path={`block/${item.slot}`} label={item.slot.toString()} />
+										</td>
+										<td>{new Date((item.blockTime ?? 0) * 1000).toISOString()}</td>
+										<td className="text-right">
+											{item.err ? (
+												<div className="badge badge-error" title={JSON.stringify(item.err)}>
+													Failed
+												</div>
+											) : (
+												<div className="badge badge-success">Success</div>
+											)}
+										</td>
+									</tr>
+								))}
+								{(query.data?.length ?? 0) > 5 && (
+									<tr>
+										<td colSpan={4} className="text-center">
+											<button className="btn btn-xs btn-outline" onClick={() => setShowAll(!showAll)}>
+												{showAll ? 'Show Less' : 'Show All'}
+											</button>
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					)}
+				</div>
+			)}
+		</div>
+	)
 }
 
 function BalanceComponent({ balance }: { balance: number }) {
-  return <span>{Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000}</span>
+	return <span>{Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000}</span>
 }
 
 function ModalReceive({ hide, show, address }: { hide: () => void; show: boolean; address: PublicKey }) {
-  return (
-    <AppModal title="Receive" hide={hide} show={show}>
-      <p>Receive assets by sending them to your public key:</p>
-      <code>{address.toString()}</code>
-    </AppModal>
-  )
+	return (
+		<AppModal title="Receive" hide={hide} show={show}>
+			<p>Receive assets by sending them to your public key:</p>
+			<code>{address.toString()}</code>
+		</AppModal>
+	)
 }
 
 function ModalAirdrop({ hide, show, address }: { hide: () => void; show: boolean; address: PublicKey }) {
-  const mutation = useRequestAirdrop({ address })
-  const [amount, setAmount] = useState('2')
+	const mutation = useRequestAirdrop({ address })
+	const [amount, setAmount] = useState('2')
 
-  return (
-    <AppModal
-      hide={hide}
-      show={show}
-      title="Airdrop"
-      submitDisabled={!amount || mutation.isPending}
-      submitLabel="Request Airdrop"
-      submit={() => mutation.mutateAsync(parseFloat(amount)).then(() => hide())}
-    >
-      <input
-        disabled={mutation.isPending}
-        type="number"
-        step="any"
-        min="1"
-        placeholder="Amount"
-        className="input input-bordered w-full"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-      />
-    </AppModal>
-  )
+	return (
+		<AppModal
+			hide={hide}
+			show={show}
+			title="Airdrop"
+			submitDisabled={!amount || mutation.isPending}
+			submitLabel="Request Airdrop"
+			submit={() => mutation.mutateAsync(parseFloat(amount)).then(() => hide())}
+		>
+			<input
+				disabled={mutation.isPending}
+				type="number"
+				step="any"
+				min="1"
+				placeholder="Amount"
+				className="input input-bordered w-full"
+				value={amount}
+				onChange={(e) => setAmount(e.target.value)}
+			/>
+		</AppModal>
+	)
 }
 
 function ModalSend({ hide, show, address }: { hide: () => void; show: boolean; address: PublicKey }) {
-  const wallet = useWallet()
-  const mutation = useTransferBBA({ address })
-  const [destination, setDestination] = useState('')
-  const [amount, setAmount] = useState('1')
+	const wallet = useWallet()
+	const mutation = useTransferBBA({ address })
+	const [destination, setDestination] = useState('')
+	const [amount, setAmount] = useState('1')
 
-  if (!address || !wallet.sendTransaction) {
-    return <div>Wallet not connected</div>
-  }
+	if (!address || !wallet.sendTransaction) {
+		return <div>Wallet not connected</div>
+	}
 
-  return (
-    <AppModal
-      hide={hide}
-      show={show}
-      title="Send"
-      submitDisabled={!destination || !amount || mutation.isPending}
-      submitLabel="Send"
-      submit={() => {
-        mutation
-          .mutateAsync({
-            destination: new PublicKey(destination),
-            amount: parseFloat(amount),
-          })
-          .then(() => hide())
-      }}
-    >
-      <input
-        disabled={mutation.isPending}
-        type="text"
-        placeholder="Destination"
-        className="input input-bordered w-full"
-        value={destination}
-        onChange={(e) => setDestination(e.target.value)}
-      />
-      <input
-        disabled={mutation.isPending}
-        type="number"
-        step="any"
-        min="1"
-        placeholder="Amount"
-        className="input input-bordered w-full"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-      />
-    </AppModal>
-  )
-}
-
-function TokenCreator({ hide, show, address }: { hide: () => void; show: boolean; address: PublicKey }) {
-  const wallet = useWallet()
-  const mutation = useTokenCreator({ address })
-  const [tokenName, setTokenName] = useState('My Token Kelly')
-  const [tokenSymbol, setTokenSymbol] = useState('MTK')
-  const [tokenDecimals, setTokenDecimals] = useState('9')
-
-  if (!address || !wallet.sendTransaction) {
-    return <div>Wallet not connected</div>
-  }
-
-  return (
-    <AppModal
-      hide={hide}
-      show={show}
-      title="Token Creator"
-      submitDisabled={!tokenName || !tokenSymbol || mutation.isPending}
-      submitLabel="Create Token"
-      submit={() => {
-        mutation
-          .mutateAsync({
-            tokenName,
-            tokenSymbol,
-            tokenDecimals: parseInt(tokenDecimals),
-          })
-          .then(() => hide())
-      }}
-    >
-      <input
-        disabled={mutation.isPending}
-        type="text"
-        step="any"
-        placeholder="Token Name"
-        className="input input-bordered w-full"
-        value={tokenName}
-        onChange={(e) => setTokenName(e.target.value)}
-      />
-      <input
-        disabled={mutation.isPending}
-        type="text"
-        step="any"
-        placeholder="Token Symbol"
-        className="input input-bordered w-full"
-        value={tokenSymbol}
-        onChange={(e) => setTokenSymbol(e.target.value)}
-      />
-      <input
-        disabled={mutation.isPending}
-        type="text"
-        step="any"
-        placeholder="Token Decimals"
-        className="input input-bordered w-full"
-        value={tokenDecimals}
-        onChange={(e) => setTokenDecimals(e.target.value)}
-      />
-    </AppModal>
-  )
+	return (
+		<AppModal
+			hide={hide}
+			show={show}
+			title="Send"
+			submitDisabled={!destination || !amount || mutation.isPending}
+			submitLabel="Send"
+			submit={() => {
+				mutation
+					.mutateAsync({
+						destination: new PublicKey(destination),
+						amount: parseFloat(amount)
+					})
+					.then(() => hide())
+			}}
+		>
+			<input
+				disabled={mutation.isPending}
+				type="text"
+				placeholder="Destination"
+				className="input input-bordered w-full"
+				value={destination}
+				onChange={(e) => setDestination(e.target.value)}
+			/>
+			<input
+				disabled={mutation.isPending}
+				type="number"
+				step="any"
+				min="1"
+				placeholder="Amount"
+				className="input input-bordered w-full"
+				value={amount}
+				onChange={(e) => setAmount(e.target.value)}
+			/>
+		</AppModal>
+	)
 }
