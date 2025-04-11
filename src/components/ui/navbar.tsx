@@ -45,8 +45,6 @@ export default function Navbar() {
 						width={isMobile ? 95 : 175}
 						height={isMobile ? 31 : 57}
 						alt="Quick Token Logo"
-						placeholder="blur"
-						blurDataURL="/quick-token-logo-placeholder.svg"
 					/>
 				</FlowbiteNavbar.Brand>
 				<FlowbiteNavbar.Collapse className="md:flex hidden">

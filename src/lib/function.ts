@@ -1,5 +1,17 @@
 import { CreateBBATokenPayload } from './validation'
 
+type UploadToMetadataPayload = {
+	token_name: string
+	token_symbol: string
+	custom_decimals: number
+	token_supply: number
+	token_icon: File
+	description: string | null
+	revoke_freeze: boolean
+	revoke_mint: boolean
+	immutable_metadata: boolean
+}
+
 export const uploadIconToPinata = async (file: File) => {
 	const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY
 	const pinataSecret = process.env.NEXT_PUBLIC_PINATA_API_SECRET
@@ -26,7 +38,7 @@ export const uploadIconToPinata = async (file: File) => {
 	return `https://ipfs.io/ipfs/${data.IpfsHash}`
 }
 
-export const uploadMetadataToPinata = async (payload: CreateBBATokenPayload, imageUri: string) => {
+export const uploadMetadataToPinata = async (payload: UploadToMetadataPayload, imageUri: string) => {
 	const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY
 	const pinataSecret = process.env.NEXT_PUBLIC_PINATA_API_SECRET
 

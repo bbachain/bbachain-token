@@ -16,7 +16,7 @@ export const metadata = {
 	description:
 		'Effortlessly streamline token deployment across BBA network with our adaptable platform, engineered for seamless integration',
 	icons: {
-		icon: '/token-generator-favicon.svg'
+		icon: './token-generator-favicon.svg'
 	}
 }
 

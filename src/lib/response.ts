@@ -7,8 +7,8 @@ export type CreateTokenResponse = {
 		symbol: string
 		uri: string
 		iconUri: string
-		description: string
-		decimals: string
+		description: string | null
+		decimals: number
 	}
 	signature: string
 }

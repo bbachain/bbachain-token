@@ -1,5 +1,12 @@
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import {
+	Dialog,
+	DialogTitle,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader
+} from '@/components/ui/dialog'
 import { CreateTokenResponse } from '@/lib/response'
 import Image from 'next/image'
 import { useCluster } from '../cluster/cluster-data-access'
@@ -12,17 +19,19 @@ type SuccessDialogProps = {
 }
 
 export function SuccessDialog(props: SuccessDialogProps) {
-	const { isOpen, onOpenChange, data } = props
+	const { isOpen , onOpenChange, data } = props
 	const { getExplorerUrl } = useCluster()
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="md:w-[506px] w-[300px] md:max-h-[490px] max-h-[330px] h-full md:py-[77px] md:px-[35px] p-6 bg-main-white flex flex-col space-y-2 items-center justify-center">
-				<Image src={data.metadata.iconUri} width={134} height={156} alt={data.metadata.name + ' - image'} />
-				<h2 className="font-bold text-main-green text-[32px]">CONGRATULATIONS!</h2>
-				<p className="text-main-black font-light text-base">
-					Your token creation is complete. You can now explore and manage your newly generated token with ease.
-				</p>
+				<DialogHeader className="m-0 w-full items-center justify-center p-0">
+					<Image src={data.metadata.iconUri} width={134} height={156} alt={data.metadata.name + ' - image'} />
+					<DialogTitle className="font-bold text-main-green text-[32px]">CONGRATULATIONS!</DialogTitle>
+					<DialogDescription className="text-main-black font-light text-base">
+						Your token creation is complete. You can now explore and manage your newly generated token with ease.
+					</DialogDescription>
+				</DialogHeader>
 				<DialogFooter>
 					<a href={getExplorerUrl(`tx/${data.signature}`)} target="_blank" rel="noopener noreferrer">
 						<Button
