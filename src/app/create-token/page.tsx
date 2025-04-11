@@ -3,17 +3,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useForm } from 'react-hook-form'
-import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CreateBBATokenPayload, CreateBBATokenValidation } from '@/lib/validation'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import { Label, Textarea } from 'flowbite-react'
 import FileInput from '@/components/ui/file-input'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Loader2, InfoIcon } from 'lucide-react'
 import { SuccessDialog } from '@/components/ui/success-dialog'
@@ -21,11 +20,54 @@ import toast from 'react-hot-toast'
 import { useGetBalance, useRequestAirdrop, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/response'
 import { useCluster } from '@/components/cluster/cluster-data-access'
+import { PublicKey } from '@bbachain/web3.js'
+import { WalletButton } from '@/components/contexts/bbachain-provider'
+
+function NoBalanceAlert({ address }: { address: PublicKey }) {
+	const { cluster } = useCluster()
+	const requestAirdropMutation = useRequestAirdrop({ address: address })
+	return (
+		<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
+			<InfoIcon />
+			<AlertTitle className="ml-3 text-md">
+				{' '}
+				You are connected to <strong>{cluster.name}</strong> but your account is not found on this cluster.
+			</AlertTitle>
+			<Button
+				className="bg-main-green hover:bg-hover-green"
+				type="button"
+				disabled={requestAirdropMutation.isPending}
+				onClick={() =>
+					requestAirdropMutation
+						.mutateAsync(1)
+						.then((value) => toast.success('Successfully sent 1 BBA to your account'))
+						.catch((err) => console.log(err))
+				}
+			>
+				{requestAirdropMutation.isPending && <Loader2 className="animate-spin" />}
+				Request Airdrop
+			</Button>
+		</Alert>
+	)
+}
+
+function NoAdressAlert() {
+	return (
+		<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
+			<InfoIcon />
+			<AlertTitle className="ml-3 text-md">You need to connect to your wallet first before continue</AlertTitle>
+			<WalletButton />
+		</Alert>
+	)
+}
 
 export default function CreateToken() {
 	const { publicKey } = useWallet()
-	const router = useRouter()
-	const { cluster } = useCluster()
+
+	const address = useMemo(() => {
+		if (!publicKey) return
+		return publicKey
+	}, [publicKey])
 
 	const form = useForm<CreateBBATokenPayload>({
 		resolver: zodResolver(CreateBBATokenValidation),
@@ -41,9 +83,8 @@ export default function CreateToken() {
 		}
 	})
 
-	const requestAirdropMutation = useRequestAirdrop({ address: publicKey! })
-	const getTokenBalance = useGetBalance({ address: publicKey! })
-	const createTokenMutation = useTokenCreator({ address: publicKey! })
+	const getTokenBalance = useGetBalance({ address: address! })
+	const createTokenMutation = useTokenCreator({ address: address! })
 
 	const [isOpen, setIsOpen] = useState<boolean>(false)
 	const [previewIcon, setPreviewIcon] = useState<string | null>(null)
@@ -76,16 +117,16 @@ export default function CreateToken() {
 	}
 
 	useEffect(() => {
-		if (!publicKey) {
+		if (!address) {
 			toast.error('Please select your wallet first')
-			router.push('/')
 		}
-	}, [publicKey, router])
+	}, [address])
 
 	useEffect(() => {
 		if (createTokenMutation.isSuccess && createTokenMutation.data) {
 			setIsOpen(true)
 			setResponseData(createTokenMutation.data)
+			console.log(createTokenMutation.data)
 		}
 	}, [createTokenMutation.data, createTokenMutation.isSuccess])
 
@@ -95,7 +136,19 @@ export default function CreateToken() {
 		}
 	}, [createTokenMutation.error, createTokenMutation.isError])
 
-	if (getTokenBalance.isLoading)
+	useEffect(() => {
+		if (form.formState.errors.token_icon?.message) {
+			setTokenIconError(form.formState.errors.token_icon.message)
+		} else {
+			setTokenIconError(undefined)
+		}
+
+		return () => {
+			setTokenIconError(undefined)
+		}
+	}, [form.formState.errors.token_icon])
+
+	if (address && getTokenBalance.isLoading)
 		return (
 			<div className="h-full w-full  mt-60 flex flex-col space-y-3 items-center justify-center">
 				<Loader2 className="animate-spin" width={40} height={40} />
@@ -110,30 +163,8 @@ export default function CreateToken() {
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="lg:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 			>
-				{getTokenBalance.isError ||
-					(!getTokenBalance.data && (
-						<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
-							<InfoIcon />
-							<AlertTitle className="ml-3 text-md">
-								{' '}
-								You are connected to <strong>{cluster.name}</strong> but your account is not found on this cluster.
-							</AlertTitle>
-							<Button
-								className="bg-main-green hover:bg-hover-green"
-								type="button"
-								disabled={requestAirdropMutation.isPending}
-								onClick={() =>
-									requestAirdropMutation
-										.mutateAsync(1)
-										.then((value) => toast.success('Successfully sent 1 BBA to your account'))
-										.catch((err) => console.log(err))
-								}
-							>
-								{requestAirdropMutation.isPending && <Loader2 className="animate-spin" />}
-								Request Airdrop
-							</Button>
-						</Alert>
-					))}
+				{!address && <NoAdressAlert />}
+				{getTokenBalance.isError || (!getTokenBalance.data && address && <NoBalanceAlert address={address} />)}
 				<h1 className="text-center md:text-[55px] leading-tight text-[28px] font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
@@ -220,7 +251,7 @@ export default function CreateToken() {
 							/>
 						</div>
 						<div className="grid w-full  items-center gap-1.5">
-							<Label className={cn(tokenIconError && 'text-destructive')}>Token Icon</Label>
+							<Label className={cn(tokenIconError && '!text-destructive')}>Token Icon</Label>
 							<FileInput
 								preview={previewIcon}
 								handleDrop={handleDrop}
@@ -332,7 +363,7 @@ export default function CreateToken() {
 						<Button
 							type="submit"
 							disabled={createTokenMutation.isPending}
-							className="bg-main-green hover:bg-hover-green text-main-white w-full md:h-[62px] h-[34px] rounded-[43px] md:text-[27px] text-base"
+							className="bg-main-green File:bg-hover-green text-main-white w-full md:h-[62px] h-[34px] rounded-[43px] md:text-[27px] text-base"
 						>
 							{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
 							Create Your Token

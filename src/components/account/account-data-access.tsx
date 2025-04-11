@@ -198,6 +198,13 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				const mintKeypair = Keypair.generate()
 				const programId = new PublicKey('metabUBuFKTWPWAAARaQdNXUH6Sxk5tFGQjGEgWCvaX')
 
+				const mappedPayload = {
+					...input,
+					description: input.description === '' ? null : input.description,
+					custom_decimals: Number(input.custom_decimals),
+					token_supply: Number(input.token_supply)
+				}
+
 				// Create instructions to create a new mint account
 				const createAccountTx = new Transaction().add(
 					SystemProgram.createAccount({
@@ -209,7 +216,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 					}),
 					createInitializeMintInstruction(
 						mintKeypair.publicKey,
-						Number(input.custom_decimals),
+						mappedPayload.custom_decimals,
 						address,
 						null,
 						TOKEN_PROGRAM_ID
@@ -230,17 +237,17 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 					programId
 				)
 
-				const iconUri = await uploadIconToPinata(input.token_icon)
+				const iconUri = await uploadIconToPinata(mappedPayload.token_icon)
 
 				console.log('icon uri', iconUri)
 
-				const ipfsUri = await uploadMetadataToPinata(input, iconUri)
+				const ipfsUri = await uploadMetadataToPinata(mappedPayload, iconUri)
 
 				console.log('ipfs uri:', ipfsUri)
 
 				// Prepare the metadata
-				const nameBuffer = Buffer.from(input.token_name, 'utf8')
-				const symbolBuffer = Buffer.from(input.token_symbol, 'utf8')
+				const nameBuffer = Buffer.from(mappedPayload.token_name, 'utf8')
+				const symbolBuffer = Buffer.from(mappedPayload.token_symbol, 'utf8')
 				const uriBuffer = Buffer.from(ipfsUri, 'utf8')
 				const instructionData = Buffer.concat([
 					Buffer.from([0]), // Variant 0 = Initialize
@@ -274,12 +281,12 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 					accountAddress: address.toBase58(),
 					metadataAddress: metadataPda.toBase58(),
 					metadata: {
-						name: input.token_name,
-						symbol: input.token_symbol,
+						name: mappedPayload.token_name,
+						symbol: mappedPayload.token_symbol,
 						uri: ipfsUri,
 						iconUri,
-						description: input.description,
-						decimals: input.custom_decimals
+						description: mappedPayload.description,
+						decimals: mappedPayload.custom_decimals
 					},
 					signature: metadataSignature
 				}
