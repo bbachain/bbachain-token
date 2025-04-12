@@ -24,7 +24,7 @@ export function SuccessDialog(props: SuccessDialogProps) {
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className="md:w-[506px] w-[300px] md:max-h-[490px] max-h-[330px] h-full md:py-[77px] md:px-[35px] p-6 bg-main-white flex flex-col space-y-2 items-center justify-center">
+			<DialogContent className="md:w-[506px] w-[320px] md:max-h-[490px] max-h-[500px] h-full md:py-[77px] md:px-[35px] p-6 bg-main-white flex flex-col space-y-2 items-center justify-center">
 				<DialogHeader className="m-0 w-full items-center justify-center p-0">
 					<Image src={data.metadata.iconUri} width={134} height={156} alt={data.metadata.name + ' - image'} />
 					<DialogTitle className="font-bold text-main-green text-[32px]">CONGRATULATIONS!</DialogTitle>

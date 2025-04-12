@@ -1,7 +1,10 @@
 'use client'
 
 import {
+	createAssociatedTokenAccountInstruction,
 	createInitializeMintInstruction,
+	createMintToInstruction,
+	getAssociatedTokenAddress,
 	getMinimumBalanceForRentExemptMint,
 	MINT_SIZE,
 	TOKEN_2022_PROGRAM_ID,
@@ -184,19 +187,21 @@ async function createTransaction({
 }
 
 export function useTokenCreator({ address }: { address: PublicKey }) {
-	const wallet = useWallet()
+	const { publicKey, sendTransaction } = useWallet()
 	const { connection } = useConnection()
 	const client = useQueryClient()
 
 	return useMutation({
 		mutationKey: ['token-creator', { endpoint: connection.rpcEndpoint }],
 		mutationFn: async (input: CreateBBATokenPayload) => {
+			if (!publicKey) throw new Error('Wallet not connected')
 			try {
 				// Get the latest blockhash to use in our transaction
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
 				const latestBlockhash = await connection.getLatestBlockhash()
 				const mintKeypair = Keypair.generate()
 				const programId = new PublicKey('metabUBuFKTWPWAAARaQdNXUH6Sxk5tFGQjGEgWCvaX')
+				const tokenATA = await getAssociatedTokenAddress(mintKeypair.publicKey, publicKey)
 
 				const mappedPayload = {
 					...input,
@@ -220,6 +225,13 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 						address,
 						null,
 						TOKEN_PROGRAM_ID
+					),
+					createAssociatedTokenAccountInstruction(publicKey, tokenATA, publicKey, mintKeypair.publicKey),
+					createMintToInstruction(
+						mintKeypair.publicKey,
+						tokenATA,
+						publicKey, // mint authority
+						mappedPayload.token_supply * Math.pow(10, mappedPayload.custom_decimals)
 					)
 				)
 				createAccountTx.recentBlockhash = latestBlockhash.blockhash
@@ -227,7 +239,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 
 				// Paritially sign the transaction with the mint keypair
 				createAccountTx.partialSign(mintKeypair)
-				const createSignature = await wallet.sendTransaction(createAccountTx, connection)
+				const createSignature = await sendTransaction(createAccountTx, connection)
 
 				await connection.confirmTransaction({ signature: createSignature, ...latestBlockhash }, 'confirmed')
 
@@ -238,12 +250,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				)
 
 				const iconUri = await uploadIconToPinata(mappedPayload.token_icon)
-
-				console.log('icon uri', iconUri)
-
 				const ipfsUri = await uploadMetadataToPinata(mappedPayload, iconUri)
-
-				console.log('ipfs uri:', ipfsUri)
 
 				// Prepare the metadata
 				const nameBuffer = Buffer.from(mappedPayload.token_name, 'utf8')
@@ -272,7 +279,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				metadataTx.recentBlockhash = latestBlockhash.blockhash
 				metadataTx.feePayer = address
 
-				const metadataSignature = await wallet.sendTransaction(metadataTx, connection)
+				const metadataSignature = await sendTransaction(metadataTx, connection)
 
 				await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
 
