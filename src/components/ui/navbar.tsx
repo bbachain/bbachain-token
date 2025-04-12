@@ -9,6 +9,7 @@ import ThemeImage from './theme-image'
 import { Skeleton } from './skeleton'
 import { Switch } from './switch'
 import { WalletButton } from '../contexts/bbachain-provider'
+import { ClusterUiSelect } from '../cluster/cluster-ui'
 
 function ThemeSwitch() {
 	const [mounted, setMounted] = useState<boolean>(false)
@@ -36,8 +37,8 @@ export default function Navbar() {
 	const isMobile = useIsMobile()
 
 	return (
-		<FlowbiteNavbar className="lg:px-24 md:px-12 px-4 fixed !bg-main-white z-50 w-full" fluid rounded>
-			<div className="flex items-center space-x-[35px]">
+		<FlowbiteNavbar className="lg:px-24 md:px-5 px-4 fixed !bg-main-white z-50 w-full" fluid rounded>
+			<div className="flex items-center md:space-x-5 lg:space-x-[35px]">
 				<FlowbiteNavbar.Brand href="/">
 					<ThemeImage
 						lightSrc={`/quick-token-logo-light.svg`}
@@ -72,8 +73,9 @@ export default function Navbar() {
 				</FlowbiteNavbar.Collapse>
 			</div>
 
-			<div className="flex items-center md:space-x-9 md:order-2">
+			<div className="flex items-center  md:space-x-4 lg:space-x-9 md:order-2">
 				<WalletButton />
+				<ClusterUiSelect className="hidden md:block" />
 				<FlowbiteNavbar.Toggle />
 				<div className="md:block hidden">
 					<ThemeSwitch />
@@ -96,11 +98,12 @@ export default function Navbar() {
 				</FlowbiteNavbar.Link>
 				<FlowbiteNavbar.Link
 					as={Link}
-					className="text-sm border-none p-0 font-normal mb-5 hover:!text-[#19DC00] md:text-[#333333]"
+					className="text-sm border-none p-0 font-normal mb-3 hover:!text-[#19DC00] md:text-[#333333]"
 					href="/contact"
 				>
 					Contact
 				</FlowbiteNavbar.Link>
+				<ClusterUiSelect className="md:hidden block mb-5" />
 				<div className="md:hidden block">
 					<ThemeSwitch />
 				</div>
