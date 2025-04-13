@@ -6,7 +6,7 @@ import {
   WalletProvider,
 } from "@bbachain/wallet-adapter-react";
 import { WalletModalProvider } from "@bbachain/wallet-adapter-react-ui";
-import { UnsafeBurnerWalletAdapter } from "@bbachain/wallet-adapter-wallets";
+import { BBAWalletAdapter, UnsafeBurnerWalletAdapter } from "@bbachain/wallet-adapter-wallets";
 import dynamic from "next/dynamic";
 import { ReactNode, useCallback, useMemo } from "react";
 import { useCluster } from "../cluster/cluster-data-access";
@@ -25,7 +25,10 @@ export function BBAChainProvider({ children }: { children: ReactNode }) {
   const { cluster } = useCluster();
   const endpoint = useMemo(() => cluster.endpoint, [cluster]);
 
-  const wallets = useMemo(() => [new UnsafeBurnerWalletAdapter()], []);
+  const wallets = useMemo(() => [
+    new BBAWalletAdapter(),
+    new UnsafeBurnerWalletAdapter(),
+  ], []);
 
   const onError = useCallback((error: WalletError) => {
     console.error(error);
