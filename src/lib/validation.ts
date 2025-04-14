@@ -1,14 +1,16 @@
 import { z } from 'zod'
 
 const REQUIRED_MESSAGE = 'This field is required'
-const INVALID_NUMBER_MESSAGE = 'Invalid number format'
 const INVALID_SIZE_IMAGE_MESSAGE = 'Image size must be less than 5MB'
 const INVALID_TYPE_FILE_MESSAGE = 'Only .jpg, .jpeg, and .png files are accepted'
+const INVALID_NUMBER_FORMAT = 'This field should be non-negative number'
+const INVALID_DECIMALS_RANGE = 'Decimals must be a number between 0 and 12'
 
 const MAX_SUPPLY_RAW = BigInt('18446744073709551615')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
-const numberWithDecimalsRegex = /^-?\d+(\.\d+)?$/
+const POSITIVE_NUMBER_REGEX = /^\d+$/
+const ZERO_TO_TWELVE_RANGE_REGEX = /^(0|[1-9]|1[0-2])$/
 
 export const CreateBBATokenValidation = z
 	.object({
@@ -17,15 +19,18 @@ export const CreateBBATokenValidation = z
 		custom_decimals: z
 			.string()
 			.min(1, { message: REQUIRED_MESSAGE })
-			.regex(/^\d+$/, { message: 'Decimals must be a non-negative whole number' }),
-		token_supply: z.string().min(1, { message: REQUIRED_MESSAGE }),
-		// .regex(numberWithDecimalsRegex, { message: 'Invalid number format.' }),
+			.regex(POSITIVE_NUMBER_REGEX, { message: INVALID_NUMBER_FORMAT })
+			.regex(ZERO_TO_TWELVE_RANGE_REGEX, { message: INVALID_DECIMALS_RANGE }),
+		token_supply: z
+			.string()
+			.min(1, { message: REQUIRED_MESSAGE })
+			.regex(POSITIVE_NUMBER_REGEX, { message: INVALID_NUMBER_FORMAT }),
 		token_icon: z
 			.custom<File>((file) => file instanceof File, {
-				message: 'Token icon is required and must be a valid image file'
+				message: REQUIRED_MESSAGE
 			})
-			.refine((file) => file.size <= MAX_FILE_SIZE, 'Image size must be less than 5MB')
-			.refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), 'Only .jpg, .jpeg, and .png files are accepted'),
+			.refine((file) => file.size <= MAX_FILE_SIZE, INVALID_SIZE_IMAGE_MESSAGE)
+			.refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), INVALID_TYPE_FILE_MESSAGE),
 		description: z.string(),
 		revoke_freeze: z.boolean({ required_error: REQUIRED_MESSAGE }),
 		revoke_mint: z.boolean({ required_error: REQUIRED_MESSAGE }),

@@ -178,7 +178,6 @@ export default function CreateToken() {
 				<h1 className="text-center md:text-[55px] leading-tight text-[28px] font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
-				<p>{form.formState.errors.token_supply?.message}</p>
 				<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 					<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
 						<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
@@ -374,7 +373,7 @@ export default function CreateToken() {
 						<Button
 							type="submit"
 							disabled={createTokenMutation.isPending}
-							className="bg-main-green File:bg-hover-green text-main-white w-full md:h-[62px] h-[34px] rounded-[43px] md:text-[27px] text-base"
+							className="bg-main-green hover:bg-hover-green text-main-white w-full md:h-[62px] h-[34px] rounded-[43px] md:text-[27px] text-base"
 						>
 							{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
 							Create Your Token
