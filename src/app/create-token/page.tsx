@@ -15,13 +15,15 @@ import FileInput from '@/components/ui/file-input'
 import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Loader2, InfoIcon } from 'lucide-react'
-import { SuccessDialog } from '@/components/ui/success-dialog'
+import { SuccessDialog } from '@/components/createToken/success-dialog'
 import toast from 'react-hot-toast'
 import { useGetBalance, useRequestAirdrop, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/response'
 import { useCluster } from '@/components/cluster/cluster-data-access'
 import { PublicKey } from '@bbachain/web3.js'
 import { WalletButton } from '@/components/contexts/bbachain-provider'
+
+const LIMIT_OF_SIXTH_DECIMALS = 18_000_000
 
 function NoBalanceAlert({ address }: { address: PublicKey }) {
 	const { cluster } = useCluster()
@@ -70,6 +72,7 @@ export default function CreateToken() {
 	}, [publicKey])
 
 	const form = useForm<CreateBBATokenPayload>({
+		mode: 'all',
 		resolver: zodResolver(CreateBBATokenValidation),
 		defaultValues: {
 			token_name: '',
@@ -82,6 +85,8 @@ export default function CreateToken() {
 			immutable_metadata: false
 		}
 	})
+
+	const watchTokenSupply = form.watch('token_supply')
 
 	const getTokenBalance = useGetBalance({ address: address! })
 	const createTokenMutation = useTokenCreator({ address: address! })
@@ -148,6 +153,11 @@ export default function CreateToken() {
 		}
 	}, [form.formState.errors.token_icon])
 
+	useEffect(() => {
+		const supply = parseFloat(watchTokenSupply)
+		if (supply > LIMIT_OF_SIXTH_DECIMALS) form.setValue('custom_decimals', '6')
+	}, [form, watchTokenSupply])
+
 	if (address && getTokenBalance.isLoading)
 		return (
 			<div className="h-full w-full  mt-60 flex flex-col space-y-3 items-center justify-center">
@@ -168,6 +178,7 @@ export default function CreateToken() {
 				<h1 className="text-center md:text-[55px] leading-tight text-[28px] font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
+				<p>{form.formState.errors.token_supply?.message}</p>
 				<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 					<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
 						<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
