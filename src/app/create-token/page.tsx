@@ -13,7 +13,7 @@ import { useWallet } from '@bbachain/wallet-adapter-react'
 import FileInput from '@/components/createToken/file-input'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, ChevronRight, ChevronLeft } from 'lucide-react'
-import { SuccessDialog } from '@/components/createToken/dialog'
+import { ErrorDialog, SuccessDialog } from '@/components/createToken/dialog'
 import toast from 'react-hot-toast'
 import { useGetBalance, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/response'
@@ -44,6 +44,12 @@ const createTokenSteps = [
 	}
 ]
 
+const initialErrorDialogState = {
+	isOpen: false,
+	title: '',
+	description: ''
+}
+
 export default function CreateToken() {
 	const { publicKey } = useWallet()
 
@@ -73,10 +79,11 @@ export default function CreateToken() {
 	const createTokenMutation = useTokenCreator({ address: address! })
 
 	const [currentStep, setCurrentStep] = useState<number>(0)
-	const [isOpen, setIsOpen] = useState<boolean>(false)
+	const [isSuccessOpen, setIsSuccessOpen] = useState<boolean>(false)
 	const [previewIcon, setPreviewIcon] = useState<string | null>(null)
 	const [tokenIconError, setTokenIconError] = useState<string | undefined>(undefined)
 	const [responseData, setResponseData] = useState<CreateTokenResponse | null>(null)
+	const [errorDialogState, setErrorDialogState] = useState(initialErrorDialogState)
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -87,10 +94,10 @@ export default function CreateToken() {
 		if (!isValid) return
 
 		if (currentStep < createTokenSteps.length - 1) {
-			if (currentStep === createTokenSteps.length - 1) {
-				return await form.handleSubmit(onSubmit)()
-			}
 			setCurrentStep((step) => step + 1)
+		} else if (currentStep === createTokenSteps.length - 1) {
+			console.log('test bruh')
+			await form.handleSubmit(onSubmit)()
 		}
 	}
 
@@ -122,7 +129,11 @@ export default function CreateToken() {
 			const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
 
 			if (!isValid) {
-				toast.error(form.formState?.errors?.token_icon?.message ?? '')
+				setErrorDialogState({
+					isOpen: true,
+					title: `We couldn't upload your image`,
+					description: form.formState?.errors?.token_icon?.message ?? ''
+				})
 				form.setValue('token_icon', undefined as unknown as File)
 				form.clearErrors('token_icon')
 				setPreviewIcon(null)
@@ -147,7 +158,7 @@ export default function CreateToken() {
 
 	useEffect(() => {
 		if (createTokenMutation.isSuccess && createTokenMutation.data) {
-			setIsOpen(true)
+			setIsSuccessOpen(true)
 			setResponseData(createTokenMutation.data)
 			console.log(createTokenMutation.data)
 		}
@@ -155,7 +166,11 @@ export default function CreateToken() {
 
 	useEffect(() => {
 		if (createTokenMutation.isError && createTokenMutation.error) {
-			toast.error(`Transaction Failed ${createTokenMutation.error.message}`)
+			setErrorDialogState({
+				isOpen: true,
+				title: `Something went wrong while creating your token.`,
+				description: createTokenMutation.error.message ?? ''
+			})
 		}
 	}, [createTokenMutation.error, createTokenMutation.isError])
 
@@ -186,20 +201,31 @@ export default function CreateToken() {
 
 	return (
 		<Form {...form}>
-			{responseData && <SuccessDialog isOpen={isOpen} onOpenChange={setIsOpen} data={responseData} />}
+			{responseData && <SuccessDialog isOpen={isSuccessOpen} onOpenChange={setIsSuccessOpen} data={responseData} />}
+			<ErrorDialog
+				isOpen={errorDialogState.isOpen}
+				onOpenChange={(open: boolean) =>
+					setErrorDialogState((prev) => ({
+						...prev,
+						isOpen: open
+					}))
+				}
+				title={errorDialogState.title}
+				description={errorDialogState.description}
+			/>
 			<form
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="lg:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 			>
 				{!address && <NoAdressAlert />}
 				{getTokenBalance.isError || (!getTokenBalance.data && address && <NoBalanceAlert address={address} />)}
-				<h1 className="text-center md:text-[55px] leading-tight text-[28px] font-bold text-main-black">
+				<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
 				{currentStep === 0 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Token Details</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Basic details about your token
 							</CardDescription>
@@ -279,7 +305,6 @@ export default function CreateToken() {
 									)}
 								/>
 							</div>
-
 							<FormField
 								control={form.control}
 								name="description"
@@ -303,7 +328,7 @@ export default function CreateToken() {
 				{currentStep === 1 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Icon</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Token Icon</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Enhance your token with a stunning icon!
 							</CardDescription>
@@ -324,7 +349,7 @@ export default function CreateToken() {
 				{currentStep === 2 && (
 					<Card className="w-full border-hover-green border-[1px] md:p-9 p-3 rounded-[16px] drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Features</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Features</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Extra feature for your token
 							</CardDescription>
@@ -400,7 +425,7 @@ export default function CreateToken() {
 				{currentStep === 3 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Deploy Token</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Deploy Token</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Ready to create the Token
 							</CardDescription>
@@ -418,21 +443,23 @@ export default function CreateToken() {
 						<Button
 							type="button"
 							onClick={onPrev}
-							className="dark:bg-white bg-[#67676759] flex justify-center items-center text-center text-main-white md:h-[62px] h-[34px] px-6 py-3 rounded-[43px] md:text-[27px] text-base"
+							className="dark:bg-white bg-[#67676759] flex justify-center items-center text-center text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
 						>
-							<ChevronLeft className="min-w-[30px] min-h-[30px]" />
-							<p className="w-[72px]">Back</p>
+							<ChevronLeft className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
+							<p className="md:min-w-[72px] min-w-[46px]">Back</p>
 						</Button>
 					)}
 					<Button
 						type="button"
 						onClick={onNext}
 						disabled={createTokenMutation.isPending}
-						className="bg-main-green text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[62px] h-[34px] px-6 py-3 rounded-[43px] md:text-[27px] text-base"
+						className="bg-main-green text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
 					>
 						{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
-						<p className="w-[72px]">{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}</p>
-						<ChevronRight className="min-w-[30px] min-h-[30px]" />
+						<p className="md:min-w-[72px] min-w-[46px]">
+							{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}
+						</p>
+						<ChevronRight className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
 					</Button>
 				</section>
 			</form>

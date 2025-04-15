@@ -13,7 +13,7 @@ export function NoBalanceAlert({ address }: { address: PublicKey }) {
 	const { cluster } = useCluster()
 	const requestAirdropMutation = useRequestAirdrop({ address: address })
 	return (
-		<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
+		<Alert className="flex md:flex-row flex-col items-center justify-between dark:border-yellow-300 border-yellow-400">
 			<InfoIcon />
 			<AlertTitle className="ml-3 text-md">
 				{' '}
@@ -39,7 +39,7 @@ export function NoBalanceAlert({ address }: { address: PublicKey }) {
 
 export function NoAdressAlert() {
 	return (
-		<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
+		<Alert className="flex md:flex-row flex-col items-center justify-between dark:border-yellow-300 border-yellow-400">
 			<InfoIcon />
 			<AlertTitle className="ml-3 text-md">You need to connect to your wallet first before continue</AlertTitle>
 			<WalletButton />

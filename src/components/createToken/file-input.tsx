@@ -56,13 +56,13 @@ export default function FileInput(props: FileInputProps) {
 						<>
 							<Image src="/upload_icon_logo.svg" width={104} height={75.63} alt="upload icon logo" />
 							<div className="mt-6 text-center">
-								<h4 className="text-2xl">Choose a file or drag & drop it here</h4>
-								<p className="text-xl mb-6 mt-[15px]">JPEG, PNG, SVG formats, up to 5MB</p>
+								<h4 className="md:text-2xl text-sm font-normal">Choose a file or drag & drop it here</h4>
+								<p className="md:text-xl text-sm mb-6 mt-[15px]">JPEG, PNG, SVG formats, up to 5MB</p>
 								<Button
 									variant="outline"
 									type="button"
 									onClick={triggerFileInput}
-									className="rounded-[44px] h-full border-2 md:text-2xl md:px-[30px] px-[18px] md:py-3 py-2 font-medium text-[#54575C] border-[#CBD0DC]"
+									className="rounded-[44px] h-full border-2 md:text-2xl text-base md:px-[30px] px-[18px] md:py-3 py-2 font-medium text-[#54575C] border-[#CBD0DC]"
 								>
 									Browse File
 								</Button>
@@ -72,7 +72,7 @@ export default function FileInput(props: FileInputProps) {
 				</div>
 			</Label>
 			<FlowbiteFileInput ref={fileInputRef} id="dropzone-file" className="hidden" onChange={handleFileChange} />
-			{errorMessage && <p className="text-lg text-center font-medium text-destructive">{errorMessage}</p>}
+			{errorMessage && <p className="md:text-lg text-sm text-center font-medium text-destructive">{errorMessage}</p>}
 		</div>
 	)
 }
