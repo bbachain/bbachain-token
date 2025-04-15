@@ -1,21 +1,23 @@
 import { z } from 'zod'
+import Decimal from 'decimal.js'
 
 const REQUIRED_MESSAGE = 'This field is required'
 const INVALID_SIZE_IMAGE_MESSAGE = 'Image size must be less than 5MB'
 const INVALID_TYPE_FILE_MESSAGE = 'Only .jpg, .jpeg, and .png files are accepted'
-const INVALID_NUMBER_FORMAT = 'This field should be non-negative number'
+const INVALID_NUMBER_FORMAT = 'Only non-negative whole numbers are allowed (no commas or decimals).'
 const INVALID_DECIMALS_RANGE = 'Decimals must be a number between 0 and 12'
 
-const MAX_SUPPLY_RAW = BigInt('18446744073709551615')
+const MAX_SUPPLY_RAW = new Decimal('18446744073709551615')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
 const POSITIVE_NUMBER_REGEX = /^\d+$/
 const ZERO_TO_TWELVE_RANGE_REGEX = /^(0|[1-9]|1[0-2])$/
 
-export const CreateBBATokenValidation = z
+export const CreateBasicTokenValidation = z
 	.object({
 		token_name: z.string().min(1, { message: REQUIRED_MESSAGE }),
 		token_symbol: z.string().min(1, { message: REQUIRED_MESSAGE }),
+		description: z.string(),
 		custom_decimals: z
 			.string()
 			.min(1, { message: REQUIRED_MESSAGE })
@@ -24,33 +26,22 @@ export const CreateBBATokenValidation = z
 		token_supply: z
 			.string()
 			.min(1, { message: REQUIRED_MESSAGE })
-			.regex(POSITIVE_NUMBER_REGEX, { message: INVALID_NUMBER_FORMAT }),
-		token_icon: z
-			.custom<File>((file) => file instanceof File, {
-				message: REQUIRED_MESSAGE
-			})
-			.refine((file) => file.size <= MAX_FILE_SIZE, INVALID_SIZE_IMAGE_MESSAGE)
-			.refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), INVALID_TYPE_FILE_MESSAGE),
-		description: z.string(),
-		revoke_freeze: z.boolean({ required_error: REQUIRED_MESSAGE }),
-		revoke_mint: z.boolean({ required_error: REQUIRED_MESSAGE }),
-		immutable_metadata: z.boolean({ required_error: REQUIRED_MESSAGE })
+			.regex(POSITIVE_NUMBER_REGEX, { message: INVALID_NUMBER_FORMAT })
 	})
 	.superRefine((data, ctx) => {
-		const supply = parseFloat(data.token_supply)
-		const decimals = parseInt(data.custom_decimals)
-
-		if (isNaN(supply) || isNaN(decimals)) return
-
 		try {
-			const rawSupply = BigInt(Math.floor(supply * 10 ** decimals))
-			const maxSupply = MAX_SUPPLY_RAW / BigInt(10 ** decimals)
+			const supply = new Decimal(data.token_supply)
+			const decimals = new Decimal(data.custom_decimals)
 
-			if (rawSupply > maxSupply) {
+			const rawSupply = supply.mul(new Decimal(10).pow(decimals))
+
+			if (rawSupply.gt(MAX_SUPPLY_RAW)) {
+				const maxDisplaySupply = MAX_SUPPLY_RAW.div(new Decimal(10).pow(decimals))
+				const truncatedSupply = Math.floor(maxDisplaySupply.toNumber()).toString()
 				ctx.addIssue({
 					path: ['token_supply'],
 					code: z.ZodIssueCode.custom,
-					message: `Token supply is too large for the selected decimals. Max allowed is ${maxSupply.toString()}`
+					message: `Token supply is too large for the selected decimals. Max allowed is ${truncatedSupply}`
 				})
 			}
 		} catch {
@@ -61,5 +52,25 @@ export const CreateBBATokenValidation = z
 			})
 		}
 	})
+
+export const CreateIconTokenValidation = z.object({
+	token_icon: z
+		.custom<File>((file) => file instanceof File, {
+			message: REQUIRED_MESSAGE
+		})
+		.refine((file) => file.size <= MAX_FILE_SIZE, INVALID_SIZE_IMAGE_MESSAGE)
+		.refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), INVALID_TYPE_FILE_MESSAGE)
+})
+
+export const CreateFeatureTokenValidation = z.object({
+	revoke_freeze: z.boolean({ required_error: REQUIRED_MESSAGE }),
+	revoke_mint: z.boolean({ required_error: REQUIRED_MESSAGE }),
+	immutable_metadata: z.boolean({ required_error: REQUIRED_MESSAGE })
+})
+
+export const CreateBBATokenValidation = z.intersection(
+	CreateBasicTokenValidation,
+	CreateIconTokenValidation.merge(CreateFeatureTokenValidation)
+)
 
 export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>

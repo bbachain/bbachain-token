@@ -23,7 +23,30 @@ import { useCluster } from '@/components/cluster/cluster-data-access'
 import { PublicKey } from '@bbachain/web3.js'
 import { WalletButton } from '@/components/contexts/bbachain-provider'
 
+type FieldName = keyof CreateBBATokenPayload
 const LIMIT_OF_SIXTH_DECIMALS = 18_000_000
+
+const createTokenSteps = [
+	{
+		id: 1,
+		name: 'Token Details',
+		fields: ['token_name', 'token_symbol', 'custom_decimals', 'token_supply', 'description']
+	},
+	{
+		id: 2,
+		name: 'Token Icon',
+		fields: ['token_icon']
+	},
+	{
+		id: 3,
+		name: 'Features',
+		fields: ['revoke_freeze', 'revoke_mint', 'immutable_metadata']
+	},
+	{
+		id: 4,
+		name: 'Create Token'
+	}
+]
 
 function NoBalanceAlert({ address }: { address: PublicKey }) {
 	const { cluster } = useCluster()
@@ -91,10 +114,31 @@ export default function CreateToken() {
 	const getTokenBalance = useGetBalance({ address: address! })
 	const createTokenMutation = useTokenCreator({ address: address! })
 
+	const [currentStep, setCurrentStep] = useState<number>(0)
 	const [isOpen, setIsOpen] = useState<boolean>(false)
 	const [previewIcon, setPreviewIcon] = useState<string | null>(null)
 	const [tokenIconError, setTokenIconError] = useState<string | undefined>(undefined)
 	const [responseData, setResponseData] = useState<CreateTokenResponse | null>(null)
+
+	const onNext = async () => {
+		const fields = createTokenSteps[currentStep].fields
+		const output = await form.trigger(fields as FieldName[], { shouldFocus: true })
+
+		if (!output) return
+
+		if (currentStep < createTokenSteps.length - 1) {
+			if (currentStep === createTokenSteps.length - 1) {
+				return await form.handleSubmit(onSubmit)()
+			}
+			setCurrentStep((step) => step + 1)
+		}
+	}
+
+	const onPrev = () => {
+		if (currentStep > 0) {
+			setCurrentStep((step) => step - 1)
+		}
+	}
 
 	const onSubmit = (payload: CreateBBATokenPayload) => createTokenMutation.mutate(payload)
 
@@ -178,26 +222,100 @@ export default function CreateToken() {
 				<h1 className="text-center md:text-[55px] leading-tight text-[28px] font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
-				<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
-					<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-						<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
-						<CardDescription className="md:text-xl text-base text-light-grey">
-							Basic details about your token
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="flex flex-col md:space-y-[25px] space-y-3 p-0">
-						<div className="grid md:grid-cols-2 md:gap-[25px] gap-3">
+				{currentStep === 0 && (
+					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
+						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
+							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
+							<CardDescription className="md:text-xl text-base text-light-grey">
+								Basic details about your token
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col md:space-y-[25px] space-y-3 p-0">
+							<div className="grid md:grid-cols-2 md:gap-[25px] gap-3">
+								<FormField
+									control={form.control}
+									name="token_name"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Token Name</FormLabel>
+											<FormControl>
+												<Input
+													className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
+													type="text"
+													placeholder="Enter Token Name"
+													{...field}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="token_symbol"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Token Symbol</FormLabel>
+											<FormControl>
+												<Input
+													className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
+													type="text"
+													placeholder="Enter Token Symbol"
+													{...field}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="custom_decimals"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Custom Decimals</FormLabel>
+											<FormControl>
+												<Input
+													className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
+													type="number"
+													placeholder="Enter Custom Decimals"
+													{...field}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="token_supply"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Token Supply</FormLabel>
+											<FormControl>
+												<Input
+													className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
+													type="number"
+													placeholder="Enter Token Supply"
+													{...field}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+
 							<FormField
 								control={form.control}
-								name="token_name"
+								name="description"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Token Name</FormLabel>
+										<FormLabel>Description</FormLabel>
 										<FormControl>
-											<Input
-												className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
-												type="text"
-												placeholder="Enter Token Name"
+											<Textarea
+												className="h-[255px] !bg-box dark:border-input dark:focus-visible:ring-hover-green dark:focus:border-hover-green focus-visible:ring-hover-green focus:border-hover-green"
+												placeholder="Add the token description"
 												{...field}
 											/>
 										</FormControl>
@@ -205,162 +323,106 @@ export default function CreateToken() {
 									</FormItem>
 								)}
 							/>
+						</CardContent>
+					</Card>
+				)}
+				{currentStep === 1 && (
+					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
+						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
+							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
+							<CardDescription className="md:text-xl text-base text-light-grey">
+								Basic details about your token
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col md:space-y-[25px] space-y-3 p-0">
+							<div className="grid w-full  items-center gap-1.5">
+								<Label className={cn(tokenIconError && '!text-destructive')}>Token Icon</Label>
+								<FileInput
+									preview={previewIcon}
+									handleDrop={handleDrop}
+									handleFileChange={handleFileChange}
+									errorMessage={tokenIconError}
+								/>
+							</div>
+						</CardContent>
+					</Card>
+				)}
+				{currentStep === 2 && (
+					<Card className="w-full border-hover-green border-[1px] md:p-9 p-3 rounded-[16px] drop-shadow-lg">
+						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
+							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Features</CardTitle>
+							<CardDescription className="md:text-xl text-base text-light-grey">
+								Extra feature for your token
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col space-y-[25px] p-0">
 							<FormField
 								control={form.control}
-								name="token_symbol"
+								name="revoke_freeze"
 								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Token Symbol</FormLabel>
+									<FormItem className="flex items-center justify-between">
+										<div className="w-full">
+											<FormLabel className="text-lg font-normal text-main-black">Revoke Freeze</FormLabel>
+											<FormDescription className="text-[15px] text-light-grey">
+												To create a liquidity pool, it&apos;s necessary to Revoke Freeze Authority of the Token.
+											</FormDescription>
+										</div>
 										<FormControl>
-											<Input
-												className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
-												type="text"
-												placeholder="Enter Token Symbol"
-												{...field}
+											<Switch
+												classNames={{ root: 'h-7 w-14', thumb: 'h-6 w-8' }}
+												checked={field.value}
+												onCheckedChange={field.onChange}
 											/>
 										</FormControl>
-										<FormMessage />
 									</FormItem>
 								)}
 							/>
 							<FormField
 								control={form.control}
-								name="custom_decimals"
+								name="revoke_mint"
 								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Custom Decimals</FormLabel>
+									<FormItem className="flex items-center justify-between">
+										<div className="w-full">
+											<FormLabel className="text-lg font-normal text-main-black">Revoke Mint</FormLabel>
+											<FormDescription className="text-[15px] text-light-grey">
+												Another essential step to ensure reliability among users is revoking the mint authority.
+											</FormDescription>
+										</div>
 										<FormControl>
-											<Input
-												className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
-												type="number"
-												placeholder="Enter Custom Decimals"
-												{...field}
+											<Switch
+												classNames={{ root: 'h-7 w-14', thumb: 'h-6 w-8' }}
+												checked={field.value}
+												onCheckedChange={field.onChange}
 											/>
 										</FormControl>
-										<FormMessage />
 									</FormItem>
 								)}
 							/>
 							<FormField
 								control={form.control}
-								name="token_supply"
+								name="immutable_metadata"
 								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Token Supply</FormLabel>
+									<FormItem className="flex items-center justify-between">
+										<div className="w-full">
+											<FormLabel className="text-lg font-normal text-main-black">Immutable Metadata</FormLabel>
+											<FormDescription className="text-[15px] text-light-grey">
+												Enhance security and trust by locking token metadata.
+											</FormDescription>
+										</div>
 										<FormControl>
-											<Input
-												className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
-												type="number"
-												placeholder="Enter Token Supply"
-												{...field}
+											<Switch
+												classNames={{ root: 'h-7 w-14', thumb: 'h-6 w-8' }}
+												checked={field.value}
+												onCheckedChange={field.onChange}
 											/>
 										</FormControl>
-										<FormMessage />
 									</FormItem>
 								)}
 							/>
-						</div>
-						<div className="grid w-full  items-center gap-1.5">
-							<Label className={cn(tokenIconError && '!text-destructive')}>Token Icon</Label>
-							<FileInput
-								preview={previewIcon}
-								handleDrop={handleDrop}
-								handleFileChange={handleFileChange}
-								errorMessage={tokenIconError}
-							/>
-						</div>
-						<FormField
-							control={form.control}
-							name="description"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Description</FormLabel>
-									<FormControl>
-										<Textarea
-											className="h-[255px] !bg-box dark:border-input dark:focus-visible:ring-hover-green dark:focus:border-hover-green focus-visible:ring-hover-green focus:border-hover-green"
-											placeholder="Add the token description"
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-					</CardContent>
-				</Card>
-				<Card className="w-full border-hover-green border-[1px] md:p-9 p-3 rounded-[16px] drop-shadow-lg">
-					<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-						<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Features</CardTitle>
-						<CardDescription className="md:text-xl text-base text-light-grey">
-							Extra feature for your token
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="flex flex-col space-y-[25px] p-0">
-						<FormField
-							control={form.control}
-							name="revoke_freeze"
-							render={({ field }) => (
-								<FormItem className="flex items-center justify-between">
-									<div className="w-full">
-										<FormLabel className="text-lg font-normal text-main-black">Revoke Freeze</FormLabel>
-										<FormDescription className="text-[15px] text-light-grey">
-											To create a liquidity pool, it&apos;s necessary to Revoke Freeze Authority of the Token.
-										</FormDescription>
-									</div>
-									<FormControl>
-										<Switch
-											classNames={{ root: 'h-7 w-14', thumb: 'h-6 w-8' }}
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="revoke_mint"
-							render={({ field }) => (
-								<FormItem className="flex items-center justify-between">
-									<div className="w-full">
-										<FormLabel className="text-lg font-normal text-main-black">Revoke Mint</FormLabel>
-										<FormDescription className="text-[15px] text-light-grey">
-											Another essential step to ensure reliability among users is revoking the mint authority.
-										</FormDescription>
-									</div>
-									<FormControl>
-										<Switch
-											classNames={{ root: 'h-7 w-14', thumb: 'h-6 w-8' }}
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="immutable_metadata"
-							render={({ field }) => (
-								<FormItem className="flex items-center justify-between">
-									<div className="w-full">
-										<FormLabel className="text-lg font-normal text-main-black">Immutable Metadata</FormLabel>
-										<FormDescription className="text-[15px] text-light-grey">
-											Enhance security and trust by locking token metadata.
-										</FormDescription>
-									</div>
-									<FormControl>
-										<Switch
-											classNames={{ root: 'h-7 w-14', thumb: 'h-6 w-8' }}
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-								</FormItem>
-							)}
-						/>
-					</CardContent>
-				</Card>
+						</CardContent>
+					</Card>
+				)}
+
 				<Card className="w-full border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">
 					<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
 						<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Deploy Token</CardTitle>
@@ -371,12 +433,13 @@ export default function CreateToken() {
 					<CardContent className="flex  text-center flex-col space-y-[25px] p-0">
 						{/* <h4 className="text-[21px] text-main-green">230.45 BBA</h4> */}
 						<Button
-							type="submit"
+							type="button"
+							onClick={onNext}
 							disabled={createTokenMutation.isPending}
 							className="bg-main-green hover:bg-hover-green text-main-white w-full md:h-[62px] h-[34px] rounded-[43px] md:text-[27px] text-base"
 						>
 							{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
-							Create Your Token
+							{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}
 						</Button>
 					</CardContent>
 				</Card>

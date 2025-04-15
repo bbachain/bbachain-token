@@ -31,6 +31,7 @@
     "cloudinary": "^2.5.1",
     "clsx": "^2.1.1",
     "daisyui": "^4.12.10",
+    "decimal.js": "^10.5.0",
     "flowbite-react": "^0.10.2",
     "jotai": "^2.9.1",
     "lucide-react": "^0.487.0",
