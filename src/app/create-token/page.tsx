@@ -8,20 +8,16 @@ import { CreateBBATokenPayload, CreateBBATokenValidation } from '@/lib/validatio
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { NoBalanceAlert, NoAdressAlert } from '@/components/createToken/alert'
 import { useWallet } from '@bbachain/wallet-adapter-react'
-import { Label, Textarea } from 'flowbite-react'
-import FileInput from '@/components/ui/file-input'
-import { useEffect, useMemo, useState } from 'react'
-import { cn } from '@/lib/utils'
-import { Loader2, InfoIcon } from 'lucide-react'
-import { SuccessDialog } from '@/components/createToken/success-dialog'
+import FileInput from '@/components/createToken/file-input'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Loader2, ChevronRight, ChevronLeft } from 'lucide-react'
+import { SuccessDialog } from '@/components/createToken/dialog'
 import toast from 'react-hot-toast'
-import { useGetBalance, useRequestAirdrop, useTokenCreator } from '@/components/account/account-data-access'
+import { useGetBalance, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/response'
-import { useCluster } from '@/components/cluster/cluster-data-access'
-import { PublicKey } from '@bbachain/web3.js'
-import { WalletButton } from '@/components/contexts/bbachain-provider'
+import { Textarea } from '@/components/ui/textarea'
 
 type FieldName = keyof CreateBBATokenPayload
 const LIMIT_OF_SIXTH_DECIMALS = 18_000_000
@@ -47,44 +43,6 @@ const createTokenSteps = [
 		name: 'Create Token'
 	}
 ]
-
-function NoBalanceAlert({ address }: { address: PublicKey }) {
-	const { cluster } = useCluster()
-	const requestAirdropMutation = useRequestAirdrop({ address: address })
-	return (
-		<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
-			<InfoIcon />
-			<AlertTitle className="ml-3 text-md">
-				{' '}
-				You are connected to <strong>{cluster.name}</strong> but your account is not found on this cluster.
-			</AlertTitle>
-			<Button
-				className="bg-main-green hover:bg-hover-green"
-				type="button"
-				disabled={requestAirdropMutation.isPending}
-				onClick={() =>
-					requestAirdropMutation
-						.mutateAsync(1)
-						.then((value) => toast.success('Successfully sent 1 BBA to your account'))
-						.catch((err) => console.log(err))
-				}
-			>
-				{requestAirdropMutation.isPending && <Loader2 className="animate-spin" />}
-				Request Airdrop
-			</Button>
-		</Alert>
-	)
-}
-
-function NoAdressAlert() {
-	return (
-		<Alert className="flex items-center justify-between dark:border-yellow-300 border-yellow-400">
-			<InfoIcon />
-			<AlertTitle className="ml-3 text-md">You need to connect to your wallet first before continue</AlertTitle>
-			<WalletButton />
-		</Alert>
-	)
-}
 
 export default function CreateToken() {
 	const { publicKey } = useWallet()
@@ -120,11 +78,13 @@ export default function CreateToken() {
 	const [tokenIconError, setTokenIconError] = useState<string | undefined>(undefined)
 	const [responseData, setResponseData] = useState<CreateTokenResponse | null>(null)
 
+	const fileInputRef = useRef<HTMLInputElement | null>(null)
+
 	const onNext = async () => {
 		const fields = createTokenSteps[currentStep].fields
-		const output = await form.trigger(fields as FieldName[], { shouldFocus: true })
+		const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
 
-		if (!output) return
+		if (!isValid) return
 
 		if (currentStep < createTokenSteps.length - 1) {
 			if (currentStep === createTokenSteps.length - 1) {
@@ -142,22 +102,36 @@ export default function CreateToken() {
 
 	const onSubmit = (payload: CreateBBATokenPayload) => createTokenMutation.mutate(payload)
 
-	const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0]
-		processFile(file)
+		await processFile(file)
 	}
 
-	const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+	const handleDrop = async (event: React.DragEvent<HTMLLabelElement>) => {
 		event.preventDefault()
 		const file = event.dataTransfer.files?.[0]
-		processFile(file)
+		await processFile(file)
 	}
 
-	const processFile = (file: File | undefined) => {
+	const processFile = async (file: File | undefined) => {
 		if (file) {
 			setTokenIconError(undefined)
 			form.setValue('token_icon', file)
 			const reader = new FileReader()
+			const fields = createTokenSteps[currentStep].fields
+			const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
+
+			if (!isValid) {
+				toast.error(form.formState?.errors?.token_icon?.message ?? '')
+				form.setValue('token_icon', undefined as unknown as File)
+				form.clearErrors('token_icon')
+				setPreviewIcon(null)
+				if (fileInputRef.current) {
+					fileInputRef.current.value = ''
+				}
+				return
+			}
+
 			reader.onload = () => {
 				setPreviewIcon(reader.result as string)
 			}
@@ -329,15 +303,15 @@ export default function CreateToken() {
 				{currentStep === 1 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Details</CardTitle>
+							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Token Icon</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
-								Basic details about your token
+								Enhance your token with a stunning icon!
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="flex flex-col md:space-y-[25px] space-y-3 p-0">
 							<div className="grid w-full  items-center gap-1.5">
-								<Label className={cn(tokenIconError && '!text-destructive')}>Token Icon</Label>
 								<FileInput
+									fileInputRef={fileInputRef}
 									preview={previewIcon}
 									handleDrop={handleDrop}
 									handleFileChange={handleFileChange}
@@ -423,26 +397,44 @@ export default function CreateToken() {
 					</Card>
 				)}
 
-				<Card className="w-full border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">
-					<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-						<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Deploy Token</CardTitle>
-						<CardDescription className="md:text-xl text-base text-light-grey">
-							Ready to create the Token
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="flex  text-center flex-col space-y-[25px] p-0">
-						{/* <h4 className="text-[21px] text-main-green">230.45 BBA</h4> */}
+				{currentStep === 3 && (
+					<Card className="w-full border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">
+						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
+							<CardTitle className="md:text-[28px] text-2xl text-main-black font-medium">Deploy Token</CardTitle>
+							<CardDescription className="md:text-xl text-base text-light-grey">
+								Ready to create the Token
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex  text-center flex-col space-y-[25px] p-0">
+							<h4 className="text-[21px] text-main-green">
+								<span className="text-main-black">Cost:</span> 230.45 BBA
+							</h4>
+						</CardContent>
+					</Card>
+				)}
+
+				<section className="flex w-full justify-end space-x-2.5">
+					{currentStep > 0 && (
 						<Button
 							type="button"
-							onClick={onNext}
-							disabled={createTokenMutation.isPending}
-							className="bg-main-green hover:bg-hover-green text-main-white w-full md:h-[62px] h-[34px] rounded-[43px] md:text-[27px] text-base"
+							onClick={onPrev}
+							className="dark:bg-white bg-[#67676759] flex justify-center items-center text-center text-main-white md:h-[62px] h-[34px] px-6 py-3 rounded-[43px] md:text-[27px] text-base"
 						>
-							{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
-							{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}
+							<ChevronLeft className="min-w-[30px] min-h-[30px]" />
+							<p className="w-[72px]">Back</p>
 						</Button>
-					</CardContent>
-				</Card>
+					)}
+					<Button
+						type="button"
+						onClick={onNext}
+						disabled={createTokenMutation.isPending}
+						className="bg-main-green text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[62px] h-[34px] px-6 py-3 rounded-[43px] md:text-[27px] text-base"
+					>
+						{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
+						<p className="w-[72px]">{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}</p>
+						<ChevronRight className="min-w-[30px] min-h-[30px]" />
+					</Button>
+				</section>
 			</form>
 		</Form>
 	)

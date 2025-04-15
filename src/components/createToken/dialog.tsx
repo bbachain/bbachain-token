@@ -19,7 +19,7 @@ type SuccessDialogProps = {
 }
 
 export function SuccessDialog(props: SuccessDialogProps) {
-	const { isOpen , onOpenChange, data } = props
+	const { isOpen, onOpenChange, data } = props
 	const { getExplorerUrl } = useCluster()
 
 	return (

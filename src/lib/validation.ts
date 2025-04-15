@@ -58,8 +58,12 @@ export const CreateIconTokenValidation = z.object({
 		.custom<File>((file) => file instanceof File, {
 			message: REQUIRED_MESSAGE
 		})
-		.refine((file) => file.size <= MAX_FILE_SIZE, INVALID_SIZE_IMAGE_MESSAGE)
-		.refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), INVALID_TYPE_FILE_MESSAGE)
+		.refine((file): file is File => file instanceof File && file.size <= MAX_FILE_SIZE, {
+			message: INVALID_SIZE_IMAGE_MESSAGE
+		})
+		.refine((file): file is File => file instanceof File && ACCEPTED_IMAGE_TYPES.includes(file.type), {
+			message: INVALID_TYPE_FILE_MESSAGE
+		})
 })
 
 export const CreateFeatureTokenValidation = z.object({
