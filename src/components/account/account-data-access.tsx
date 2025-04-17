@@ -24,7 +24,7 @@ import {
 } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { useTransactionToast } from '../ui/ui-layout'
+import { useTransactionToast } from '../common/ui-layout'
 import { CreateBBATokenPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
 

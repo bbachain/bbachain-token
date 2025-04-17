@@ -4,7 +4,7 @@ import { FileInput as FlowbiteFileInput, Label } from 'flowbite-react'
 import Image from 'next/image'
 import { Button } from '../ui/button'
 import { MutableRefObject } from 'react'
-import ThemeImage from '../ui/theme-image'
+import ThemeImage from '../common/theme-image'
 
 type FileInputProps = {
 	fileInputRef: MutableRefObject<HTMLInputElement | null>

@@ -1,6 +1,6 @@
 'use client'
 
-import FAQItem, { type FAQItemProps } from '@/components/ui/faq-item'
+import FAQItem, { type FAQItemProps } from '@/components/common/faq-item'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRouter } from 'next/navigation'

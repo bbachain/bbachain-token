@@ -8,7 +8,7 @@ import { ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { AppModal } from '../ui/ui-layout'
+import { AppModal } from '../common/ui-layout'
 import { ClusterNetwork, useCluster } from './cluster-data-access'
 import { cn } from '@/lib/utils'
 

@@ -18,7 +18,8 @@ import toast from 'react-hot-toast'
 import { useGetBalance, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/response'
 import { Textarea } from '@/components/ui/textarea'
-import FormProgressLine, { type CreateTokenStepProps } from '@/components/createToken/formProgress'
+import FormProgressLine, { type CreateTokenStepProps } from '@/components/createToken/form-progress'
+import CreateTokenOverview from '@/components/createToken/token-overview'
 
 type FieldName = keyof CreateBBATokenPayload
 const LIMIT_OF_SIXTH_DECIMALS = 18_000_000
@@ -162,6 +163,10 @@ export default function CreateToken() {
 			setIsSuccessOpen(true)
 			setResponseData(createTokenMutation.data)
 			form.reset()
+			setPreviewIcon(null)
+			if (fileInputRef.current) {
+				fileInputRef.current.value = ''
+			}
 			setCurrentStep(0)
 			console.log(createTokenMutation.data)
 		}
@@ -226,7 +231,7 @@ export default function CreateToken() {
 			/>
 			<form
 				onSubmit={form.handleSubmit(onSubmit)}
-				className="lg:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
+				className="xl:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 			>
 				{!address && <NoAdressAlert />}
 				{getTokenBalance.isError || (!getTokenBalance.data && address && <NoBalanceAlert address={address} />)}
@@ -435,19 +440,22 @@ export default function CreateToken() {
 				)}
 
 				{currentStep === 3 && (
-					<Card className="w-full border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">
-						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Deploy Token</CardTitle>
-							<CardDescription className="md:text-xl text-base text-light-grey">
-								Ready to create the Token
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="flex  text-center flex-col space-y-[25px] p-0">
-							<h4 className="text-[21px] text-main-green">
-								<span className="text-main-black">Cost:</span> 230.45 BBA
-							</h4>
-						</CardContent>
-					</Card>
+					<div className="flex flex-col md:space-y-14 space-y-6">
+						<Card className="w-full border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">
+							<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
+								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Deploy Token</CardTitle>
+								<CardDescription className="md:text-xl text-base text-light-grey">
+									Ready to create the Token
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="flex  text-center flex-col space-y-[25px] p-0">
+								<h4 className="text-[21px] text-main-green">
+									<span className="text-main-black">Cost:</span> 230.45 BBA
+								</h4>
+							</CardContent>
+						</Card>
+						<CreateTokenOverview {...form.getValues()} image_link={previewIcon ?? ''} />
+					</div>
 				)}
 
 				<section className="flex w-full justify-end space-x-2.5">
