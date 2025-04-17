@@ -34,8 +34,8 @@ export function SuccessDialog(props: SuccessDialogProps) {
 			<DialogContent className="md:w-[506px] w-[320px] md:max-h-[490px] max-h-[500px] h-full md:py-[77px] md:px-[35px] p-6 bg-main-white flex flex-col space-y-2 items-center justify-center">
 				<DialogHeader className="m-0 w-full items-center justify-center p-0">
 					<Image src={data.metadata.iconUri} width={134} height={156} alt={data.metadata.name + ' - image'} />
-					<DialogTitle className="font-bold text-main-green text-[32px]">CONGRATULATIONS!</DialogTitle>
-					<DialogDescription className="text-main-black font-light text-base">
+					<DialogTitle className="font-bold text-main-green text-center text-[32px]">CONGRATULATIONS!</DialogTitle>
+					<DialogDescription className="text-main-black text-center font-light text-base">
 						Your token creation is complete. You can now explore and manage your newly generated token with ease.
 					</DialogDescription>
 				</DialogHeader>
@@ -64,7 +64,9 @@ export function ErrorDialog(props: ErrorDialogProps) {
 				<DialogHeader className="m-0 w-full items-center justify-center p-0">
 					<Image src="/error_icon.svg" width={64} height={64} alt="Error icon" />
 					<DialogTitle className="font-bold pt-4 text-center text-main-black text-xl">{title}</DialogTitle>
-					<DialogDescription className="text-[#949495] text-center font-light text-base">{description}</DialogDescription>
+					<DialogDescription className="text-[#949495] text-center font-light text-base">
+						{description}
+					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
 					<DialogClose asChild>

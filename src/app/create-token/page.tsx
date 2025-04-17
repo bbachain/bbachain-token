@@ -18,11 +18,12 @@ import toast from 'react-hot-toast'
 import { useGetBalance, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/response'
 import { Textarea } from '@/components/ui/textarea'
+import FormProgressLine, { type CreateTokenStepProps } from '@/components/createToken/formProgress'
 
 type FieldName = keyof CreateBBATokenPayload
 const LIMIT_OF_SIXTH_DECIMALS = 18_000_000
 
-const createTokenSteps = [
+const createTokenSteps: CreateTokenStepProps[] = [
 	{
 		id: 1,
 		name: 'Token Details',
@@ -160,9 +161,11 @@ export default function CreateToken() {
 		if (createTokenMutation.isSuccess && createTokenMutation.data) {
 			setIsSuccessOpen(true)
 			setResponseData(createTokenMutation.data)
+			form.reset()
+			setCurrentStep(0)
 			console.log(createTokenMutation.data)
 		}
-	}, [createTokenMutation.data, createTokenMutation.isSuccess])
+	}, [createTokenMutation.data, createTokenMutation.isSuccess, form])
 
 	useEffect(() => {
 		if (createTokenMutation.isError && createTokenMutation.error) {
@@ -199,6 +202,14 @@ export default function CreateToken() {
 			</div>
 		)
 
+	if (createTokenMutation.isPending)
+		return (
+			<div className="h-full w-full  mt-60 flex flex-col space-y-3 items-center justify-center">
+				<Loader2 className="animate-spin" width={40} height={40} />
+				<p>Creating your token...</p>
+			</div>
+		)
+
 	return (
 		<Form {...form}>
 			{responseData && <SuccessDialog isOpen={isSuccessOpen} onOpenChange={setIsSuccessOpen} data={responseData} />}
@@ -222,6 +233,7 @@ export default function CreateToken() {
 				<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
+				<FormProgressLine steps={createTokenSteps} currentStep={currentStep} />
 				{currentStep === 0 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
@@ -452,10 +464,8 @@ export default function CreateToken() {
 					<Button
 						type="button"
 						onClick={onNext}
-						disabled={createTokenMutation.isPending}
 						className="bg-main-green text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
 					>
-						{createTokenMutation.isPending && <Loader2 className="animate-spin" />}
 						<p className="md:min-w-[72px] min-w-[46px]">
 							{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}
 						</p>
