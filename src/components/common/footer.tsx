@@ -1,79 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { FaXTwitter, FaTelegram, FaMedium } from 'react-icons/fa6'
-import { FaLinkedin, FaInstagram, FaFacebook, FaYoutube, FaTiktok, FaDiscord } from 'react-icons/fa'
+import { FooterMenu, SocialMedia } from '@/lib/static'
 import ThemeImage from './theme-image'
 
-const footerMenu = [
-	{
-		name: 'Home',
-		href: '/'
-	},
-	{
-		name: 'Create Token',
-		href: '/create-token'
-	},
-	{
-		name: 'Contact',
-		href: '/contact'
-	},
-	{
-		name: 'Terms &Service',
-		href: '/term-of-service'
-	},
-	{
-		name: 'Privacy Policy',
-		href: '/privacy-policy'
-	}
-]
-
-const socialMedia = [
-	{
-		icon: FaXTwitter,
-		href: 'https://twitter.com/bbachain_com'
-	},
-	{
-		icon: FaFacebook,
-		href: 'https://www.facebook.com/bbachain'
-	},
-	{
-		icon: FaInstagram,
-		href: 'https://www.instagram.com/bbachaincom/'
-	},
-	{
-		icon: FaLinkedin,
-		href: 'https://www.linkedin.com/company/bti-group-bbachain/?viewAsMember=true'
-	},
-	{
-		icon: FaYoutube,
-		href: 'https://www.youtube.com/@BBAChain'
-	},
-	{
-		icon: FaTiktok,
-		href: 'https://www.tiktok.com/@bbachain'
-	},
-	{
-		icon: FaDiscord,
-		href: 'https://www.tiktok.com/@bbachain'
-	},
-	{
-		icon: FaTelegram,
-		href: 'https://t.me/bbachain_Global'
-	},
-	{
-		icon: FaTelegram,
-		href: 'https://t.me/bbachain'
-	},
-	{
-		icon: FaMedium,
-		href: 'https://medium.com/@bbachain'
-	}
-]
-
 export default function Footer() {
-	const topMobileMenu = footerMenu.slice(0, 3)
-	const bottomMobileMenu = footerMenu.slice(3)
+	const topMobileMenu = FooterMenu.slice(0, 3)
+	const bottomMobileMenu = FooterMenu.slice(3)
 
 	return (
 		<footer className="dark:bg-[url('/bg-footer-dark.svg')] bg-[url('/bg-footer-light.svg')] bg-cover pt-5 pb-2  flex flex-col items-center justify-center text-center space-y-9">
@@ -86,7 +19,7 @@ export default function Footer() {
 					alt="Quick Token Logo"
 				/>
 				<div className="md:flex hidden md:space-x-9 space-x-[15px] justify-center">
-					{footerMenu.map((menu) => (
+					{FooterMenu.map((menu) => (
 						<Link className="text-sm text-main-black hover:text-hover-green" key={menu.name} href={menu.href}>
 							{menu.name}
 						</Link>
@@ -107,7 +40,7 @@ export default function Footer() {
 					))}
 				</div>
 				<div className="flex space-x-3">
-					{socialMedia.map((media, index) => (
+					{SocialMedia.map((media, index) => (
 						<Link key={index} href={media.href}>
 							<media.icon className="text-lg text-main-black hover:text-hover-green" />
 						</Link>
