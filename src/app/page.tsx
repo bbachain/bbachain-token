@@ -143,7 +143,7 @@ export default function Home() {
 								alt="connect wallet image"
 							/>
 						</TabsContent>
-						<TabsContent value="deploy_token">
+						<TabsContent className="h-full" value="deploy_token">
 							<Image
 								src="/deploy_token.svg"
 								width={550}
