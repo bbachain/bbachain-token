@@ -1,7 +1,7 @@
 import './globals.css'
 import { ClusterProvider } from '@/components/cluster/cluster-data-access'
 import { BBAChainProvider } from '@/components/contexts/bbachain-provider'
-import { UiLayout } from '@/components/ui/ui-layout'
+import { UiLayout } from '@/components/common/ui-layout'
 import { ReactQueryProvider } from './react-query-provider'
 import { ThemeProvider } from 'next-themes'
 import { Roboto } from 'next/font/google'
