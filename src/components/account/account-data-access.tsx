@@ -200,7 +200,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
 				const latestBlockhash = await connection.getLatestBlockhash()
 				const mintKeypair = Keypair.generate()
-				const programId = new PublicKey('metabUBuFKTWPWAAARaQdNXUH6Sxk5tFGQjGEgWCvaX')
+				const programId = new PublicKey('metaAig5QsCBSfstkwqPQxzdjXdUB8JxjfvtvEPNe3F')
 				const tokenATA = await getAssociatedTokenAddress(mintKeypair.publicKey, publicKey)
 
 				const mappedPayload = {
