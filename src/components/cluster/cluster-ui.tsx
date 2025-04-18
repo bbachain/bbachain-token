@@ -59,6 +59,7 @@ export function ClusterUiSelect({ className }: { className?: string }) {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button
+					type="button"
 					className={cn(
 						'bg-main-green hover:bg-hover-green w-[80px] h-[34px] flex items-center justify-center text-main-white  px-2.5 py-2 rounded-[10px] text-sm font-normal',
 						className
@@ -72,6 +73,7 @@ export function ClusterUiSelect({ className }: { className?: string }) {
 					{clusters.map((item) => (
 						<DropdownMenuItem className="w-full" key={item.name}>
 							<Button
+								type="button"
 								variant="ghost"
 								className={`hover:bg-hover-green w-full p-0 ${item.active ? 'bg-hover-green' : 'bg-transparent'}`}
 								onClick={() => setCluster(item)}

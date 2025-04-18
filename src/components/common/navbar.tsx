@@ -8,14 +8,14 @@ import ThemeImage from './theme-image'
 import { Skeleton } from '../ui/skeleton'
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '../ui/drawer'
 import { Button } from '../ui/button'
-import { Switch } from '../ui/switch'
 import { WalletButton } from '../contexts/bbachain-provider'
 import { ClusterUiSelect } from '../cluster/cluster-ui'
 import { RxHamburgerMenu } from 'react-icons/rx'
 import { IoMdClose } from 'react-icons/io'
+import { IoSunnySharp, IoMoonSharp } from 'react-icons/io5'
 import { NavMenu } from '@/lib/static'
 
-function ThemeSwitch() {
+function ThemeToggle() {
 	const [mounted, setMounted] = useState<boolean>(false)
 	const { resolvedTheme, setTheme } = useTheme()
 
@@ -26,14 +26,15 @@ function ThemeSwitch() {
 	}
 
 	return (
-		<Switch
-			classNames={{
-				root: 'w-16 h-[31px]',
-				thumb: 'data-[state=checked]:translate-x-8 w-7 h-7 dark:bg-main-green'
-			}}
-			checked={resolvedTheme === 'dark'}
-			onCheckedChange={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-		/>
+		<Button
+			type="button"
+			variant="ghost"
+			className="[&_svg]:size-6"
+			onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+			size="icon"
+		>
+			{resolvedTheme === 'dark' ? <IoMoonSharp /> : <IoSunnySharp />}
+		</Button>
 	)
 }
 
@@ -41,11 +42,11 @@ function MobileMenuDrawer() {
 	return (
 		<Drawer direction="right">
 			<DrawerTrigger asChild>
-				<Button variant="ghost" className="[&_svg]:size-6" size="icon">
+				<Button type='button' variant="ghost" className="[&_svg]:size-6" size="icon">
 					<RxHamburgerMenu />
 				</Button>
 			</DrawerTrigger>
-			<DrawerContent className="h-screen top-0 mt-0 right-0 left-auto w-4/6">
+			<DrawerContent aria-describedby={undefined} className="h-screen top-0 mt-0 right-0 left-auto w-4/6">
 				<DrawerHeader className="p-0 m-0">
 					<DrawerTitle></DrawerTitle>
 					<DrawerClose asChild>
@@ -67,7 +68,7 @@ function MobileMenuDrawer() {
 						))}
 					</div>
 					<div className="flex flex-col space-y-2 pt-1.5 pb-4 border-b-2 border-main-black items-center justify-center">
-						<ThemeSwitch />
+						<ThemeToggle />
 						<Link href="/">
 							<ThemeImage
 								lightSrc={`/quick-token-logo-light.svg`}
@@ -120,7 +121,7 @@ export default function Navbar() {
 					<MobileMenuDrawer />
 				</span>
 				<span className="lg:block hidden">
-					<ThemeSwitch />
+					<ThemeToggle />
 				</span>
 			</div>
 		</nav>
