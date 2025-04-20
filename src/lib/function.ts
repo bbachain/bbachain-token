@@ -1,5 +1,3 @@
-import { CreateBBATokenPayload } from './validation'
-
 type UploadToMetadataPayload = {
 	token_name: string
 	token_symbol: string
