@@ -11,6 +11,10 @@ export const NavMenu = [
 		href: '/create-token'
 	},
 	{
+		name: 'Account',
+		href: '/account'
+	},
+	{
 		name: 'Contact',
 		href: '/contact'
 	}
@@ -24,6 +28,10 @@ export const FooterMenu = [
 	{
 		name: 'Create Token',
 		href: '/create-token'
+	},
+	{
+		name: 'Account',
+		href: '/account'
 	},
 	{
 		name: 'Contact',
