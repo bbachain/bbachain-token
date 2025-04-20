@@ -66,7 +66,6 @@ export function AccountButtons({ address }: { address: PublicKey }) {
 	const [showAirdropModal, setShowAirdropModal] = useState(false)
 	const [showReceiveModal, setShowReceiveModal] = useState(false)
 	const [showSendModal, setShowSendModal] = useState(false)
-	const [showTokenCreator, setShowTokenCreator] = useState(false)
 
 	return (
 		<div>
@@ -90,9 +89,6 @@ export function AccountButtons({ address }: { address: PublicKey }) {
 				</button>
 				<button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowReceiveModal(true)}>
 					Receive
-				</button>
-				<button className="btn btn-xs lg:btn-md btn-outline" onClick={() => setShowTokenCreator(true)}>
-					Create Token
 				</button>
 			</div>
 		</div>
