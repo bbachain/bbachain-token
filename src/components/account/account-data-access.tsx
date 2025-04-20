@@ -77,7 +77,7 @@ export async function geTokenMetadata({
 }: {
 	connection: Connection
 	mintAddress: string
-}): Promise<GetTokenMetadataResponse | null> {
+}): Promise<GetTokenMetadataResponse> {
 	try {
 		// Convert string to PublicKey
 		const mintPublicKey = new PublicKey(mintAddress)
@@ -87,7 +87,13 @@ export async function geTokenMetadata({
 		const metadata = await fetchMetadata(connection, mintPublicKey)
 		console.log('metadata', metadata)
 
-		if (!metadata) return null
+		if (!metadata)
+			return {
+				name: null,
+				symbol: null,
+				metadataURI: null,
+				mintAddress: mintPublicKey.toString()
+			}
 
 		const { name, symbol, uri: metadataUri } = metadata
 
@@ -110,7 +116,12 @@ export async function geTokenMetadata({
 		}
 	} catch (error) {
 		console.error('Error getting token metadata:', error)
-		return null
+		return {
+			name: null,
+			symbol: null,
+			metadataURI: null,
+			mintAddress: ''
+		}
 	}
 }
 
@@ -133,13 +144,13 @@ export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) 
 
 					const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
 
-					if (!metadata) return null
+					const truncatedMetadata = `${metadata.mintAddress.slice(0, 4)}...${metadata.mintAddress.slice(-4)}`
 
 					return {
 						id: metadata.mintAddress,
-						name: metadata.name,
-						icon: metadata.metadataURI?.image || '/default-icon.png',
-						symbol: metadata.symbol,
+						name: metadata.name || truncatedMetadata,
+						icon: metadata.metadataURI?.image || '/imageNotFound.png',
+						symbol: metadata.symbol || truncatedMetadata,
 						supply: metadata.metadataURI?.supply?.toLocaleString() || '0',
 						date: blockTime
 					} satisfies TokenListProps
