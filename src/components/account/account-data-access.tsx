@@ -22,11 +22,15 @@ import {
 	TransactionSignature,
 	VersionedTransaction
 } from '@bbachain/web3.js'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useTransactionToast } from '../common/ui-layout'
 import { CreateBBATokenPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
+import { fetchMetadata } from '@bbachain/spl-token-metadata'
+import axios from 'axios'
+import { CreateTokenResponse, GetTokenMetadataResponse, MetadataURI } from '@/lib/response'
+import { TokenListProps } from '../tokens/columns'
 
 export function useGetBalance({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
@@ -60,9 +64,96 @@ export function useGetTokenAccounts({ address }: { address: PublicKey }) {
 					programId: TOKEN_2022_PROGRAM_ID
 				})
 			])
+			console.log(tokenAccounts.value)
+			console.log(token2022Accounts.value)
 			return [...tokenAccounts.value, ...token2022Accounts.value]
 		}
 	})
+}
+
+export async function geTokenMetadata({
+	connection,
+	mintAddress
+}: {
+	connection: Connection
+	mintAddress: string
+}): Promise<GetTokenMetadataResponse | null> {
+	try {
+		// Convert string to PublicKey
+		const mintPublicKey = new PublicKey(mintAddress)
+		console.log('mintPublicKey', mintPublicKey.toString())
+
+		// Use fetchMetadata to get the on-chain metadata
+		const metadata = await fetchMetadata(connection, mintPublicKey)
+		console.log('metadata', metadata)
+
+		if (!metadata) return null
+
+		const { name, symbol, uri: metadataUri } = metadata
+
+		let uriData = null
+
+		if (metadataUri) {
+			try {
+				const response = await axios.get<MetadataURI>(metadataUri)
+				uriData = response.data
+			} catch (uriError) {
+				console.error('Error fetching URI data:', uriError)
+			}
+		}
+
+		return {
+			name,
+			symbol,
+			metadataURI: uriData,
+			mintAddress: mintPublicKey.toString()
+		}
+	} catch (error) {
+		console.error('Error getting token metadata:', error)
+		return null
+	}
+}
+
+export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) {
+	const { connection } = useConnection()
+	const tokenAccounts = useGetTokenAccounts({ address })
+
+	const tokenMetadataQueries = useQueries({
+		queries: (tokenAccounts.data ?? []).map((account) => {
+			const mint = account.account.data.parsed.info.mint
+			const mintKey = new PublicKey(mint)
+
+			return {
+				queryKey: ['get-token-metadata-combined', { endpoint: connection.rpcEndpoint, mint }],
+				queryFn: async () => {
+					const [metadata, signatures] = await Promise.all([
+						geTokenMetadata({ connection, mintAddress: mint }),
+						connection.getSignaturesForAddress(mintKey)
+					])
+
+					const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+
+					if (!metadata) return null
+
+					return {
+						id: metadata.mintAddress,
+						name: metadata.name,
+						icon: metadata.metadataURI?.image || '/default-icon.png',
+						symbol: metadata.symbol,
+						supply: metadata.metadataURI?.supply?.toLocaleString() || '0',
+						date: blockTime
+					} satisfies TokenListProps
+				},
+				enabled: true
+			}
+		}),
+		combine: (results) => ({
+			data: results.map((r) => r.data).filter((r): r is TokenListProps => r !== null && r !== undefined),
+			isPending: results.some((r) => r.isPending)
+		})
+	})
+
+	return tokenMetadataQueries
 }
 
 export function useTransferBBA({ address }: { address: PublicKey }) {
@@ -191,7 +282,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
 	const client = useQueryClient()
 
-	return useMutation({
+	return useMutation<CreateTokenResponse, Error, CreateBBATokenPayload>({
 		mutationKey: ['token-creator', { endpoint: connection.rpcEndpoint }],
 		mutationFn: async (input: CreateBBATokenPayload) => {
 			if (!publicKey) throw new Error('Wallet not connected')

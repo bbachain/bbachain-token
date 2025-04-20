@@ -161,7 +161,7 @@ export default function CreateToken() {
 	useEffect(() => {
 		if (createTokenMutation.isSuccess && createTokenMutation.data) {
 			setIsSuccessOpen(true)
-			setResponseData(createTokenMutation.data)
+			setResponseData(createTokenMutation.data as CreateTokenResponse)
 			form.reset()
 			setPreviewIcon(null)
 			if (fileInputRef.current) {
