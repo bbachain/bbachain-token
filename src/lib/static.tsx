@@ -11,6 +11,10 @@ export const NavMenu = [
 		href: '/create-token'
 	},
 	{
+		name: 'Tokens',
+		href: '/tokens'
+	},
+	{
 		name: 'Account',
 		href: '/account'
 	},
