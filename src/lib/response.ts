@@ -27,7 +27,7 @@ export type CreateTokenResponse = {
 
 export type GetTokenMetadataResponse = {
 	mintAddress: string
-	name: string
-	symbol: string
+	name: string | null
+	symbol: string | null
 	metadataURI: MetadataURI | null
 }
