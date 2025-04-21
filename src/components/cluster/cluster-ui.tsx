@@ -69,7 +69,7 @@ export function ClusterUiSelect({ className }: { className?: string }) {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="bg-box mt-2 px-2 w-[100px]">
-				<ul className="flex flex-col space-y-3 w-full items-center justify-center">
+				<ul className="flex flex-col w-full items-center justify-center">
 					{clusters.map((item) => (
 						<DropdownMenuItem className="w-full" key={item.name}>
 							<Button
