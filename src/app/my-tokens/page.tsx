@@ -6,16 +6,11 @@ import { DataTable as TokenListTable } from '@/components/tokens/data-table'
 import { Loader2 } from 'lucide-react'
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import { useMemo } from 'react'
+import { PublicKey } from '@bbachain/web3.js'
+import { NoAdressAlert } from '@/components/common/alert'
 
-export default function Tokens() {
-	const { publicKey } = useWallet()
-
-	const address = useMemo(() => {
-		if (!publicKey) return
-		return publicKey
-	}, [publicKey])
-
-	const tokenMetadataQueries = useGetTokenMetadataQueries({ address: address! })
+function TokenComponent({ address }: { address: PublicKey }) {
+	const tokenMetadataQueries = useGetTokenMetadataQueries({ address })
 
 	if (tokenMetadataQueries.isPending) {
 		return (
@@ -32,4 +27,23 @@ export default function Tokens() {
 			<TokenListTable columns={TokenListColumns} data={tokenMetadataQueries.data} />
 		</div>
 	)
+}
+
+export default function Tokens() {
+	const { publicKey } = useWallet()
+
+	const address = useMemo(() => {
+		if (!publicKey) return
+		return publicKey
+	}, [publicKey])
+
+	if (!address) {
+		return (
+			<div className="xl:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
+				<NoAdressAlert />
+			</div>
+		)
+	}
+
+	return <TokenComponent address={address} />
 }

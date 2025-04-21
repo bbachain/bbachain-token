@@ -7,6 +7,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { ExplorerLink } from '../cluster/cluster-ui'
 import Navbar from './navbar'
 import Footer from './footer'
+import { WalletListDialog } from './wallet'
 
 export function UiLayout({ children }: { children: ReactNode }) {
 	return (
@@ -25,6 +26,7 @@ export function UiLayout({ children }: { children: ReactNode }) {
 				</Suspense>
 				<Footer />
 			</div>
+			<WalletListDialog />
 		</main>
 	)
 }

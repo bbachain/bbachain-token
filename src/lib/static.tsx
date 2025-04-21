@@ -1,6 +1,13 @@
 import { FaXTwitter, FaTelegram, FaMedium } from 'react-icons/fa6'
 import { FaLinkedin, FaInstagram, FaFacebook, FaYoutube, FaTiktok, FaDiscord } from 'react-icons/fa'
 
+export type TInfo = {
+	title: string
+	description?: string | JSX.Element
+	lists?: string[]
+	items?: TInfo[]
+}
+
 export const NavMenu = [
 	{
 		name: 'Home',
@@ -117,13 +124,6 @@ export const FAQData = [
 			'Users of the BTI QTG have access to comprehensive support resources, including documentation, tutorials, and a dedicated support team.'
 	}
 ]
-
-export type TInfo = {
-	title: string
-	description?: string | JSX.Element
-	lists?: string[]
-	items?: TInfo[]
-}
 
 export const TermsOfServices: TInfo[] = [
 	{

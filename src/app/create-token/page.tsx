@@ -8,7 +8,7 @@ import { CreateBBATokenPayload, CreateBBATokenValidation } from '@/lib/validatio
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
-import { NoBalanceAlert, NoAdressAlert } from '@/components/createToken/alert'
+import { NoBalanceAlert, NoAdressAlert } from '@/components/common/alert'
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import FileInput from '@/components/createToken/file-input'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -90,6 +90,8 @@ export default function CreateToken() {
 	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
 	const onNext = async () => {
+		if (!address) return toast.error('Please select your wallet first')
+
 		const fields = createTokenSteps[currentStep].fields
 		const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
 

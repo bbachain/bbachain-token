@@ -3,27 +3,27 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
-import { useIsMobile } from '@/lib/hooks'
+import { useIsMobile, useWalletListDialog } from '@/lib/hooks'
 import ThemeImage from './theme-image'
 import { Skeleton } from '../ui/skeleton'
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '../ui/drawer'
 import { Button } from '../ui/button'
-import { WalletButton } from '../contexts/bbachain-provider'
 import { ClusterUiSelect } from '../cluster/cluster-ui'
 import { RxHamburgerMenu } from 'react-icons/rx'
 import { IoMdClose } from 'react-icons/io'
+import { CiWallet } from 'react-icons/ci'
 import { IoSunnySharp, IoMoonSharp } from 'react-icons/io5'
 import { NavMenu } from '@/lib/static'
+import { useWallet } from '@bbachain/wallet-adapter-react'
+import Image from 'next/image'
+import { copyToClipboard } from './copy'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+import { useGetBalance } from '../account/account-data-access'
+import { PublicKey } from '@bbachain/web3.js'
+import { BalanceComponent } from '../account/account-ui'
 
 function ThemeToggle() {
-	const [mounted, setMounted] = useState<boolean>(false)
 	const { resolvedTheme, setTheme } = useTheme()
-
-	useEffect(() => setMounted(true), [])
-
-	if (!mounted) {
-		return <Skeleton className="h-[31px] w-16" />
-	}
 
 	return (
 		<Button
@@ -42,7 +42,7 @@ function MobileMenuDrawer() {
 	return (
 		<Drawer direction="right">
 			<DrawerTrigger asChild>
-				<Button type='button' variant="ghost" className="[&_svg]:size-6" size="icon">
+				<Button type="button" variant="ghost" className="[&_svg]:size-6" size="icon">
 					<RxHamburgerMenu />
 				</Button>
 			</DrawerTrigger>
@@ -85,8 +85,93 @@ function MobileMenuDrawer() {
 	)
 }
 
+function BalanceValue({ address }: { address: string }) {
+	const balance = useGetBalance({ address: new PublicKey(address) })
+	return (
+		<div className="bg-light-green px-[5px] rounded-[6px]">
+			<h4 className="text-[#333333] text-sm">
+				{balance.data ? <BalanceComponent balance={balance.data} /> : '...'} BBA
+			</h4>
+		</div>
+	)
+}
+
+function CustomWalletButton() {
+	const { publicKey, wallet, connected, disconnect } = useWallet()
+	const { openWalletList } = useWalletListDialog()
+	const isMobile = useIsMobile()
+	const [isCopied, setIsCopied] = useState<boolean>(false)
+
+	const selectedWalletAddress = publicKey?.toBase58()
+	const selectedWalletIcon = wallet?.adapter?.icon
+	const selectedWalletName = wallet?.adapter?.name
+
+	const handleCopyClick = async (value: string) => {
+		await copyToClipboard(value)
+		setIsCopied(true)
+	}
+
+	useEffect(() => {
+		if (isCopied) {
+			const timer = setTimeout(() => {
+				setIsCopied(false)
+			}, 2000)
+			return () => clearTimeout(timer)
+		}
+	}, [isCopied])
+
+	if (connected && selectedWalletAddress) {
+		return (
+			<Popover>
+				<PopoverTrigger asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						className="flex bg-[#E9E9E9] dark:bg-[#343434] w-full md:px-2.5 px-1 hover:bg-light-grey space-x-2 rounded-[10px] items-center"
+					>
+						<BalanceValue address={selectedWalletAddress} />
+						{selectedWalletIcon && !isMobile && (
+							<Image src={selectedWalletIcon} width={18} height={18} alt={`${selectedWalletName} logo`} />
+						)}
+						<h4 className="text-main-black text-sm">{`${selectedWalletAddress.slice(0, 6)}...`}</h4>
+					</Button>
+				</PopoverTrigger>
+
+				<PopoverContent className="w-56 flex flex-col gap-1 p-2">
+					<Button
+						variant="ghost"
+						className="justify-start text-sm"
+						onClick={() => handleCopyClick(selectedWalletAddress)}
+					>
+						{isCopied ? 'Copied' : 'Copy Address'}
+					</Button>
+					<Button variant="ghost" className="justify-start text-sm" onClick={openWalletList}>
+						Change Wallet
+					</Button>
+					<Button variant="ghost" className="justify-start text-sm" onClick={disconnect}>
+						Disconnect
+					</Button>
+				</PopoverContent>
+			</Popover>
+		)
+	}
+	return (
+		<Button
+			type="button"
+			onClick={openWalletList}
+			className="bg-main-green hover:bg-hover-green  w-[124px] text-main-white  px-2.5 py-2 rounded-[10px] text-sm font-normal"
+		>
+			<CiWallet width={18} height={18} />
+			Connect
+		</Button>
+	)
+}
+
 export default function Navbar() {
 	const isMobile = useIsMobile()
+	const [mounted, setMounted] = useState<boolean>(false)
+
+	useEffect(() => setMounted(true), [])
 
 	return (
 		<nav className="lg:px-24 md:px-20 py-3.5  flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
@@ -112,18 +197,22 @@ export default function Navbar() {
 					))}
 				</section>
 			</div>
-			<div className="flex items-center space-x-1.5 md:space-x-4 lg:space-x-9 ">
-				<WalletButton />
-				<span className="lg:block hidden">
-					<ClusterUiSelect />
-				</span>
-				<span className="lg:hidden block">
-					<MobileMenuDrawer />
-				</span>
-				<span className="lg:block hidden">
-					<ThemeToggle />
-				</span>
-			</div>
+			{!mounted ? (
+				<Skeleton className="h-[31px] w-32" />
+			) : (
+				<div className="flex items-center space-x-1.5 md:space-x-4 lg:space-x-9 ">
+					<CustomWalletButton />
+					<span className="lg:block hidden">
+						<ClusterUiSelect />
+					</span>
+					<span className="lg:hidden block">
+						<MobileMenuDrawer />
+					</span>
+					<span className="lg:block hidden">
+						<ThemeToggle />
+					</span>
+				</div>
+			)}
 		</nav>
 	)
 }
