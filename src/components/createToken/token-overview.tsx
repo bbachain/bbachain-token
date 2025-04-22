@@ -1,6 +1,6 @@
 'use client'
 import { CreateBBATokenPayload } from '@/lib/validation'
-import { CopyTooltip } from '../common/copy-tooltip'
+import { CopyTooltip } from '../common/copy'
 
 type CreateTokenOverviewProps = Partial<CreateBBATokenPayload> & {
 	image_link: string

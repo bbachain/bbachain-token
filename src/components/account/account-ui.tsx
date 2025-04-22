@@ -263,7 +263,7 @@ export function AccountTransactions({ address }: { address: PublicKey }) {
 	)
 }
 
-function BalanceComponent({ balance }: { balance: number }) {
+export function BalanceComponent({ balance }: { balance: number }) {
 	return <span>{Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000}</span>
 }
 

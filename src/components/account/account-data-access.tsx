@@ -149,7 +149,7 @@ export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) 
 					return {
 						id: metadata.mintAddress,
 						name: metadata.name || truncatedMetadata,
-						icon: metadata.metadataURI?.image || '/imageNotFound.png',
+						icon: metadata.metadataURI?.image || '/icon-placeholder.svg',
 						symbol: metadata.symbol || truncatedMetadata,
 						supply: metadata.metadataURI?.supply?.toLocaleString() || '0',
 						date: blockTime
