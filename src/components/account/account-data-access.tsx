@@ -29,7 +29,7 @@ import { CreateBBATokenPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
 import { fetchMetadata } from '@bbachain/spl-token-metadata'
 import axios from 'axios'
-import { CreateTokenResponse, GetTokenMetadataResponse, MetadataURI } from '@/lib/response'
+import { CreateTokenResponse, GetTokenMetadataResponse, GetTokenResponse, MetadataURI } from '@/lib/response'
 import { TokenListProps } from '../tokens/columns'
 
 export function useGetBalance({ address }: { address: PublicKey }) {
@@ -76,23 +76,22 @@ export async function geTokenMetadata({
 	mintAddress
 }: {
 	connection: Connection
-	mintAddress: string
+	mintAddress: PublicKey
 }): Promise<GetTokenMetadataResponse> {
 	try {
 		// Convert string to PublicKey
-		const mintPublicKey = new PublicKey(mintAddress)
-		console.log('mintPublicKey', mintPublicKey.toString())
 
 		// Use fetchMetadata to get the on-chain metadata
-		const metadata = await fetchMetadata(connection, mintPublicKey)
+		const metadata = await fetchMetadata(connection, mintAddress)
 		console.log('metadata', metadata)
 
 		if (!metadata)
 			return {
 				name: null,
 				symbol: null,
+				metadataLink: null,
 				metadataURI: null,
-				mintAddress: mintPublicKey.toString()
+				mintAddress: mintAddress.toString()
 			}
 
 		const { name, symbol, uri: metadataUri } = metadata
@@ -111,14 +110,16 @@ export async function geTokenMetadata({
 		return {
 			name,
 			symbol,
+			metadataLink: metadataUri,
 			metadataURI: uriData,
-			mintAddress: mintPublicKey.toString()
+			mintAddress: mintAddress.toString()
 		}
 	} catch (error) {
 		console.error('Error getting token metadata:', error)
 		return {
 			name: null,
 			symbol: null,
+			metadataLink: null,
 			metadataURI: null,
 			mintAddress: ''
 		}
@@ -135,31 +136,36 @@ export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) 
 			const mintKey = new PublicKey(mint)
 
 			return {
-				queryKey: ['get-token-metadata-combined', { endpoint: connection.rpcEndpoint, mint }],
+				queryKey: ['get-token-metadata-combined', { endpoint: connection.rpcEndpoint, mintKey }],
 				queryFn: async () => {
-					const [metadata, signatures] = await Promise.all([
-						geTokenMetadata({ connection, mintAddress: mint }),
-						connection.getSignaturesForAddress(mintKey)
-					])
+					try {
+						const [metadata, signatures] = await Promise.all([
+							geTokenMetadata({ connection, mintAddress: mintKey }),
+							connection.getSignaturesForAddress(mintKey)
+						])
 
-					const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+						const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
 
-					const truncatedMetadata = `${metadata.mintAddress.slice(0, 4)}...${metadata.mintAddress.slice(-4)}`
-
-					return {
-						id: metadata.mintAddress,
-						name: metadata.name || truncatedMetadata,
-						icon: metadata.metadataURI?.image || '/icon-placeholder.svg',
-						symbol: metadata.symbol || truncatedMetadata,
-						supply: metadata.metadataURI?.supply?.toLocaleString() || '0',
-						date: blockTime
-					} satisfies TokenListProps
+						return {
+							mintAddress: metadata.mintAddress,
+							name: metadata.name,
+							symbol: metadata.symbol,
+							date: blockTime,
+							metadataLink: metadata.metadataLink,
+							metadataURI: metadata.metadataURI
+						} satisfies GetTokenResponse
+					} catch (err) {
+						console.error(`Error fetching metadata for mint ${mint}:`, err)
+						return undefined
+					}
 				},
 				enabled: true
 			}
 		}),
 		combine: (results) => ({
-			data: results.map((r) => r.data).filter((r): r is TokenListProps => r !== null && r !== undefined),
+			data: results
+				.map((r) => r.data)
+				.filter((r): r is GetTokenResponse => !!r?.mintAddress && typeof r.date === 'number'),
 			isPending: results.some((r) => r.isPending)
 		})
 	})

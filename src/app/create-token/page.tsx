@@ -440,7 +440,6 @@ export default function CreateToken() {
 						</CardContent>
 					</Card>
 				)}
-
 				{currentStep === 3 && (
 					<div className="flex flex-col md:space-y-14 space-y-6">
 						<div className="w-full text-center border-hover-green border-[1px] rounded-[16px] drop-shadow-lg md:p-9 p-3">

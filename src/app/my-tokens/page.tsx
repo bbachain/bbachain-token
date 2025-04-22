@@ -1,16 +1,33 @@
 'use client'
 
 import { useGetTokenMetadataQueries } from '@/components/account/account-data-access'
-import { TokenListColumns } from '@/components/tokens/columns'
+import { TokenListColumns, TokenListProps } from '@/components/tokens/columns'
 import { DataTable as TokenListTable } from '@/components/tokens/data-table'
 import { Loader2 } from 'lucide-react'
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import { useMemo } from 'react'
 import { PublicKey } from '@bbachain/web3.js'
 import { NoAdressAlert } from '@/components/common/alert'
+import { GetTokenResponse } from '@/lib/response'
+
+function mapToTokenListPropsList(tokens: GetTokenResponse[]): TokenListProps[] {
+	return tokens.map((token) => {
+		const fallback = `${token.mintAddress.slice(0, 6)}...`
+
+		return {
+			id: token.mintAddress,
+			name: token.name ?? fallback,
+			symbol: token.symbol ?? fallback,
+			icon: token.metadataURI?.image ?? '/icon-placeholder.svg',
+			supply: token.metadataURI?.supply?.toLocaleString?.() ?? '0',
+			date: token.date
+		}
+	})
+}
 
 function TokenComponent({ address }: { address: PublicKey }) {
 	const tokenMetadataQueries = useGetTokenMetadataQueries({ address })
+	const tokenMetadata = mapToTokenListPropsList(tokenMetadataQueries.data)
 
 	if (tokenMetadataQueries.isPending) {
 		return (
@@ -24,7 +41,7 @@ function TokenComponent({ address }: { address: PublicKey }) {
 	return (
 		<div className="xl:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
 			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">My Tokens</h1>
-			<TokenListTable columns={TokenListColumns} data={tokenMetadataQueries.data} />
+			<TokenListTable columns={TokenListColumns} data={tokenMetadata} />
 		</div>
 	)
 }
@@ -37,6 +54,8 @@ export default function Tokens() {
 		return publicKey
 	}, [publicKey])
 
+	const exampleAddress = new PublicKey('3Vpv5BGuyNLtbhbejQjYkVmDKtfXeUZhMfy27UJCJm9p')
+
 	if (!address) {
 		return (
 			<div className="xl:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
@@ -45,5 +64,5 @@ export default function Tokens() {
 		)
 	}
 
-	return <TokenComponent address={address} />
+	return <TokenComponent address={exampleAddress} />
 }

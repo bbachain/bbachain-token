@@ -12,12 +12,14 @@ import {
 } from '@tanstack/react-table'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { useState } from 'react'
 import { ArrowUpDown } from 'lucide-react'
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io'
 import { IoSearchOutline } from 'react-icons/io5'
 import { cn } from '@/lib/utils'
+import { TokenListProps } from './columns'
+import Link from 'next/link'
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]
@@ -71,7 +73,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 												variant="ghost"
 												className={cn(
 													'p-0 font-semibold text-sm text-main-black',
-													header.column.columnDef.header === 'Token' && 'ml-[62px]'
+													data.length > 0 && header.column.columnDef.header === 'Token' && 'ml-[62px]'
 												)}
 												onClick={() => header.column.toggleSorting(header.column.getIsSorted() === 'asc')}
 											>
@@ -86,15 +88,34 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 					</TableHeader>
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
-							table.getRowModel().rows.map((row) => (
-								<TableRow className="h-[58px]" key={row.id} data-state={row.getIsSelected() && 'selected'}>
-									{row.getVisibleCells().map((cell, index, arr) => (
-										<TableCell className={cn(index === 0 && 'pl-5', index === arr.length - 1 && 'pr-5')} key={cell.id}>
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+							table.getRowModel().rows.map((row) => {
+								const mintAddress = (row.original as TokenListProps).id
+
+								return (
+									<TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && 'selected'}
+										className="h-[58px] cursor-pointer hover:bg-muted/50 transition"
+									>
+										{row.getVisibleCells().map((cell, index, arr) => (
+											<TableCell
+												className={cn(index === 0 && 'pl-5', index === arr.length - 1 && 'pr-5')}
+												key={cell.id}
+											>
+												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											</TableCell>
+										))}
+										<TableCell className="pr-5">
+											<Link
+												href={`/my-tokens/${mintAddress}`}
+												className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), '[&_svg]:size-5')}
+											>
+												<IoIosArrowForward />
+											</Link>
 										</TableCell>
-									))}
-								</TableRow>
-							))
+									</TableRow>
+								)
+							})
 						) : (
 							<TableRow>
 								<TableCell colSpan={columns.length} className="text-center pt-4">
