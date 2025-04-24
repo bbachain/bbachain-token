@@ -5,7 +5,7 @@ import { TokenListColumns, TokenListProps } from '@/components/tokens/columns'
 import { DataTable as TokenListTable } from '@/components/tokens/data-table'
 import { Loader2 } from 'lucide-react'
 import { useWallet } from '@bbachain/wallet-adapter-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PublicKey } from '@bbachain/web3.js'
 import { NoAdressAlert } from '@/components/common/alert'
 import { GetTokenResponse } from '@/lib/response'
@@ -54,7 +54,17 @@ export default function Tokens() {
 		return publicKey
 	}, [publicKey])
 
-	const exampleAddress = new PublicKey('3Vpv5BGuyNLtbhbejQjYkVmDKtfXeUZhMfy27UJCJm9p')
+	const [mounted, setMounted] = useState<boolean>(false)
+	useEffect(() => setMounted(true), [])
+
+	if (!mounted) {
+		return (
+			<div className="h-full w-full  mt-60 flex flex-col space-y-3 items-center justify-center">
+				<Loader2 className="animate-spin" width={40} height={40} />
+				<p>Please wait...</p>
+			</div>
+		)
+	}
 
 	if (!address) {
 		return (
@@ -64,5 +74,5 @@ export default function Tokens() {
 		)
 	}
 
-	return <TokenComponent address={exampleAddress} />
+	return <TokenComponent address={address} />
 }

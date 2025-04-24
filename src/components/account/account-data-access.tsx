@@ -173,6 +173,35 @@ export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) 
 	return tokenMetadataQueries
 }
 
+export function useGetTokenMetadataDetail({ mintAddress }: { mintAddress: PublicKey }) {
+	const { connection } = useConnection()
+	return useQuery({
+		queryKey: ['get-token-metadata-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
+		queryFn: async () => {
+			try {
+				const [metadata, signatures] = await Promise.all([
+					geTokenMetadata({ connection, mintAddress }),
+					connection.getSignaturesForAddress(mintAddress)
+				])
+
+				const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+
+				return {
+					mintAddress: metadata.mintAddress,
+					name: metadata.name,
+					symbol: metadata.symbol,
+					date: blockTime,
+					metadataLink: metadata.metadataLink,
+					metadataURI: metadata.metadataURI
+				} satisfies GetTokenResponse
+			} catch (err) {
+				console.error(`Error fetching metadata for mint ${mintAddress}:`, err)
+				return undefined
+			}
+		}
+	})
+}
+
 export function useTransferBBA({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
 	const transactionToast = useTransactionToast()
