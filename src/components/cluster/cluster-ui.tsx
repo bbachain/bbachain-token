@@ -56,35 +56,35 @@ export function ClusterChecker({ children }: { children: ReactNode }) {
 export function ClusterUiSelect({ className }: { className?: string }) {
 	const { clusters, setCluster, cluster } = useCluster()
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+		<Popover>
+			<PopoverTrigger asChild>
 				<Button
 					type="button"
 					className={cn(
-						'bg-main-green hover:bg-hover-green w-[80px] h-[34px] flex items-center justify-center text-main-white  px-2.5 py-2 rounded-[10px] text-sm font-normal',
+						'flex bg-main-green w-full md:px-2.5 px-1 hover:bg-hover-green space-x-2 rounded-[10px] items-center',
 						className
 					)}
 				>
 					{cluster.name}
 				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent className="bg-box mt-2 px-2 w-[100px]">
-				<ul className="flex flex-col w-full items-center justify-center">
+			</PopoverTrigger>
+			<PopoverContent className="bg-box mt-2 px-2 w-[100px]">
+				<ul className="flex flex-col space-y-2 w-full items-center justify-center">
 					{clusters.map((item) => (
-						<DropdownMenuItem className="w-full" key={item.name}>
+						<li key={item.name} className="w-full">
 							<Button
 								type="button"
 								variant="ghost"
-								className={`hover:bg-hover-green w-full p-0 ${item.active ? 'bg-hover-green' : 'bg-transparent'}`}
+								className={cn('hover:bg-hover-green h-8 w-full p-0', item.active ? 'bg-hover-green' : 'bg-transparent')}
 								onClick={() => setCluster(item)}
 							>
 								{item.name}
 							</Button>
-						</DropdownMenuItem>
+						</li>
 					))}
 				</ul>
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</PopoverContent>
+		</Popover>
 	)
 }
 
