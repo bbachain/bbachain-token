@@ -30,4 +30,9 @@ export type GetTokenMetadataResponse = {
 	name: string | null
 	symbol: string | null
 	metadataURI: MetadataURI | null
+	metadataLink: string | null
+}
+
+export type GetTokenResponse = GetTokenMetadataResponse & {
+	date: number
 }

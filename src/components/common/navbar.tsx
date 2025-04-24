@@ -137,7 +137,7 @@ function CustomWalletButton() {
 					</Button>
 				</PopoverTrigger>
 
-				<PopoverContent className="w-56 flex flex-col gap-1 p-2">
+				<PopoverContent className="w-48 flex flex-col gap-1 p-2">
 					<Button
 						variant="ghost"
 						className="justify-start text-sm"
