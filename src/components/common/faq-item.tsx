@@ -1,7 +1,6 @@
-export type FAQItemProps = {
-	question: string
-	answer: string
-}
+import { type FAQItem } from '@/lib/types'
+
+export type FAQItemProps = FAQItem
 
 export default function FAQItem(props: FAQItemProps) {
 	const { question, answer } = props

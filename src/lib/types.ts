@@ -1,3 +1,27 @@
+export type FAQItem = {
+	question: string
+	answer: string
+}
+
+export type InfoItem = {
+	title: string
+	description?: string | JSX.Element
+	lists?: string[]
+	items?: InfoItem[]
+}
+
+export type UploadToMetadataPayload = {
+	token_name: string
+	token_symbol: string
+	custom_decimals: number
+	token_supply: number
+	token_icon: File
+	description: string | null
+	revoke_freeze: boolean
+	revoke_mint: boolean
+	immutable_metadata: boolean
+}
+
 export type MetadataURI = {
 	name: string
 	symbol: string

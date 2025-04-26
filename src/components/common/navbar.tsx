@@ -46,7 +46,7 @@ function MobileMenuDrawer() {
 					<RxHamburgerMenu />
 				</Button>
 			</DrawerTrigger>
-			<DrawerContent aria-describedby={undefined} className="h-screen top-0 mt-0 right-0 left-auto w-4/6">
+			<DrawerContent aria-describedby={undefined} className="h-screen rounded-none top-0 mt-0 right-0 left-auto w-4/6">
 				<DrawerHeader className="p-0 m-0">
 					<DrawerTitle></DrawerTitle>
 					<DrawerClose asChild>
@@ -58,13 +58,14 @@ function MobileMenuDrawer() {
 				<section className="flex py-5 h-full flex-col justify-between">
 					<div className="flex w-full items-start flex-col pt-1.5">
 						{NavMenu.map((nav) => (
-							<Link
-								key={nav.name}
-								className="text-sm w-full px-3.5 font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black"
-								href={nav.href}
-							>
-								{nav.name}
-							</Link>
+							<DrawerClose key={nav.name} asChild>
+								<Link
+									className="text-sm w-full px-3.5 font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black"
+									href={nav.href}
+								>
+									{nav.name}
+								</Link>
+							</DrawerClose>
 						))}
 					</div>
 					<div className="flex flex-col space-y-2 pt-1.5 pb-4 border-b-2 border-main-black items-center justify-center">

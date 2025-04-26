@@ -1,12 +1,6 @@
 import { FaXTwitter, FaTelegram, FaMedium } from 'react-icons/fa6'
 import { FaLinkedin, FaInstagram, FaFacebook, FaYoutube, FaTiktok, FaDiscord } from 'react-icons/fa'
-
-export type TInfo = {
-	title: string
-	description?: string | JSX.Element
-	lists?: string[]
-	items?: TInfo[]
-}
+import { type InfoItem, type FAQItem } from './types'
 
 export const NavMenu = [
 	{
@@ -93,7 +87,7 @@ export const SocialMedia = [
 	}
 ]
 
-export const FAQData = [
+export const FAQData: FAQItem[] = [
 	{
 		question: 'How does the BTI quick token generator(QTG) work',
 		answer:
@@ -125,11 +119,11 @@ export const FAQData = [
 	}
 ]
 
-export const TermsOfServices: TInfo[] = [
+export const TermsOfServices: InfoItem[] = [
 	{
 		title: 'Purpose of the Platform',
 		description:
-			'The Quick Token Generator is a tool that allows Users to create tokens on the BBAChain network quickly and easily. The Platform provides an accessible interface for token creation but does not offer advice, support, or endorsement for any tokens generated through the Platform.'
+			'The Quick Token Generator is a tool that enables Users to create tokens on the BBAChain network quickly and easily. The Platform provides an accessible interface for token creation but does not offer legal, financial, or technical advice, nor does it support or endorse any tokens generated through the Platform.'
 	},
 	{
 		title: 'User Responsibilities',
@@ -142,7 +136,7 @@ export const TermsOfServices: TInfo[] = [
 			{
 				title: 'Ownership and Liability',
 				description:
-					'Users retain full ownership of and responsibility for any tokens they create. BTI Group OÜ and BBAChain are not affiliated with, do not endorse, and do not accept liability for any tokens or projects created using the Platform.'
+					'Users retain full ownership of, and responsibility for, any tokens they create. BTI Group OÜ and BBAChain are not affiliated with, do not endorse, and accept no liability for any tokens or projects created using the Platform.'
 			},
 			{
 				title: 'Prohibited Activities',
@@ -173,7 +167,7 @@ export const TermsOfServices: TInfo[] = [
 			{
 				title: 'No Legal or Financial Responsibility',
 				description:
-					'We are not liable for any legal, financial, or reputational damages arising from the use of the Platform or the tokens generated. Users acknowledge that they are fully responsible for any risks associated with the creation, distribution, or management of their tokens.'
+					'We shall not be liable for any legal, financial, or reputational damages arising from the use of the Platform or the tokens generated. Users acknowledge that they are fully responsible for any risks associated with the creation, distribution, or management of their tokens. '
 			},
 			{
 				title: 'No Warranty',
@@ -213,7 +207,7 @@ export const TermsOfServices: TInfo[] = [
 			{
 				title: 'Limited License',
 				description:
-					'Users are granted a limited, non-exclusive, and non-transferable license to use the Platform for the purpose of creating tokens on the BBAChain network.'
+					'Users are granted a limited, non-exclusive, and non-transferable license to use the Platform solely for the purpose of creating tokens on the BBAChain network.'
 			}
 		]
 	},
@@ -255,29 +249,29 @@ export const TermsOfServices: TInfo[] = [
 	}
 ]
 
-export const PrivacyPolicy: TInfo[] = [
+export const PrivacyPolicy: InfoItem[] = [
 	{
 		title: 'Scope of the Privacy Policy',
 		description:
-			'This Privacy Policy applies exclusively to the Quick Token Generator, a Web3 platform that operates without user registration. Users interact with the Platform by connecting their blockchain wallets.'
+			'This Privacy Policy applies exclusively to the Quick Token Generator, a Web3 platform that operates without user registration. Users interact with the Platform solely by connecting their blockchain wallets.'
 	},
 	{
 		title: 'Information We Collect',
 		description:
-			'The Platform does not require registration or the submission of personal information. The information we collect is limited to the following:',
+			'The Platform does not require registration or the submission of personal information. The information we collect is strictly limited to the following:',
 		items: [
 			{
 				title: 'Blockchain Wallet Address',
 				lists: [
 					'When you connect your wallet to the Platform, we may process your wallet address to facilitate transactions and provide token creation services.',
-					'This information is inherently public on the blockchain and not stored or used for any purpose beyond providing the service.'
+					'This information is inherently public on the blockchain and is neither stored nor used for any purpose beyond providing the service.'
 				]
 			},
 			{
 				title: 'Transactional Data',
 				lists: [
 					'We process information related to token creation and blockchain transactions initiated by you on the Platform. This includes the type of token, transaction ID, and related blockchain data.',
-					'All transactional data is recorded on the blockchain and is accessible to the public due to the nature of blockchain technology.'
+					' All transactional data is recorded on the blockchain and is publicly accessible due to the nature of blockchain technology. '
 				]
 			}
 		]
@@ -288,7 +282,7 @@ export const PrivacyPolicy: TInfo[] = [
 		lists: [
 			'Enable and facilitate the token creation process.',
 			'Ensure the proper functioning and security of the Platform.',
-			'Monitor and analyze Platform usage to improve user experience.'
+			'Monitor and analyze Platform usage to improve the overall user experience.'
 		]
 	},
 	{
@@ -297,7 +291,7 @@ export const PrivacyPolicy: TInfo[] = [
 			{
 				title: 'No Third-Party Sharing',
 				lists: [
-					'We do not sell, rent, or share your information with third parties for marketing or any other purposes.'
+					'We do not sell, rent, or share your information with third parties for marketing or any commercial purposes.'
 				]
 			},
 			{
@@ -314,13 +308,13 @@ export const PrivacyPolicy: TInfo[] = [
 			{
 				title: 'No Personal Data Storage',
 				lists: [
-					'We do not store personal information or wallet addresses on our servers. The Platform operates as a decentralized Web3 service.'
+					'We do not store personal information or wallet addresses on our servers. The Platform operates entirely as a decentralized Web3 service.'
 				]
 			},
 			{
 				title: 'Security Measures',
 				lists: [
-					'We implement industry-standard security measures to protect the integrity and functionality of the Platform. However, as a Web3 platform, users are responsible for the security of their wallets and private keys.'
+					'We implement industry-standard security measures to protect the integrity and functionality of the Platform. However, as a Web3 platform, users are solely responsible for the security of their wallets and private keys. '
 				]
 			}
 		]
@@ -329,23 +323,23 @@ export const PrivacyPolicy: TInfo[] = [
 		title: 'User Responsibilities',
 		lists: [
 			'Ensure the security of your blockchain wallet and private keys. We will never request your private key or seed phrase.',
-			'Use the Platform responsibly and ensure compliance with applicable laws and regulations in your jurisdiction.'
+			'Use the Platform responsibly and ensure compliance with all applicable laws and regulations in your jurisdiction.'
 		]
 	},
 	{
 		title: 'Third-Party Services',
 		description:
-			'The Platform may include links to third-party services or platforms. We are not responsible for the privacy practices or content of these third parties, and we encourage you to review their privacy policies before engaging with their services.'
+			'The Platform may include links to third-party services or platforms. We are not responsible for the privacy practices, content, or operations of these third parties. We encourage you to review their privacy policies before engaging with their services.'
 	},
 	{
 		title: "Children's Privacy",
 		description:
-			'The Platform is not intended for use by individuals under the age of 18. We do not knowingly collect personal information from minors.'
+			'The Platform is not intended for use by individuals under the age of 18. We do not knowingly collect or process personal information from minors.'
 	},
 	{
 		title: 'Changes to this Privacy Policy',
 		description:
-			'We reserve the right to update or modify this Privacy Policy at any time without prior notice. Changes will be effective immediately upon posting on the Platform. We encourage you to review this policy periodically for any updates.'
+			'We reserve the right to update or modify this Privacy Policy at any time without prior notice. Changes will be effective immediately upon posting on the Platform. We encourage you to review this Privacy Policy periodically for any updates. '
 	},
 	{
 		title: 'Contact Information',
