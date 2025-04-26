@@ -29,7 +29,7 @@ import { CreateBBATokenPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
 import { fetchMetadata } from '@bbachain/spl-token-metadata'
 import axios from 'axios'
-import { CreateTokenResponse, GetTokenMetadataResponse, GetTokenResponse, MetadataURI } from '@/lib/response'
+import { CreateTokenResponse, GetTokenMetadataResponse, GetTokenResponse, MetadataURI } from '@/lib/types'
 import { TokenListProps } from '../tokens/columns'
 
 export function useGetBalance({ address }: { address: PublicKey }) {

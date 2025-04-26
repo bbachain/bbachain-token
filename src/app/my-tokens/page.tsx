@@ -8,7 +8,7 @@ import { useWallet } from '@bbachain/wallet-adapter-react'
 import { useEffect, useMemo, useState } from 'react'
 import { PublicKey } from '@bbachain/web3.js'
 import { NoAdressAlert } from '@/components/common/alert'
-import { GetTokenResponse } from '@/lib/response'
+import { GetTokenResponse } from '@/lib/types'
 
 function mapToTokenListPropsList(tokens: GetTokenResponse[]): TokenListProps[] {
 	return tokens.map((token) => {

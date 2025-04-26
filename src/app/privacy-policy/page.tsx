@@ -7,7 +7,7 @@ export default function PrivacyPolicy() {
 			<InfoCard
 				title={'Privacy Policy'}
 				description={
-					'BTI Group OÜ ("we," "us," or "our") is committed to protecting the privacy of users ("you" or "your") who use the Quick Token Generator platform ("Platform"). This Privacy Policy outlines how we collect, use, and protect your information when you interact with our Platform.'
+					'BTI Group OÜ ("we," "us," or "our") is committed to protecting the privacy of users ("you" or "your") who use the Quick Token Generator Platform ("Platform"). This Privacy Policy outlines how we collect, use, and safeguard your information when you interact with our Platform.'
 				}
 				data={PrivacyPolicyData}
 			/>

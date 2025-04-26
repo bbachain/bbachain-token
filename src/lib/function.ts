@@ -1,14 +1,4 @@
-type UploadToMetadataPayload = {
-	token_name: string
-	token_symbol: string
-	custom_decimals: number
-	token_supply: number
-	token_icon: File
-	description: string | null
-	revoke_freeze: boolean
-	revoke_mint: boolean
-	immutable_metadata: boolean
-}
+import { UploadToMetadataPayload } from './types'
 
 export const uploadIconToPinata = async (file: File) => {
 	const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY

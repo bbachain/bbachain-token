@@ -6,15 +6,12 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import {
 	Dialog,
-	DialogTrigger,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogDescription,
 	DialogClose
 } from '@/components/ui/dialog'
-
-import { copyToClipboard } from './copy'
 
 export function WalletListDialog() {
 	const { wallets, select } = useWallet()

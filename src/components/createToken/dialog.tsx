@@ -8,7 +8,7 @@ import {
 	DialogHeader,
 	DialogClose
 } from '@/components/ui/dialog'
-import { CreateTokenResponse } from '@/lib/response'
+import { CreateTokenResponse } from '@/lib/types'
 import Image from 'next/image'
 import { useCluster } from '../cluster/cluster-data-access'
 
