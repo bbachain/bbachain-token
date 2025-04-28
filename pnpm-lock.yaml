@@ -15,8 +15,8 @@ importers:
         specifier: 0.1.5
         version: 0.1.5(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(rpc-websockets@9.0.2)(utf-8-validate@5.0.10)
       '@bbachain/spl-token-metadata':
-        specifier: ^0.1.1
-        version: 0.1.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        specifier: ^0.1.2
+        version: 0.1.2(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       '@bbachain/wallet-adapter-base':
         specifier: 0.1.4
         version: 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
@@ -393,8 +393,8 @@ packages:
     resolution: {integrity: sha512-Ndh7OyEnnmCZdoiJrQi9qe50P623o3UxhpbQyftXs1sBABNS2jrUAWe7Vx6LNZmdhE4429cM5awmgqhlCBa8Aw==}
     engines: {node: '>=5.10'}
 
-  '@bbachain/spl-token-metadata@0.1.1':
-    resolution: {integrity: sha512-KzoP2hCK/jQSzNYq04taf1CwqF4sYP9hcNB/yBuJOJfdc/q2jdB1IEQYhRnY4DNBysz6aRUr7O221JX9XnveGw==}
+  '@bbachain/spl-token-metadata@0.1.2':
+    resolution: {integrity: sha512-Sn0YiucpOK32FA8cgtsoLr3gqpnbJ8lmUsq+1BREhzTHAiq+9s/690Es8dq5kpMXJ6ysKhmW/y/n8QgvvT/+3g==}
 
   '@bbachain/spl-token@0.0.1':
     resolution: {integrity: sha512-WErz1vnZ07r/l9sbvXvy8y1bhzxzbERIwZIa5BAmFPEPP+y10CnaTPEfM7dWmp7tstD++7LZjT8ZVifBP9k5mA==}
@@ -4322,7 +4322,7 @@ snapshots:
     dependencies:
       buffer: 6.0.3
 
-  '@bbachain/spl-token-metadata@0.1.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@bbachain/spl-token-metadata@0.1.2(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
     dependencies:
       '@bbachain/beet': 0.0.1
       '@bbachain/beet-bbachain': 0.0.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)
