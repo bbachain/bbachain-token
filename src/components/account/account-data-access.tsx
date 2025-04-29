@@ -27,7 +27,7 @@ import toast from 'react-hot-toast'
 import { useTransactionToast } from '../common/ui-layout'
 import { CreateBBATokenPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
-import { fetchMetadata } from '@bbachain/spl-token-metadata'
+import { createCreateMetadataAccountInstruction, createUpdateMetadataAccountInstruction, Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
 import axios from 'axios'
 import { CreateTokenResponse, GetTokenMetadataResponse, GetTokenResponse, MetadataURI } from '@/lib/types'
 import { TokenListProps } from '../tokens/columns'
@@ -82,8 +82,18 @@ export async function geTokenMetadata({
 		// Convert string to PublicKey
 
 		// Use fetchMetadata to get the on-chain metadata
-		const metadata = await fetchMetadata(connection, mintAddress)
-		console.log('metadata', metadata)
+		const [metadataPda] = PublicKey.findProgramAddressSync(
+			[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+			PROGRAM_ID
+		)
+
+		const accountInfo = await connection.getAccountInfo(metadataPda)
+		if (!accountInfo?.data) {
+			throw new Error(`No metadata found for mint address ${mintAddress.toString()}`)
+		}
+
+		const [metadata] = Metadata.deserialize(accountInfo.data)
+		console.log('### metadata', metadata)
 
 		if (!metadata)
 			return {
@@ -94,7 +104,7 @@ export async function geTokenMetadata({
 				mintAddress: mintAddress.toString()
 			}
 
-		const { name, symbol, uri: metadataUri } = metadata
+		const { name, symbol, uri: metadataUri } = metadata.data
 
 		let uriData = null
 
@@ -337,7 +347,6 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
 				const latestBlockhash = await connection.getLatestBlockhash()
 				const mintKeypair = Keypair.generate()
-				const programId = new PublicKey('metaAig5QsCBSfstkwqPQxzdjXdUB8JxjfvtvEPNe3F')
 				const tokenATA = await getAssociatedTokenAddress(mintKeypair.publicKey, publicKey)
 
 				const mappedPayload = {
@@ -382,43 +391,66 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 
 				// Create the metadata account
 				const [metadataPda] = PublicKey.findProgramAddressSync(
-					[Buffer.from('metadata'), mintKeypair.publicKey.toBuffer()],
-					programId
+					[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintKeypair.publicKey.toBuffer()],
+					PROGRAM_ID
 				)
 
 				const iconUri = await uploadIconToPinata(mappedPayload.token_icon)
 				const ipfsUri = await uploadMetadataToPinata(mappedPayload, iconUri)
 
-				// Prepare the metadata
-				const nameBuffer = Buffer.from(mappedPayload.token_name, 'utf8')
-				const symbolBuffer = Buffer.from(mappedPayload.token_symbol, 'utf8')
-				const uriBuffer = Buffer.from(ipfsUri, 'utf8')
-				const instructionData = Buffer.concat([
-					Buffer.from([0]), // Variant 0 = Initialize
-					Buffer.from(new Uint32Array([nameBuffer.length]).buffer), // Name length (u32)
-					nameBuffer,
-					Buffer.from(new Uint32Array([symbolBuffer.length]).buffer), // Symbol length (u32)
-					symbolBuffer,
-					Buffer.from(new Uint32Array([uriBuffer.length]).buffer), // URI length (u32)
-					uriBuffer
-				] as any)
+				const data = {
+					name: mappedPayload.token_name,
+					symbol: mappedPayload.token_symbol,
+					uri: ipfsUri,
+					sellerFeeBasisPoints: 0,
+					creators: null,
+					collection: null,
+					uses: null
+				}
 
-				const metadataTx = new Transaction().add({
-					keys: [
-						{ pubkey: metadataPda, isSigner: false, isWritable: true },
-						{ pubkey: mintKeypair.publicKey, isSigner: false, isWritable: false },
-						{ pubkey: address, isSigner: true, isWritable: true },
-						{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
-					],
-					programId,
-					data: instructionData
-				})
-				metadataTx.recentBlockhash = latestBlockhash.blockhash
-				metadataTx.feePayer = address
+				const ix = createCreateMetadataAccountInstruction(
+					{
+						metadata: metadataPda,
+						mint: mintKeypair.publicKey,
+						mintAuthority: address,
+						payer: address,
+						updateAuthority: address
+					},
+					{ createMetadataAccountArgs: { data, isMutable: true, collectionDetails: null } }
+				)
+
+				const metadataTx = new Transaction().add(ix)
 
 				const metadataSignature = await sendTransaction(metadataTx, connection)
 
 				await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
+
+				// // create update token metadata instruction
+				// const updateMetadataIx = createUpdateMetadataAccountInstruction(
+				// 	{
+				// 		metadata: metadataPda,
+				// 		updateAuthority: address
+				// 	},
+				// 	{
+				// 		updateMetadataAccountArgs: {
+				// 			data: {
+				// 				name: "Fake Tether",
+				// 				symbol: "FUSDT",
+				// 				uri: 'https://ipfs.io/ipfs/bafkreic73yqcbupuneupdrptiodllkd2cool7ljidnglharg3rmfaulhuq',
+				// 				sellerFeeBasisPoints: 0,
+				// 				creators: null,
+				// 				collection: null,
+				// 				uses: null
+				// 			},
+				// 			updateAuthority: address,
+				// 			primarySaleHappened: false,
+				// 			isMutable: false,
+				// 		}
+				// 	}
+				// )
+				// const updateMetadataTx = new Transaction().add(updateMetadataIx)
+				// const updateMetadataSignature = await sendTransaction(updateMetadataTx, connection)
+				// await connection.confirmTransaction({ signature: updateMetadataSignature, ...latestBlockhash }, 'confirmed')
 
 				return {
 					mintAddress: mintKeypair.publicKey.toBase58(),

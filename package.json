@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@bbachain/spl-token": "0.1.5",
-    "@bbachain/spl-token-metadata": "^0.0.5",
+    "@bbachain/spl-token-metadata": "^0.1.2",
     "@bbachain/wallet-adapter-base": "0.1.4",
     "@bbachain/wallet-adapter-react": "0.1.4",
     "@bbachain/wallet-adapter-react-ui": "0.1.4",
