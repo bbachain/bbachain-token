@@ -1,6 +1,6 @@
 'use client'
 
-import { useGetTokenMetadataQueries } from '@/components/account/account-data-access'
+import { useGetTokenDataQueries } from '@/components/account/account-data-access'
 import { TokenListColumns, TokenListProps } from '@/components/tokens/columns'
 import { DataTable as TokenListTable } from '@/components/tokens/data-table'
 import { Loader2 } from 'lucide-react'
@@ -19,15 +19,19 @@ function mapToTokenListPropsList(tokens: GetTokenResponse[]): TokenListProps[] {
 			name: token.name ?? fallback,
 			symbol: token.symbol ?? fallback,
 			icon: token.metadataURI?.image ?? '/icon-placeholder.svg',
-			supply: token.metadataURI?.supply?.toLocaleString?.() ?? '0',
+			supply: token.supply?.toLocaleString?.() ?? '0',
 			date: token.date
 		}
 	})
 }
 
 function TokenComponent({ address }: { address: PublicKey }) {
-	const tokenMetadataQueries = useGetTokenMetadataQueries({ address })
+	const tokenMetadataQueries = useGetTokenDataQueries({ address })
 	const tokenMetadata = mapToTokenListPropsList(tokenMetadataQueries.data)
+
+	useEffect(() => {
+		console.log(tokenMetadataQueries)
+	}, [])
 
 	if (tokenMetadataQueries.isPending) {
 		return (

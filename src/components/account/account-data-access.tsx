@@ -1,9 +1,11 @@
 'use client'
 
 import {
+	AuthorityType,
 	createAssociatedTokenAccountInstruction,
 	createInitializeMintInstruction,
 	createMintToInstruction,
+	createSetAuthorityInstruction,
 	getAssociatedTokenAddress,
 	getMinimumBalanceForRentExemptMint,
 	MINT_SIZE,
@@ -27,7 +29,13 @@ import toast from 'react-hot-toast'
 import { useTransactionToast } from '../common/ui-layout'
 import { CreateBBATokenPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
-import { createCreateMetadataAccountInstruction, createUpdateMetadataAccountInstruction, Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
+import {
+	createCreateMetadataAccountInstruction,
+	createUpdateMetadataAccountInstruction,
+	Metadata,
+	PROGRAM_ID
+} from '@bbachain/spl-token-metadata'
+import { getMint, setAuthority } from '@bbachain/spl-token'
 import axios from 'axios'
 import { CreateTokenResponse, GetTokenMetadataResponse, GetTokenResponse, MetadataURI } from '@/lib/types'
 import { TokenListProps } from '../tokens/columns'
@@ -97,11 +105,11 @@ export async function geTokenMetadata({
 
 		if (!metadata)
 			return {
+				metadataAddress: metadataPda.toBase58(),
 				name: null,
 				symbol: null,
 				metadataLink: null,
-				metadataURI: null,
-				mintAddress: mintAddress.toString()
+				metadataURI: null
 			}
 
 		const { name, symbol, uri: metadataUri } = metadata.data
@@ -118,25 +126,25 @@ export async function geTokenMetadata({
 		}
 
 		return {
+			metadataAddress: metadataPda.toBase58(),
 			name,
 			symbol,
 			metadataLink: metadataUri,
-			metadataURI: uriData,
-			mintAddress: mintAddress.toString()
+			metadataURI: uriData
 		}
 	} catch (error) {
 		console.error('Error getting token metadata:', error)
 		return {
+			metadataAddress: '',
 			name: null,
 			symbol: null,
 			metadataLink: null,
-			metadataURI: null,
-			mintAddress: ''
+			metadataURI: null
 		}
 	}
 }
 
-export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) {
+export function useGetTokenDataQueries({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
 	const tokenAccounts = useGetTokenAccounts({ address })
 
@@ -146,23 +154,42 @@ export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) 
 			const mintKey = new PublicKey(mint)
 
 			return {
-				queryKey: ['get-token-metadata-combined', { endpoint: connection.rpcEndpoint, mintKey }],
+				queryKey: ['get-token-data', { endpoint: connection.rpcEndpoint, mintKey }],
 				queryFn: async () => {
 					try {
-						const [metadata, signatures] = await Promise.all([
+						const [metadata, signatures, mintAccountInfo] = await Promise.all([
 							geTokenMetadata({ connection, mintAddress: mintKey }),
-							connection.getSignaturesForAddress(mintKey)
+							connection.getSignaturesForAddress(mintKey),
+							getMint(connection, mintKey)
 						])
 
 						const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+						const decimals = mintAccountInfo.decimals
+						const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+						const revokeMint = mintAccountInfo.mintAuthority === null
+						const revokeFreeze = mintAccountInfo.freezeAuthority === null
+
+						const metadataAddress = new PublicKey(metadata.metadataAddress)
+						const metadataAccount = await Metadata.fromAccountAddress(connection, metadataAddress)
+						const immutableMetadata = !metadataAccount.isMutable
+
+						const authoritiesState = {
+							revoke_freeze: revokeFreeze,
+							revoke_mint: revokeMint,
+							immutable_metadata: immutableMetadata
+						}
 
 						return {
-							mintAddress: metadata.mintAddress,
+							mintAddress: mintKey.toBase58(),
 							name: metadata.name,
 							symbol: metadata.symbol,
-							date: blockTime,
+							decimals,
+							supply,
+							metadataAddress: metadataAddress.toBase58(),
 							metadataLink: metadata.metadataLink,
-							metadataURI: metadata.metadataURI
+							metadataURI: metadata.metadataURI,
+							authoritiesState,
+							date: blockTime
 						} satisfies GetTokenResponse
 					} catch (err) {
 						console.error(`Error fetching metadata for mint ${mint}:`, err)
@@ -183,26 +210,45 @@ export function useGetTokenMetadataQueries({ address }: { address: PublicKey }) 
 	return tokenMetadataQueries
 }
 
-export function useGetTokenMetadataDetail({ mintAddress }: { mintAddress: PublicKey }) {
+export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey }) {
 	const { connection } = useConnection()
 	return useQuery({
-		queryKey: ['get-token-metadata-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
+		queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
 		queryFn: async () => {
 			try {
-				const [metadata, signatures] = await Promise.all([
+				const [metadata, signatures, mintAccountInfo] = await Promise.all([
 					geTokenMetadata({ connection, mintAddress }),
-					connection.getSignaturesForAddress(mintAddress)
+					connection.getSignaturesForAddress(mintAddress),
+					getMint(connection, mintAddress)
 				])
 
 				const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+				const decimals = mintAccountInfo.decimals
+				const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+				const revokeMint = mintAccountInfo.mintAuthority === null
+				const revokeFreeze = mintAccountInfo.freezeAuthority === null
+
+				const metadataAddress = new PublicKey(metadata.metadataAddress)
+				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataAddress)
+				const immutableMetadata = !metadataAccount.isMutable
+
+				const authoritiesState = {
+					revoke_freeze: revokeFreeze,
+					revoke_mint: revokeMint,
+					immutable_metadata: immutableMetadata
+				}
 
 				return {
-					mintAddress: metadata.mintAddress,
+					mintAddress: mintAddress.toBase58(),
 					name: metadata.name,
 					symbol: metadata.symbol,
-					date: blockTime,
+					decimals,
+					supply,
+					metadataAddress: metadataAddress.toBase58(),
 					metadataLink: metadata.metadataLink,
-					metadataURI: metadata.metadataURI
+					metadataURI: metadata.metadataURI,
+					authoritiesState,
+					date: blockTime
 				} satisfies GetTokenResponse
 			} catch (err) {
 				console.error(`Error fetching metadata for mint ${mintAddress}:`, err)
@@ -369,7 +415,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 						mintKeypair.publicKey,
 						mappedPayload.custom_decimals,
 						address,
-						null,
+						address,
 						TOKEN_PROGRAM_ID
 					),
 					createAssociatedTokenAccountInstruction(publicKey, tokenATA, publicKey, mintKeypair.publicKey),
@@ -382,6 +428,8 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				)
 				createAccountTx.recentBlockhash = latestBlockhash.blockhash
 				createAccountTx.feePayer = address
+
+				console.log('Successfully create account', createAccountTx)
 
 				// Paritially sign the transaction with the mint keypair
 				createAccountTx.partialSign(mintKeypair)
@@ -424,6 +472,44 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				const metadataSignature = await sendTransaction(metadataTx, connection)
 
 				await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
+
+				// Revoke authorities (mint/freeze) and immutable metadata state if requested
+				const revokeTx = new Transaction()
+				
+				if (mappedPayload.revoke_mint) {
+					revokeTx.add(createSetAuthorityInstruction(mintKeypair.publicKey, address, AuthorityType.MintTokens, null))
+				}
+
+				if (mappedPayload.revoke_freeze) {
+					revokeTx.add(createSetAuthorityInstruction(mintKeypair.publicKey, address, AuthorityType.FreezeAccount, null))
+				}
+
+				if (revokeTx.instructions.length > 0) {
+					revokeTx.recentBlockhash = latestBlockhash.blockhash
+					revokeTx.feePayer = address
+					const revokeSignature = await sendTransaction(revokeTx, connection)
+					await connection.confirmTransaction({ signature: revokeSignature, ...latestBlockhash }, 'confirmed')
+				}
+
+				if (mappedPayload.immutable_metadata) {
+					const lockMetadataIx = createUpdateMetadataAccountInstruction(
+						{
+							metadata: metadataPda,
+							updateAuthority: address
+						},
+						{
+							updateMetadataAccountArgs: {
+								data,
+								updateAuthority: address,
+								primarySaleHappened: false,
+								isMutable: false
+							}
+						}
+					)
+					const lockTx = new Transaction().add(lockMetadataIx)
+					const lockSignature = await sendTransaction(lockTx, connection)
+					await connection.confirmTransaction({ signature: lockSignature, ...latestBlockhash }, 'confirmed')
+				}
 
 				// // create update token metadata instruction
 				// const updateMetadataIx = createUpdateMetadataAccountInstruction(

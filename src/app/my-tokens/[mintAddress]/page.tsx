@@ -1,5 +1,5 @@
 'use client'
-import { useGetTokenMetadataDetail } from '@/components/account/account-data-access'
+import { useGetTokenDataDetail } from '@/components/account/account-data-access'
 import {
 	type TokenOverviewProps,
 	type TokenOptionProps,
@@ -18,40 +18,40 @@ import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 
 export default function TokenDetail({ params }: { params: { mintAddress: string } }) {
 	const mintKey = new PublicKey(params.mintAddress)
-	const tokenMetadataDetail = useGetTokenMetadataDetail({ mintAddress: mintKey })
+	const tokenMetadataDetail = useGetTokenDataDetail({ mintAddress: mintKey })
 
 	const tokenOverviewData = useMemo(
 		(): TokenOverviewProps => ({
 			dataText: {
 				token_name: tokenMetadataDetail.data?.name ?? '-',
 				symbol: tokenMetadataDetail.data?.symbol ?? '-',
-				total_supply: tokenMetadataDetail.data?.metadataURI?.supply.toLocaleString() ?? '0',
-				decimals: tokenMetadataDetail.data?.metadataURI?.decimals ?? 0,
+				total_supply: tokenMetadataDetail.data?.supply.toLocaleString() ?? '0',
+				decimals: tokenMetadataDetail.data?.decimals ?? 0,
 				network: 'BBA Network',
 				mint_address: tokenMetadataDetail.data?.mintAddress ?? ''
 			},
 			dataImage: tokenMetadataDetail.data?.metadataURI?.image ?? '/icon-placeholder.svg'
 		}),
 		[
-			tokenMetadataDetail.data?.metadataURI?.decimals,
+			tokenMetadataDetail.data?.decimals,
 			tokenMetadataDetail.data?.metadataURI?.image,
-			tokenMetadataDetail.data?.metadataURI?.supply,
 			tokenMetadataDetail.data?.mintAddress,
 			tokenMetadataDetail.data?.name,
+			tokenMetadataDetail.data?.supply,
 			tokenMetadataDetail.data?.symbol
 		]
 	)
 
 	const tokenOptionsData = useMemo(
 		(): TokenOptionProps => ({
-			mint_authority: tokenMetadataDetail.data?.metadataURI?.revoke_mint ? 'Active' : 'Inactive',
-			freeze_authority: tokenMetadataDetail.data?.metadataURI?.revoke_freeze ? 'Active' : 'Inactive',
-			lock_metadata: tokenMetadataDetail.data?.metadataURI?.immutable_metadata ? 'Locked' : 'Unlocked'
+			mint_authority: tokenMetadataDetail.data?.authoritiesState?.revoke_mint ? 'Active' : 'Inactive',
+			freeze_authority: tokenMetadataDetail.data?.authoritiesState?.revoke_freeze ? 'Active' : 'Inactive',
+			lock_metadata: tokenMetadataDetail.data?.authoritiesState?.immutable_metadata ? 'Locked' : 'Unlocked'
 		}),
 		[
-			tokenMetadataDetail.data?.metadataURI?.immutable_metadata,
-			tokenMetadataDetail.data?.metadataURI?.revoke_freeze,
-			tokenMetadataDetail.data?.metadataURI?.revoke_mint
+			tokenMetadataDetail.data?.authoritiesState?.immutable_metadata,
+			tokenMetadataDetail.data?.authoritiesState?.revoke_freeze,
+			tokenMetadataDetail.data?.authoritiesState?.revoke_mint
 		]
 	)
 
@@ -59,12 +59,12 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		(): TokenMetadataProps => ({
 			description: tokenMetadataDetail.data?.metadataURI?.description ?? '-',
 			ipfs_link: tokenMetadataDetail.data?.metadataLink ?? '-',
-			metadata_status: tokenMetadataDetail.data?.metadataURI?.immutable_metadata ?? false
+			metadata_status: tokenMetadataDetail.data?.authoritiesState.immutable_metadata ?? false
 		}),
 		[
 			tokenMetadataDetail.data?.metadataLink,
 			tokenMetadataDetail.data?.metadataURI?.description,
-			tokenMetadataDetail.data?.metadataURI?.immutable_metadata
+			tokenMetadataDetail.data?.authoritiesState.immutable_metadata
 		]
 	)
 
