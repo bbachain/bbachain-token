@@ -127,9 +127,9 @@ export async function geTokenMetadata({
 
 		return {
 			metadataAddress: metadataPda.toBase58(),
-			name,
-			symbol,
-			metadataLink: metadataUri,
+			name: name.replace(/\0/g, ''),
+			symbol: symbol.replace(/\0/g, ''),
+			metadataLink: metadataUri.replace(/\0/g, ''),
 			metadataURI: uriData
 		}
 	} catch (error) {
@@ -475,7 +475,7 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 
 				// Revoke authorities (mint/freeze) and immutable metadata state if requested
 				const revokeTx = new Transaction()
-				
+
 				if (mappedPayload.revoke_mint) {
 					revokeTx.add(createSetAuthorityInstruction(mintKeypair.publicKey, address, AuthorityType.MintTokens, null))
 				}
