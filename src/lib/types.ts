@@ -13,13 +13,8 @@ export type InfoItem = {
 export type UploadToMetadataPayload = {
 	token_name: string
 	token_symbol: string
-	custom_decimals: number
-	token_supply: number
 	token_icon: File
 	description: string | null
-	revoke_freeze: boolean
-	revoke_mint: boolean
-	immutable_metadata: boolean
 }
 
 export type MetadataURI = {
@@ -27,11 +22,6 @@ export type MetadataURI = {
 	symbol: string
 	description: string | null
 	image: string
-	decimals: number
-	supply: number
-	revoke_freeze: boolean
-	revoke_mint: boolean
-	immutable_metadata: boolean
 }
 
 type CreateTokenMetadataResponse = {
@@ -49,8 +39,14 @@ export type CreateTokenResponse = {
 	signature: string
 }
 
+export type GetTokenAuthoritiesState = {
+	revoke_freeze: boolean
+	revoke_mint: boolean
+	immutable_metadata: boolean
+}
+
 export type GetTokenMetadataResponse = {
-	mintAddress: string
+	metadataAddress: string
 	name: string | null
 	symbol: string | null
 	metadataURI: MetadataURI | null
@@ -58,5 +54,9 @@ export type GetTokenMetadataResponse = {
 }
 
 export type GetTokenResponse = GetTokenMetadataResponse & {
+	mintAddress: string
+	decimals: number
+	supply: number
+	authoritiesState: GetTokenAuthoritiesState
 	date: number
 }

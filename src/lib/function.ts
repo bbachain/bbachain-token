@@ -34,12 +34,7 @@ export const uploadMetadataToPinata = async (payload: UploadToMetadataPayload, i
 		name: payload.token_name,
 		symbol: payload.token_symbol,
 		description: payload.description,
-		image: imageUri,
-		decimals: payload.custom_decimals,
-		supply: payload.token_supply,
-		revoke_freeze: payload.revoke_freeze,
-		revoke_mint: payload.revoke_mint,
-		immutable_metadata: payload.immutable_metadata
+		image: imageUri
 	}
 
 	if (!pinataApiKey || !pinataSecret) {
