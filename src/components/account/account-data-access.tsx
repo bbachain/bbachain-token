@@ -568,3 +568,36 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 		}
 	})
 }
+
+export function useRevokeAuthority({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['change-authority', mintAddress],
+		mutationFn: async (authorityType: AuthorityType) => {
+			try {
+				if (!publicKey) throw new Error('Wallet not connected')
+				const revokeTx = createSetAuthorityInstruction(mintAddress, publicKey, authorityType, null)
+				const revokeAuthority = new Transaction().add(revokeTx)
+				const latestBlockhash = await connection.getLatestBlockhash()
+				revokeAuthority.recentBlockhash = latestBlockhash.blockhash
+				revokeAuthority.feePayer = publicKey
+				const revokeSignature = await sendTransaction(revokeAuthority, connection)
+				await connection.confirmTransaction({ signature: revokeSignature, ...latestBlockhash }, 'confirmed')
+				return { message: `Successfully revoked ${authorityType === 0 ? 'Mint Authority' : 'Freeze Authority'}` }
+			} catch (error: unknown) {
+				throw new Error(`Revoke authority failed! ${error}`)
+			}
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}
