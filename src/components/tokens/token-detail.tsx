@@ -8,7 +8,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { useErrorDialog, useIsMobile } from '@/lib/hooks'
 import { PublicKey } from '@bbachain/web3.js'
-import { useRevokeAuthority } from '../account/account-data-access'
+import { useLockMetadata, useRevokeAuthority } from '../account/account-data-access'
 import { AuthorityType, revoke } from '@bbachain/spl-token'
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
@@ -103,9 +103,10 @@ export function TokenOverview(props: TokenOverviewProps) {
 	)
 }
 
-export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOptionProps }) {
-	const { state, mintAddress } = props
+export function TokenOptions(props: { mintAddress: PublicKey; metadataAddress: PublicKey; state: TokenOptionProps }) {
+	const { state, mintAddress, metadataAddress } = props
 	const revokeAuthority = useRevokeAuthority({ mintAddress })
+	const lockMetadata = useLockMetadata({ metadataAddress, mintAddress })
 	const { openErrorDialog } = useErrorDialog()
 
 	const optionButtonsData = {
@@ -127,8 +128,8 @@ export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOption
 			buttonText: 'Lock Metadata',
 			state: state.lock_metadata ? 'Locked' : 'Unlocked',
 			info: 'Once locked, the token&apos;s name, symbol, and icon can&apos;t be changed. Enhances trust and transparency.',
-			pending: false,
-			onClick: () => {}
+			pending: lockMetadata.isPending,
+			onClick: () => lockMetadata.mutate()
 		},
 		burnt_token: {
 			buttonText: 'Burn',
@@ -144,9 +145,18 @@ export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOption
 	}, [revokeAuthority.data, revokeAuthority.isSuccess])
 
 	useEffect(() => {
+		if (lockMetadata.isSuccess && lockMetadata.data) toast.success(lockMetadata.data.message)
+	}, [lockMetadata.data, lockMetadata.isSuccess])
+
+	useEffect(() => {
 		if (revokeAuthority.isError && revokeAuthority.error)
 			openErrorDialog({ title: 'We can not proceed your transaction', description: revokeAuthority.error.message })
 	}, [openErrorDialog, revokeAuthority.error, revokeAuthority.isError])
+
+	useEffect(() => {
+		if (lockMetadata.isError && lockMetadata.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: lockMetadata.error.message })
+	}, [openErrorDialog, lockMetadata.error, lockMetadata.isError])
 
 	return (
 		<div className="flex flex-col p-6 rounded-[16px] border border-[#69E651] min-h-[316px] h-full w-full md:space-y-9 space-y-3">
@@ -167,7 +177,7 @@ export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOption
 								<Button
 									type="button"
 									onClick={data.onClick}
-									disabled={revokeAuthority.isPending}
+									disabled={revokeAuthority.isPending || lockMetadata.isPending}
 									className="bg-main-green md:ml-0 ml-9  rounded-[8px] text-sm w-auto md:max-w-none max-w-[171px] min-w-[114px] h-7 md:px-3 px-0 py-1.5 font-medium"
 								>
 									{data.pending && <Loader2 className="animate-spin" />}

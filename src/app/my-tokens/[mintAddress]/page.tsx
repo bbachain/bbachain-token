@@ -105,7 +105,11 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 			</section>
 			<section className="flex xl:flex-row flex-col xl:space-x-6 md:space-y-6 space-y-3 xl:space-y-0 justify-between">
 				<TokenOverview dataText={tokenOverviewData.dataText} dataImage={tokenOverviewData.dataImage} />
-				<TokenOptions mintAddress={mintKey} state={tokenOptionsState} />
+				<TokenOptions
+					mintAddress={mintKey}
+					metadataAddress={new PublicKey(tokenMetadataDetail.data?.metadataAddress ?? '')}
+					state={tokenOptionsState}
+				/>
 			</section>
 			<TokenMetadata data={tokenMetaData} />
 		</div>
