@@ -8,6 +8,7 @@ import { ExplorerLink } from '../cluster/cluster-ui'
 import Navbar from './navbar'
 import Footer from './footer'
 import { WalletListDialog } from './wallet'
+import ErrorDialog from './error-dialog'
 
 export function UiLayout({ children }: { children: ReactNode }) {
 	return (
@@ -27,6 +28,7 @@ export function UiLayout({ children }: { children: ReactNode }) {
 				<Footer />
 			</div>
 			<WalletListDialog />
+			<ErrorDialog />
 		</main>
 	)
 }

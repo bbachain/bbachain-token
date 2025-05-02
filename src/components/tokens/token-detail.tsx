@@ -6,10 +6,10 @@ import { CopyTooltip } from '../common/copy'
 import { Tooltip, TooltipContent, TooltipArrow, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { useIsMobile } from '@/lib/hooks'
+import { useErrorDialog, useIsMobile } from '@/lib/hooks'
 import { PublicKey } from '@bbachain/web3.js'
 import { useRevokeAuthority } from '../account/account-data-access'
-import { AuthorityType } from '@bbachain/spl-token'
+import { AuthorityType, revoke } from '@bbachain/spl-token'
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
@@ -106,6 +106,7 @@ export function TokenOverview(props: TokenOverviewProps) {
 export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOptionProps }) {
 	const { state, mintAddress } = props
 	const revokeAuthority = useRevokeAuthority({ mintAddress })
+	const { openErrorDialog } = useErrorDialog()
 
 	const optionButtonsData = {
 		mint_authority: {
@@ -142,6 +143,11 @@ export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOption
 		if (revokeAuthority.isSuccess && revokeAuthority.data) toast.success(revokeAuthority.data.message)
 	}, [revokeAuthority.data, revokeAuthority.isSuccess])
 
+	useEffect(() => {
+		if (revokeAuthority.isError && revokeAuthority.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: revokeAuthority.error.message })
+	}, [openErrorDialog, revokeAuthority.error, revokeAuthority.isError])
+
 	return (
 		<div className="flex flex-col p-6 rounded-[16px] border border-[#69E651] min-h-[316px] h-full w-full md:space-y-9 space-y-3">
 			<h2 className="text-main-black lg:text-2xl md:text-xl text-base font-medium">Manage Token Options</h2>
@@ -161,7 +167,7 @@ export function TokenOptions(props: { mintAddress: PublicKey; state: TokenOption
 								<Button
 									type="button"
 									onClick={data.onClick}
-									disabled={data.pending}
+									disabled={revokeAuthority.isPending}
 									className="bg-main-green md:ml-0 ml-9  rounded-[8px] text-sm w-auto md:max-w-none max-w-[171px] min-w-[114px] h-7 md:px-3 px-0 py-1.5 font-medium"
 								>
 									{data.pending && <Loader2 className="animate-spin" />}

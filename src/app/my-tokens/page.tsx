@@ -29,10 +29,6 @@ function TokenComponent({ address }: { address: PublicKey }) {
 	const tokenMetadataQueries = useGetTokenDataQueries({ address })
 	const tokenMetadata = mapToTokenListPropsList(tokenMetadataQueries.data)
 
-	useEffect(() => {
-		console.log(tokenMetadataQueries)
-	}, [])
-
 	if (tokenMetadataQueries.isPending) {
 		return (
 			<div className="h-full w-full  mt-60 flex flex-col space-y-3 items-center justify-center">
