@@ -13,7 +13,7 @@ export type InfoItem = {
 export type UploadToMetadataPayload = {
 	token_name: string
 	token_symbol: string
-	token_icon: File
+	token_icon: string
 	description: string | null
 }
 

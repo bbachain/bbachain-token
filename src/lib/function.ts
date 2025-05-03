@@ -26,7 +26,7 @@ export const uploadIconToPinata = async (file: File) => {
 	return `https://ipfs.io/ipfs/${data.IpfsHash}`
 }
 
-export const uploadMetadataToPinata = async (payload: UploadToMetadataPayload, imageUri: string) => {
+export const uploadMetadataToPinata = async (payload: UploadToMetadataPayload) => {
 	const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY
 	const pinataSecret = process.env.NEXT_PUBLIC_PINATA_API_SECRET
 
@@ -34,7 +34,7 @@ export const uploadMetadataToPinata = async (payload: UploadToMetadataPayload, i
 		name: payload.token_name,
 		symbol: payload.token_symbol,
 		description: payload.description,
-		image: imageUri
+		image: payload.token_icon
 	}
 
 	if (!pinataApiKey || !pinataSecret) {
