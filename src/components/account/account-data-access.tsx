@@ -95,6 +95,8 @@ export async function geTokenMetadata({
 			PROGRAM_ID
 		)
 
+		console.log('pda metadata ', metadataPda.toBase58())
+
 		const accountInfo = await connection.getAccountInfo(metadataPda)
 		if (!accountInfo?.data) {
 			throw new Error(`No metadata found for mint address ${mintAddress.toString()}`)
@@ -238,6 +240,19 @@ export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey 
 					immutable_metadata: immutableMetadata
 				}
 
+				console.log({
+					mintAddress: mintAddress.toBase58(),
+					name: metadata.name,
+					symbol: metadata.symbol,
+					decimals,
+					supply,
+					metadataAddress: metadataAddress.toBase58(),
+					metadataLink: metadata.metadataLink,
+					metadataURI: metadata.metadataURI,
+					authoritiesState,
+					date: blockTime
+				})
+
 				return {
 					mintAddress: mintAddress.toBase58(),
 					name: metadata.name,
@@ -252,7 +267,6 @@ export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey 
 				} satisfies GetTokenResponse
 			} catch (err) {
 				console.error(`Error fetching metadata for mint ${mintAddress}:`, err)
-				return undefined
 			}
 		}
 	})
@@ -566,5 +580,89 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				})
 			])
 		}
+	})
+}
+
+export function useRevokeAuthority({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['change-authority', mintAddress],
+		mutationFn: async (authorityType: AuthorityType) => {
+			try {
+				if (!publicKey) throw new Error('Wallet not connected')
+				const revokeTx = createSetAuthorityInstruction(mintAddress, publicKey, authorityType, null)
+				const revokeAuthority = new Transaction().add(revokeTx)
+				const latestBlockhash = await connection.getLatestBlockhash()
+				revokeAuthority.recentBlockhash = latestBlockhash.blockhash
+				revokeAuthority.feePayer = publicKey
+				const revokeSignature = await sendTransaction(revokeAuthority, connection)
+				await connection.confirmTransaction({ signature: revokeSignature, ...latestBlockhash }, 'confirmed')
+				return { message: `Successfully revoked ${authorityType === 0 ? 'Mint Authority' : 'Freeze Authority'}` }
+			} catch (error: unknown) {
+				throw new Error(`Revoke authority failed! ${error}`)
+			}
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}
+
+export function useLockMetadata({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['lock-metadata', mintAddress],
+		mutationFn: async () => {
+			try {
+				if (!publicKey) throw new Error('Wallet not connected')
+
+				const [metadataPda] = PublicKey.findProgramAddressSync(
+					[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+					PROGRAM_ID
+				)
+
+				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataPda)
+				const latestBlockhash = await connection.getLatestBlockhash()
+				const lockMetadataIx = createUpdateMetadataAccountInstruction(
+					{
+						metadata: metadataPda,
+						updateAuthority: publicKey
+					},
+					{
+						updateMetadataAccountArgs: {
+							data: metadataAccount.data,
+							updateAuthority: publicKey,
+							primarySaleHappened: false,
+							isMutable: false
+						}
+					}
+				)
+				const lockTx = new Transaction().add(lockMetadataIx)
+				const lockSignature = await sendTransaction(lockTx, connection)
+				await connection.confirmTransaction({ signature: lockSignature, ...latestBlockhash }, 'confirmed')
+				return { message: 'Successfully lock metadata' }
+			} catch (error: unknown) {
+				throw new Error(`Revoke authority failed! ${error}`)
+			}
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
 	})
 }

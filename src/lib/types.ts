@@ -17,6 +17,13 @@ export type UploadToMetadataPayload = {
 	description: string | null
 }
 
+export type UpdateMetadataPayload = {
+	token_name: string
+	token_symbol: string
+	token_icon: File | null
+	description: string
+}
+
 export type MetadataURI = {
 	name: string
 	symbol: string
