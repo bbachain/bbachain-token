@@ -20,12 +20,8 @@ type BasicDialogProps = {
 type SuccessDialogProps = BasicDialogProps & {
 	data: CreateTokenResponse
 }
-type ErrorDialogProps = BasicDialogProps & {
-	title: string
-	description: string
-}
 
-export function SuccessDialog(props: SuccessDialogProps) {
+export default function SuccessDialog(props: SuccessDialogProps) {
 	const { isOpen, onOpenChange, data } = props
 	const { getExplorerUrl } = useCluster()
 
@@ -49,35 +45,6 @@ export function SuccessDialog(props: SuccessDialogProps) {
 							Show Token
 						</Button>
 					</a>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-	)
-}
-
-export function ErrorDialog(props: ErrorDialogProps) {
-	const { isOpen, onOpenChange, title, description } = props
-
-	return (
-		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className="md:w-[600px] w-[290px] md:max-h-[350px] rounded-[15px] max-h-[500px] h-full md:py-[35px] md:px-[42.5px] p-6 bg-main-white dark:bg-[#333333] flex flex-col space-y-2 items-center justify-center">
-				<DialogHeader className="m-0 w-full items-center justify-center p-0">
-					<Image src="/error_icon.svg" width={64} height={64} alt="Error icon" />
-					<DialogTitle className="font-bold pt-4 text-center text-main-black text-xl">{title}</DialogTitle>
-					<DialogDescription className="text-[#949495] text-center font-light text-base">
-						{description}
-					</DialogDescription>
-				</DialogHeader>
-				<DialogFooter>
-					<DialogClose asChild>
-						<Button
-							className="bg-main-green w-[230px] hover:bg-hover-green rounded-[30px] h-[54px] text-2xl text-main-white"
-							size="lg"
-							type="button"
-						>
-							Ok{' '}
-						</Button>
-					</DialogClose>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

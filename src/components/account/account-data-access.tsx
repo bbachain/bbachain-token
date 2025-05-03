@@ -568,3 +568,87 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 		}
 	})
 }
+
+export function useRevokeAuthority({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['change-authority', mintAddress],
+		mutationFn: async (authorityType: AuthorityType) => {
+			try {
+				if (!publicKey) throw new Error('Wallet not connected')
+				const revokeTx = createSetAuthorityInstruction(mintAddress, publicKey, authorityType, null)
+				const revokeAuthority = new Transaction().add(revokeTx)
+				const latestBlockhash = await connection.getLatestBlockhash()
+				revokeAuthority.recentBlockhash = latestBlockhash.blockhash
+				revokeAuthority.feePayer = publicKey
+				const revokeSignature = await sendTransaction(revokeAuthority, connection)
+				await connection.confirmTransaction({ signature: revokeSignature, ...latestBlockhash }, 'confirmed')
+				return { message: `Successfully revoked ${authorityType === 0 ? 'Mint Authority' : 'Freeze Authority'}` }
+			} catch (error: unknown) {
+				throw new Error(`Revoke authority failed! ${error}`)
+			}
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}
+
+export function useLockMetadata({
+	metadataAddress,
+	mintAddress
+}: {
+	metadataAddress: PublicKey
+	mintAddress: PublicKey
+}) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['lock-metadata', { metadataAddress, mintAddress }],
+		mutationFn: async () => {
+			try {
+				if (!publicKey) throw new Error('Wallet not connected')
+				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataAddress)
+				const latestBlockhash = await connection.getLatestBlockhash()
+				const lockMetadataIx = createUpdateMetadataAccountInstruction(
+					{
+						metadata: metadataAddress,
+						updateAuthority: publicKey
+					},
+					{
+						updateMetadataAccountArgs: {
+							data: metadataAccount.data,
+							updateAuthority: publicKey,
+							primarySaleHappened: false,
+							isMutable: false
+						}
+					}
+				)
+				const lockTx = new Transaction().add(lockMetadataIx)
+				const lockSignature = await sendTransaction(lockTx, connection)
+				await connection.confirmTransaction({ signature: lockSignature, ...latestBlockhash }, 'confirmed')
+				return { message: 'Successfully lock metadata' }
+			} catch (error: unknown) {
+				throw new Error(`Revoke authority failed! ${error}`)
+			}
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}

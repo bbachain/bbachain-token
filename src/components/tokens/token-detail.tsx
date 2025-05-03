@@ -6,7 +6,13 @@ import { CopyTooltip } from '../common/copy'
 import { Tooltip, TooltipContent, TooltipArrow, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { useIsMobile } from '@/lib/hooks'
+import { useErrorDialog, useIsMobile } from '@/lib/hooks'
+import { PublicKey } from '@bbachain/web3.js'
+import { useLockMetadata, useRevokeAuthority } from '../account/account-data-access'
+import { AuthorityType, revoke } from '@bbachain/spl-token'
+import { useEffect } from 'react'
+import toast from 'react-hot-toast'
+import { Loader2 } from 'lucide-react'
 
 export type TokenOverviewProps = {
 	dataText: {
@@ -21,9 +27,9 @@ export type TokenOverviewProps = {
 }
 
 export type TokenOptionProps = {
-	mint_authority: string
-	freeze_authority: string
-	lock_metadata: string
+	mint_authority: boolean
+	freeze_authority: boolean
+	lock_metadata: boolean
 }
 
 export type TokenMetadataProps = {
@@ -97,61 +103,99 @@ export function TokenOverview(props: TokenOverviewProps) {
 	)
 }
 
-export function TokenOptions(props: { data: TokenOptionProps }) {
-	const { data } = props
+export function TokenOptions(props: { mintAddress: PublicKey; metadataAddress: PublicKey; state: TokenOptionProps }) {
+	const { state, mintAddress, metadataAddress } = props
+	const revokeAuthority = useRevokeAuthority({ mintAddress })
+	const lockMetadata = useLockMetadata({ metadataAddress, mintAddress })
+	const { openErrorDialog } = useErrorDialog()
 
-	const tipData = {
-		mint_authority: 'Controls who can mint (create) new tokens. Revoking this adds trust and prevents further minting.',
-		freeze_authority:
-			'Allows freezing user wallets holding this token. Revoke to make the token fully decentralized and ready for liquidity pools.',
-		lock_metadata:
-			'Once locked, the token&apos;s name, symbol, and icon can&apos;t be changed. Enhances trust and transparency.',
-		burnt_token: 'Permanently remove tokens from circulation. Useful for reducing supply or managing errors.'
-	}
-
-	const optionButtons = {
+	const optionButtonsData = {
 		mint_authority: {
-			text: 'Revoke Mint Authority'
+			buttonText: 'Revoke Mint Authority',
+			state: state.mint_authority ? 'Active' : 'Inactive',
+			info: 'Controls who can mint (create) new tokens. Revoking this adds trust and prevents further minting.',
+			pending: revokeAuthority.isPending && revokeAuthority.variables === AuthorityType.MintTokens,
+			onClick: () => revokeAuthority.mutate(AuthorityType.MintTokens)
 		},
 		freeze_authority: {
-			text: 'Revoke Freeze Authority'
+			buttonText: 'Revoke Freeze Authority',
+			state: state.freeze_authority ? 'Active' : 'Inactive',
+			info: 'Allows freezing user wallets holding this token. Revoke to make the token fully decentralized and ready for liquidity pools.',
+			pending: revokeAuthority.isPending && revokeAuthority.variables === AuthorityType.FreezeAccount,
+			onClick: () => revokeAuthority.mutate(AuthorityType.FreezeAccount)
 		},
 		lock_metadata: {
-			text: 'Lock Metadata'
+			buttonText: 'Lock Metadata',
+			state: state.lock_metadata ? 'Locked' : 'Unlocked',
+			info: 'Once locked, the token&apos;s name, symbol, and icon can&apos;t be changed. Enhances trust and transparency.',
+			pending: lockMetadata.isPending,
+			onClick: () => lockMetadata.mutate()
+		},
+		burnt_token: {
+			buttonText: 'Burn',
+			state: '',
+			info: 'Permanently remove tokens from circulation. Useful for reducing supply or managing errors.',
+			pending: false,
+			onClick: () => {}
 		}
 	}
+
+	useEffect(() => {
+		if (revokeAuthority.isSuccess && revokeAuthority.data) toast.success(revokeAuthority.data.message)
+	}, [revokeAuthority.data, revokeAuthority.isSuccess])
+
+	useEffect(() => {
+		if (lockMetadata.isSuccess && lockMetadata.data) toast.success(lockMetadata.data.message)
+	}, [lockMetadata.data, lockMetadata.isSuccess])
+
+	useEffect(() => {
+		if (revokeAuthority.isError && revokeAuthority.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: revokeAuthority.error.message })
+	}, [openErrorDialog, revokeAuthority.error, revokeAuthority.isError])
+
+	useEffect(() => {
+		if (lockMetadata.isError && lockMetadata.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: lockMetadata.error.message })
+	}, [openErrorDialog, lockMetadata.error, lockMetadata.isError])
 
 	return (
 		<div className="flex flex-col p-6 rounded-[16px] border border-[#69E651] min-h-[316px] h-full w-full md:space-y-9 space-y-3">
 			<h2 className="text-main-black lg:text-2xl md:text-xl text-base font-medium">Manage Token Options</h2>
 			<div className="flex flex-col space-y-[18px]">
-				{Object.entries(data).map(([key, value]) => (
-					<div className="flex md:flex-row flex-col justify-between" key={key}>
-						<div className="flex items-center space-x-3">
-							<section className="flex space-x-0.5 items-center">
-								<TooltipComponent content={tipData[key as keyof typeof data]} />
-								<h5 className="md:text-lg text-sm text-main-black">{titleCase(key)}</h5>
-							</section>
-							<p className="text-sm text-main-green">{value}</p>
+				{Object.entries(state).map(([key, value]) => {
+					const data = optionButtonsData[key as keyof typeof state]
+					return (
+						<div className="flex md:flex-row flex-col justify-between" key={key}>
+							<div className="flex items-center space-x-3">
+								<section className="flex space-x-0.5 items-center">
+									<TooltipComponent content={data.info} />
+									<h5 className="md:text-lg text-sm text-main-black">{titleCase(key)}</h5>
+								</section>
+								<p className="text-sm text-main-green">{data.state}</p>
+							</div>
+							{!value && (
+								<Button
+									type="button"
+									onClick={data.onClick}
+									disabled={revokeAuthority.isPending || lockMetadata.isPending}
+									className="bg-main-green md:ml-0 ml-9  rounded-[8px] text-sm w-auto md:max-w-none max-w-[171px] min-w-[114px] h-7 md:px-3 px-0 py-1.5 font-medium"
+								>
+									{data.pending && <Loader2 className="animate-spin" />}
+									{data.buttonText}
+								</Button>
+							)}
 						</div>
-						<Button
-							type="button"
-							disabled
-							className="bg-main-green md:ml-0 ml-9  rounded-[8px] text-sm w-auto md:max-w-none max-w-[171px] min-w-[114px] h-7 md:px-3 px-0 py-1.5 font-medium"
-						>
-							{optionButtons[key as keyof typeof data].text}
-						</Button>
-					</div>
-				))}
+					)
+				})}
 				<div className="flex flex-col space-y-2">
 					<section className="flex space-x-0.5 items-center">
-						<TooltipComponent content={tipData.burnt_token} />
+						<TooltipComponent content={optionButtonsData.burnt_token.info} />
 						<h5 className="md:text-lg text-sm text-main-black">Burnt Token</h5>
 					</section>
 					<section className="flex ml-9 space-x-2.5">
 						<Input className="md:w-52 rounded-[8px]" placeholder="Enter amount" />
 						<Button type="button" disabled className="bg-main-green rounded-[8px]">
-							Burn
+							{optionButtonsData.burnt_token.buttonText}
 						</Button>
 					</section>
 				</div>

@@ -42,11 +42,11 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		]
 	)
 
-	const tokenOptionsData = useMemo(
+	const tokenOptionsState = useMemo(
 		(): TokenOptionProps => ({
-			mint_authority: tokenMetadataDetail.data?.authoritiesState?.revoke_mint ? 'Active' : 'Inactive',
-			freeze_authority: tokenMetadataDetail.data?.authoritiesState?.revoke_freeze ? 'Active' : 'Inactive',
-			lock_metadata: tokenMetadataDetail.data?.authoritiesState?.immutable_metadata ? 'Locked' : 'Unlocked'
+			mint_authority: tokenMetadataDetail.data?.authoritiesState?.revoke_mint ?? false,
+			freeze_authority: tokenMetadataDetail.data?.authoritiesState?.revoke_freeze ?? false,
+			lock_metadata: tokenMetadataDetail.data?.authoritiesState?.immutable_metadata ?? false
 		}),
 		[
 			tokenMetadataDetail.data?.authoritiesState?.immutable_metadata,
@@ -105,7 +105,11 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 			</section>
 			<section className="flex xl:flex-row flex-col xl:space-x-6 md:space-y-6 space-y-3 xl:space-y-0 justify-between">
 				<TokenOverview dataText={tokenOverviewData.dataText} dataImage={tokenOverviewData.dataImage} />
-				<TokenOptions data={tokenOptionsData} />
+				<TokenOptions
+					mintAddress={mintKey}
+					metadataAddress={new PublicKey(tokenMetadataDetail.data?.metadataAddress ?? '')}
+					state={tokenOptionsState}
+				/>
 			</section>
 			<TokenMetadata data={tokenMetaData} />
 		</div>
