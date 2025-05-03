@@ -13,13 +13,14 @@ import { useWallet } from '@bbachain/wallet-adapter-react'
 import FileInput from '@/components/createToken/file-input'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, ChevronRight, ChevronLeft } from 'lucide-react'
-import { ErrorDialog, SuccessDialog } from '@/components/createToken/dialog'
+import SuccessDialog from '@/components/createToken/success-dialog'
 import toast from 'react-hot-toast'
 import { useGetBalance, useTokenCreator } from '@/components/account/account-data-access'
 import { CreateTokenResponse } from '@/lib/types'
 import { Textarea } from '@/components/ui/textarea'
 import FormProgressLine, { type CreateTokenStepProps } from '@/components/createToken/form-progress'
 import CreateTokenOverview from '@/components/createToken/token-overview'
+import { useErrorDialog } from '@/lib/hooks'
 
 type FieldName = keyof CreateBBATokenPayload
 const LIMIT_OF_SIXTH_DECIMALS = 18_000_000
@@ -85,7 +86,8 @@ export default function CreateToken() {
 	const [previewIcon, setPreviewIcon] = useState<string | null>(null)
 	const [tokenIconError, setTokenIconError] = useState<string | undefined>(undefined)
 	const [responseData, setResponseData] = useState<CreateTokenResponse | null>(null)
-	const [errorDialogState, setErrorDialogState] = useState(initialErrorDialogState)
+
+	const { openErrorDialog } = useErrorDialog()
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -133,8 +135,7 @@ export default function CreateToken() {
 			const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
 
 			if (!isValid) {
-				setErrorDialogState({
-					isOpen: true,
+				openErrorDialog({
 					title: `We couldn't upload your image`,
 					description: form.formState?.errors?.token_icon?.message ?? ''
 				})
@@ -176,13 +177,12 @@ export default function CreateToken() {
 
 	useEffect(() => {
 		if (createTokenMutation.isError && createTokenMutation.error) {
-			setErrorDialogState({
-				isOpen: true,
+			openErrorDialog({
 				title: `Something went wrong while creating your token.`,
 				description: createTokenMutation.error.message ?? ''
 			})
 		}
-	}, [createTokenMutation.error, createTokenMutation.isError])
+	}, [createTokenMutation.error, createTokenMutation.isError, openErrorDialog])
 
 	useEffect(() => {
 		if (form.formState.errors.token_icon?.message) {
@@ -220,17 +220,6 @@ export default function CreateToken() {
 	return (
 		<Form {...form}>
 			{responseData && <SuccessDialog isOpen={isSuccessOpen} onOpenChange={setIsSuccessOpen} data={responseData} />}
-			<ErrorDialog
-				isOpen={errorDialogState.isOpen}
-				onOpenChange={(open: boolean) =>
-					setErrorDialogState((prev) => ({
-						...prev,
-						isOpen: open
-					}))
-				}
-				title={errorDialogState.title}
-				description={errorDialogState.description}
-			/>
 			<form
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="xl:px-48 md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3"

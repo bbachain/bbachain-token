@@ -76,7 +76,15 @@ export function EditableMetadataInput({
 	}
 
 	if (mode === 'edit') {
-		return <Input className='w-60' autoFocus value={tempValue} onChange={(e) => setTempValue(e.target.value)} onBlur={handleBlur} />
+		return (
+			<Input
+				className="w-60"
+				autoFocus
+				value={tempValue}
+				onChange={(e) => setTempValue(e.target.value)}
+				onBlur={handleBlur}
+			/>
+		)
 	}
 
 	return (
