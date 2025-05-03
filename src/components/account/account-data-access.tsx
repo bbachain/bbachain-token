@@ -37,7 +37,14 @@ import {
 } from '@bbachain/spl-token-metadata'
 import { getMint, setAuthority } from '@bbachain/spl-token'
 import axios from 'axios'
-import { CreateTokenResponse, GetTokenMetadataResponse, GetTokenResponse, MetadataURI } from '@/lib/types'
+import {
+	CreateTokenResponse,
+	GetTokenMetadataResponse,
+	GetTokenResponse,
+	MetadataURI,
+	UpdateMetadataPayload,
+	UploadToMetadataPayload
+} from '@/lib/types'
 import { TokenListProps } from '../tokens/columns'
 
 export function useGetBalance({ address }: { address: PublicKey }) {
@@ -94,6 +101,8 @@ export async function geTokenMetadata({
 			[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
 			PROGRAM_ID
 		)
+
+		console.log('pda metadata ', metadataPda.toBase58())
 
 		const accountInfo = await connection.getAccountInfo(metadataPda)
 		if (!accountInfo?.data) {
@@ -238,6 +247,19 @@ export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey 
 					immutable_metadata: immutableMetadata
 				}
 
+				console.log({
+					mintAddress: mintAddress.toBase58(),
+					name: metadata.name,
+					symbol: metadata.symbol,
+					decimals,
+					supply,
+					metadataAddress: metadataAddress.toBase58(),
+					metadataLink: metadata.metadataLink,
+					metadataURI: metadata.metadataURI,
+					authoritiesState,
+					date: blockTime
+				})
+
 				return {
 					mintAddress: mintAddress.toBase58(),
 					name: metadata.name,
@@ -252,7 +274,6 @@ export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey 
 				} satisfies GetTokenResponse
 			} catch (err) {
 				console.error(`Error fetching metadata for mint ${mintAddress}:`, err)
-				return undefined
 			}
 		}
 	})
@@ -444,7 +465,15 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				)
 
 				const iconUri = await uploadIconToPinata(mappedPayload.token_icon)
-				const ipfsUri = await uploadMetadataToPinata(mappedPayload, iconUri)
+
+				const metadataPayload: UploadToMetadataPayload = {
+					token_name: mappedPayload.token_name,
+					token_symbol: mappedPayload.token_symbol,
+					token_icon: iconUri,
+					description: mappedPayload.description
+				}
+
+				const ipfsUri = await uploadMetadataToPinata(metadataPayload)
 
 				const data = {
 					name: mappedPayload.token_name,
@@ -602,26 +631,26 @@ export function useRevokeAuthority({ mintAddress }: { mintAddress: PublicKey }) 
 	})
 }
 
-export function useLockMetadata({
-	metadataAddress,
-	mintAddress
-}: {
-	metadataAddress: PublicKey
-	mintAddress: PublicKey
-}) {
+export function useLockMetadata({ mintAddress }: { mintAddress: PublicKey }) {
 	const { publicKey, sendTransaction } = useWallet()
 	const { connection } = useConnection()
 	const client = useQueryClient()
 	return useMutation({
-		mutationKey: ['lock-metadata', { metadataAddress, mintAddress }],
+		mutationKey: ['lock-metadata', mintAddress],
 		mutationFn: async () => {
 			try {
 				if (!publicKey) throw new Error('Wallet not connected')
-				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataAddress)
+
+				const [metadataPda] = PublicKey.findProgramAddressSync(
+					[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+					PROGRAM_ID
+				)
+
+				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataPda)
 				const latestBlockhash = await connection.getLatestBlockhash()
 				const lockMetadataIx = createUpdateMetadataAccountInstruction(
 					{
-						metadata: metadataAddress,
+						metadata: metadataPda,
 						updateAuthority: publicKey
 					},
 					{
@@ -637,6 +666,81 @@ export function useLockMetadata({
 				const lockSignature = await sendTransaction(lockTx, connection)
 				await connection.confirmTransaction({ signature: lockSignature, ...latestBlockhash }, 'confirmed')
 				return { message: 'Successfully lock metadata' }
+			} catch (error: unknown) {
+				throw new Error(`Revoke authority failed! ${error}`)
+			}
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}
+
+export function useUpdateMetadata({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['lock-metadata', mintAddress],
+		mutationFn: async (data: UpdateMetadataPayload) => {
+			try {
+				if (!publicKey) throw new Error('Wallet not connected')
+
+				const [metadataPda] = PublicKey.findProgramAddressSync(
+					[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+					PROGRAM_ID
+				)
+
+				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataPda)
+				const latestBlockhash = await connection.getLatestBlockhash()
+
+				const uriData = await axios.get<MetadataURI>(metadataAccount.data.uri)
+				let iconUri: string = uriData.data.image
+
+				if (data.token_icon) {
+					iconUri = await uploadIconToPinata(data.token_icon)
+				}
+
+				const uploadToIPFSPayload: UploadToMetadataPayload = {
+					token_name: data.token_name,
+					token_symbol: data.token_symbol,
+					token_icon: iconUri,
+					description: data.description
+				}
+
+				const ipfsUri = await uploadMetadataToPinata(uploadToIPFSPayload)
+
+				const updatedData = {
+					...metadataAccount.data,
+					name: data.token_name,
+					symbol: data.token_symbol,
+					uri: ipfsUri
+				}
+
+				const updateMetadataIx = createUpdateMetadataAccountInstruction(
+					{
+						metadata: metadataPda,
+						updateAuthority: publicKey
+					},
+					{
+						updateMetadataAccountArgs: {
+							data: updatedData,
+							updateAuthority: publicKey,
+							primarySaleHappened: false,
+							isMutable: true
+						}
+					}
+				)
+				const updateTx = new Transaction().add(updateMetadataIx)
+				const updateSignature = await sendTransaction(updateTx, connection)
+				await connection.confirmTransaction({ signature: updateSignature, ...latestBlockhash }, 'confirmed')
+				return { message: 'Successfully update metadata' }
 			} catch (error: unknown) {
 				throw new Error(`Revoke authority failed! ${error}`)
 			}
