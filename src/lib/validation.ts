@@ -78,3 +78,45 @@ export const CreateBBATokenValidation = z.intersection(
 )
 
 export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>
+
+const NFTAttributeSchema = z.object({
+	trait_type: z.string(),
+	value: z.union([z.string(), z.number()])
+})
+
+const NFTCreatorSchema = z.object({
+	address: z.string(),
+	share: z.number()
+})
+
+const NFTFileSchema = z.object({
+	uri: z.string().url(),
+	type: z.string()
+})
+
+// Properties schema
+const NFTPropertiesSchema = z.object({
+	files: z.array(NFTFileSchema).optional(),
+	category: z.string().optional(),
+	creators: z.array(NFTCreatorSchema).optional()
+})
+
+// Collection schema
+const NFTCollectionSchema = z.object({
+	name: z.string(),
+	family: z.string()
+})
+
+export const NFTMetadataSchema = z.object({
+	name: z.string(),
+	symbol: z.string(),
+	description: z.string(),
+	image: z.string().url(),
+	external_url: z.string().url().optional(),
+	seller_fee_basis_points: z.number().optional(),
+	attributes: z.array(NFTAttributeSchema).optional(),
+	collection: NFTCollectionSchema.optional(),
+	properties: NFTPropertiesSchema.optional()
+})
+
+export type NFTMetadataPayload = z.infer<typeof NFTMetadataSchema>
