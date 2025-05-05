@@ -6,6 +6,9 @@ import { Input } from '../ui/input'
 import React, { useState } from 'react'
 import { PiPencilSimpleLineLight } from 'react-icons/pi'
 import { cn } from '@/lib/utils'
+import { Toast } from 'react-hot-toast'
+import Image from 'next/image'
+import { IoMdClose } from 'react-icons/io'
 
 export function TooltipComponent({ content }: { content: string }) {
 	return (
@@ -22,6 +25,39 @@ export function TooltipComponent({ content }: { content: string }) {
 				</TooltipContent>
 			</Tooltip>
 		</TooltipProvider>
+	)
+}
+
+export function CustomToastOnBack({
+	t,
+	onSave,
+	onClose
+}: {
+	t: Toast
+	onSave: (t: Toast) => void
+	onClose: (t: Toast) => void
+}) {
+	return (
+		<div
+			className={`${
+				t.visible ? 'animate-enter' : 'animate-leave'
+			} max-w-md w-full bg-white text-base shadow-lg rounded-lg pointer-events-auto flex items-center ring-1 ring-black ring-opacity-5`}
+		>
+			<div className="flex-1 w-0 p-4">
+				<div className="flex space-x-2.5 items-center">
+					<Image src="/warning-icon.svg" width={20} height={20} alt="Waring icon on leave" />
+					<p className="text-[#333333]">You have unsaved changes</p>
+				</div>
+			</div>
+			<div className="flex space-x-0 text-[#333333]">
+				<Button onClick={() => onSave(t)} type="button" variant="ghost" className="underline">
+					Save
+				</Button>
+				<Button type="button" variant="ghost" size="icon" onClick={() => onClose(t)}>
+					<IoMdClose />
+				</Button>
+			</div>
+		</div>
 	)
 }
 
