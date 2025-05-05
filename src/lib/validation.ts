@@ -6,6 +6,7 @@ const INVALID_SIZE_IMAGE_MESSAGE = 'Image size must be less than 5MB'
 const INVALID_TYPE_FILE_MESSAGE = 'Only .jpg, .jpeg, and .png files are accepted'
 const INVALID_NUMBER_FORMAT = 'Only non-negative whole numbers are allowed (no commas or decimals).'
 const INVALID_DECIMALS_RANGE = 'Decimals must be a number between 0 and 12'
+const INVALID_METADATA_URI = 'Invalid metadata url'
 
 const MAX_SUPPLY_RAW = new Decimal('18446744073709551615')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -77,8 +78,6 @@ export const CreateBBATokenValidation = z.intersection(
 	CreateIconTokenValidation.merge(CreateFeatureTokenValidation)
 )
 
-export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>
-
 const NFTAttributeSchema = z.object({
 	trait_type: z.string(),
 	value: z.union([z.string(), z.number()])
@@ -119,4 +118,11 @@ export const NFTMetadataSchema = z.object({
 	properties: NFTPropertiesSchema.optional()
 })
 
+export const UploadNFTMetadataSchema = z.object({
+	name: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	metadata_uri: z.string().min(1, { message: REQUIRED_MESSAGE }).url({ message: INVALID_METADATA_URI })
+})
+
+export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>
 export type NFTMetadataPayload = z.infer<typeof NFTMetadataSchema>
+export type UploadNFTMetadataPayload = z.infer<typeof UploadNFTMetadataSchema>

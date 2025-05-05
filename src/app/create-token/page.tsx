@@ -47,12 +47,6 @@ const createTokenSteps: CreateTokenStepProps[] = [
 	}
 ]
 
-const initialErrorDialogState = {
-	isOpen: false,
-	title: '',
-	description: ''
-}
-
 export default function CreateToken() {
 	const { publicKey } = useWallet()
 
@@ -61,20 +55,7 @@ export default function CreateToken() {
 		return publicKey
 	}, [publicKey])
 
-	const form = useForm<CreateBBATokenPayload>({
-		mode: 'all',
-		resolver: zodResolver(CreateBBATokenValidation),
-		defaultValues: {
-			token_name: '',
-			token_symbol: '',
-			custom_decimals: '',
-			token_supply: '',
-			description: '',
-			revoke_freeze: false,
-			revoke_mint: false,
-			immutable_metadata: false
-		}
-	})
+	v
 
 	const watchTokenSupply = form.watch('token_supply')
 
