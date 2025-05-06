@@ -16,6 +16,10 @@ import { capitalCase } from 'text-case'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { ZodError } from 'zod'
 import { useErrorDialog } from '@/lib/hooks'
+import { Label } from '@/components/ui/label'
+import SelectCollection from '@/components/nft/select-collection'
+
+const DummyCollection = ['Collection 1', 'Collection 2']
 
 export default function CreateNFT() {
 	const form = useForm<UploadNFTMetadataPayload>({
@@ -28,6 +32,7 @@ export default function CreateNFT() {
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
+	const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
 
 	const validateMetadataMutation = useMutation({
 		mutationKey: ['validate-metadata'],
@@ -145,6 +150,14 @@ export default function CreateNFT() {
 								</section>
 							</CardContent>
 						</Card>
+						<div>
+							<Label></Label>
+							<SelectCollection
+								selected={selectedCollection}
+								setSelected={setSelectedCollection}
+								collectionList={DummyCollection}
+							/>
+						</div>
 					</form>
 				</div>
 			)}
