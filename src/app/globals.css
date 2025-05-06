@@ -24,6 +24,7 @@ body {
 		--secondary-dark-grey: 0 0% 40%;
 		--secondary-strokes: 0 0% 40% / 0.35;
 		--box: 0 0% 91%;
+		--light-box: 0 0% 91%;
 		--card: 0 0% 100%;
 		--card-foreground: 0 0% 3.9%;
 		--popover: 0 0% 100%;
@@ -59,7 +60,8 @@ body {
 		--secondary-hover-green: 110 75% 61%;
 		--secondary-dark-grey: 0 0% 100%;
 		--secondary-strokes: 0 0% 100%;
-		--box: 0 0% 6%;
+		--box: 0 0% 20%;
+		--light-box: 0 0% 91%;
 		--card: 0 0% 3.9%;
 		--card-foreground: 0 0% 98%;
 		--popover: 0 0% 3.9%;
