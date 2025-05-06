@@ -11,19 +11,18 @@ body {
 	@apply bg-main-green hover:bg-hover-green w-[124px] h-[34px] flex items-center justify-center text-main-white  px-2.5 py-2 rounded-[10px] text-sm font-normal !important;
 }
 
-
-
 @layer base {
 	:root {
 		--background: 0 0% 100%;
 		--foreground: 0 0% 3.9%;
-		--main-green: 113 100% 39%;
-		--main-black: 0 0% 20%;
-		--main-white: 0 0% 100%;
-		--light-grey: 0 0% 60%;
-		--light-green: 113 100% 91%;
-		--hover-green: 110 75% 61%;
-		--dark-grey: 0 0% 40%;
+		--primary-green: 113 100% 39%;
+		--primary-black: 0 0% 20%;
+		--primary-white: 0 0% 100%;
+		--secondary-light-grey: 0 0% 60%;
+		--secondary-light-green: 113 100% 91%;
+		--secondary-hover-green: 110 75% 61%;
+		--secondary-dark-grey: 0 0% 40%;
+		--secondary-strokes: 0 0% 40% / 0.35;
 		--box: 0 0% 91%;
 		--card: 0 0% 100%;
 		--card-foreground: 0 0% 3.9%;
@@ -50,15 +49,16 @@ body {
 		--radius: 0.5rem;
 	}
 	.dark {
-		--background: 0 0% 3.9%;
+		--background: 0 0% 0%;
 		--foreground: 0 0% 98%;
-		--main-green: 113 100% 43%;
-		--main-black: 0 0% 100%;
-		--main-white: 0 0% 0%;
-		--light-grey: 0 0% 78%;
-		--light-green: 113 100% 91%;
-		--hover-green: 110 75% 61%;
-		--dark-grey: 0 0% 100%;
+		--primary-green: 113 100% 43%;
+		--primary-black: 0 0% 100%;
+		--primary-white: 0 0% 0%;
+		--secondary-light-grey: 0 0% 78%;
+		--secondary-light-green: 113 100% 91%;
+		--secondary-hover-green: 110 75% 61%;
+		--secondary-dark-grey: 0 0% 100%;
+		--secondary-strokes: 0 0% 100%;
 		--box: 0 0% 6%;
 		--card: 0 0% 3.9%;
 		--card-foreground: 0 0% 98%;

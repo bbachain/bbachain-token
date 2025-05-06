@@ -111,8 +111,8 @@ export const NFTMetadataSchema = z.object({
 	symbol: z.string(),
 	description: z.string(),
 	image: z.string().url(),
+	seller_fee_basis_points: z.number(),
 	external_url: z.string().url().optional(),
-	seller_fee_basis_points: z.number().optional(),
 	attributes: z.array(NFTAttributeSchema).optional(),
 	collection: NFTCollectionSchema.optional(),
 	properties: NFTPropertiesSchema.optional()
