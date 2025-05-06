@@ -5,24 +5,23 @@ import {
 	useRevokeAuthority,
 	useUpdateMetadata
 } from '@/components/account/account-data-access'
-import { TokenDetailCard, TokenValue, TooltipComponent } from '@/components/tokens/token-detail'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { CustomToastOnBack, TokenDetailCard, TokenValue, TooltipComponent } from '@/components/tokens/token-detail'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useErrorDialog, useIsMobile } from '@/lib/hooks'
 import { UpdateMetadataPayload } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { AuthorityType } from '@bbachain/spl-token'
 import { PublicKey } from '@bbachain/web3.js'
 import { Loader2 } from 'lucide-react'
-import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { FileInput as FlowbiteFileInput } from 'flowbite-react'
-import toast from 'react-hot-toast'
+import toast, { Toast } from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import Image from 'next/image'
 import { HiArrowPath } from 'react-icons/hi2'
 import { CreateIconTokenValidation } from '@/lib/validation'
+import { useRouter } from 'next/navigation'
 
 type BasicTokenProps = {
 	label: string
@@ -40,6 +39,7 @@ const initialUpdatedPayload: UpdateMetadataPayload = {
 
 export default function TokenDetail({ params }: { params: { mintAddress: string } }) {
 	const mintKey = new PublicKey(params.mintAddress)
+	const router = useRouter()
 
 	const getTokenDetailData = useGetTokenDataDetail({ mintAddress: mintKey })
 	const tokenDetailData = getTokenDetailData.data
@@ -107,8 +107,25 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		}
 	}
 
+	const onNavigateBack = () => {
+		if (isChanged) {
+			const onClose = (t: Toast) => {
+				router.push('/my-tokens')
+				toast.dismiss(t.id)
+			}
+			const onSave = (t: Toast) => {
+				onMetadataUpdate.mutate(updatePayload)
+				toast.dismiss(t.id)
+			}
+			toast.custom((t) => <CustomToastOnBack t={t} onClose={onClose} onSave={onSave} />)
+			return
+		}
+		router.push('/my-tokens')
+	}
+
 	const { openErrorDialog } = useErrorDialog()
 	const isMobile = useIsMobile()
+	const isDisabled = onMetadataUpdate.isPending || revokeAuthority.isPending || lockMetadata.isPending
 
 	const tokenOverviewData: BasicTokenProps[] = [
 		{
@@ -240,6 +257,18 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	}, [firstPayload, updatePayload])
 
 	useEffect(() => {
+		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+			if (!isChanged) return
+			e.preventDefault()
+		}
+
+		window.addEventListener('beforeunload', handleBeforeUnload)
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload)
+		}
+	}, [isChanged])
+
+	useEffect(() => {
 		if (onMetadataUpdate.isSuccess && onMetadataUpdate.data) toast.success(onMetadataUpdate.data.message)
 	}, [onMetadataUpdate.data, onMetadataUpdate.isSuccess])
 
@@ -252,8 +281,9 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	}, [lockMetadata.data, lockMetadata.isSuccess])
 
 	useEffect(() => {
-		if (onMetadataUpdate.isError && onMetadataUpdate.error) toast.error(onMetadataUpdate.error.message)
-	}, [onMetadataUpdate.error, onMetadataUpdate.isError])
+		if (onMetadataUpdate.isError && onMetadataUpdate.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: onMetadataUpdate.error.message })
+	}, [openErrorDialog, onMetadataUpdate.error, onMetadataUpdate.isError])
 
 	useEffect(() => {
 		if (revokeAuthority.isError && revokeAuthority.error)
@@ -284,16 +314,14 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		<div className="xl:px-[90px] md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5">
 			<div className="flex flex-col md:space-y-6 space-y-3">
 				<section>
-					<Link
-						href="/my-tokens"
-						className={cn(
-							buttonVariants({ variant: 'ghost' }),
-							'md:flex hidden w-32 mb-3 text-main-black items-center space-x-2.5 text-xl'
-						)}
+					<Button
+						variant="ghost"
+						onClick={onNavigateBack}
+						className={'md:flex hidden w-32 mb-3 text-main-black items-center space-x-2.5 text-xl'}
 					>
 						<HiOutlineArrowNarrowLeft />
 						<h4>Tokens</h4>
-					</Link>
+					</Button>
 					<h2 className="text-main-black text-center md:text-[32px] text-xl  font-medium">
 						Manage Token - {tokenDetailData?.name ?? `${tokenDetailData?.mintAddress.slice(0, 8)}...`}
 					</h2>
@@ -330,6 +358,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 									<Button
 										onClick={triggerFileInput}
 										type="button"
+										disabled={isDisabled}
 										className="bg-main-green rounded-[8px] text-sm py-1.5 h-7 w-28"
 									>
 										Change
@@ -374,7 +403,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 											<Button
 												type="button"
 												onClick={optionData.onClick}
-												disabled={onMetadataUpdate.isPending || revokeAuthority.isPending || lockMetadata.isPending}
+												disabled={isDisabled}
 												className="bg-main-green md:ml-0 ml-9  rounded-[8px] text-sm w-auto md:max-w-none max-w-[171px] min-w-[114px] h-7 md:px-3 px-0 py-1.5 font-medium"
 											>
 												{optionData.pending && <Loader2 className="animate-spin" />}
@@ -414,7 +443,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 				<div className="w-full flex justify-end">
 					<Button
 						type="button"
-						disabled={onMetadataUpdate.isPending || revokeAuthority.isPending || lockMetadata.isPending}
+						disabled={isDisabled}
 						onClick={() => onMetadataUpdate.mutate(updatePayload)}
 						className="bg-main-green text-center mt-14 flex justify-center items-center hover:bg-hover-green text-main-white md:h-[47px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-xl text-base"
 					>
