@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import Decimal from 'decimal.js'
+import { Collection, Uses } from '@bbachain/spl-token-metadata'
 
 const REQUIRED_MESSAGE = 'This field is required'
 const INVALID_SIZE_IMAGE_MESSAGE = 'Image size must be less than 5MB'
@@ -126,3 +127,10 @@ export const UploadNFTMetadataSchema = z.object({
 export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>
 export type NFTMetadataPayload = z.infer<typeof NFTMetadataSchema>
 export type UploadNFTMetadataPayload = z.infer<typeof UploadNFTMetadataSchema>
+export type MintNFTPayload = {
+	name: string
+	symbol: string
+	uri: string
+	collection: Collection | null
+	uses: Uses | null
+}

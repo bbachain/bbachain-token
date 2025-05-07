@@ -8,20 +8,31 @@ import { NFTMetadataSchema, UploadNFTMetadataPayload, UploadNFTMetadataSchema } 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { ParsingMetadataDialog, SuccessParsedDialog } from '@/components/nft/dialog'
-import { useEffect, useState } from 'react'
+import { LoadingDialog, SuccessDialog } from '@/components/nft/dialog'
+import { useEffect, useMemo, useState } from 'react'
 import { capitalCase } from 'text-case'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { ZodError } from 'zod'
 import { useErrorDialog } from '@/lib/hooks'
 import { Label } from '@/components/ui/label'
 import SelectCollection from '@/components/nft/select-collection'
+import { useGetBalance, useMintNFTCreator } from '@/components/account/account-data-access'
+import { useWallet } from '@bbachain/wallet-adapter-react'
+import { NoBalanceAlert } from '@/components/common/alert'
+import toast from 'react-hot-toast'
 
 const DummyCollection = ['Collection 1', 'Collection 2']
 
 export default function CreateNFT() {
+	const { publicKey } = useWallet()
+
+	const address = useMemo(() => {
+		if (!publicKey) return
+		return publicKey
+	}, [publicKey])
+
 	const form = useForm<UploadNFTMetadataPayload>({
 		resolver: zodResolver(UploadNFTMetadataSchema),
 		defaultValues: {
@@ -34,6 +45,8 @@ export default function CreateNFT() {
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
 	const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
 
+	const getTokenBalance = useGetBalance({ address: address! })
+
 	const validateMetadataMutation = useMutation({
 		mutationKey: ['validate-metadata'],
 		mutationFn: async (metadata_uri: string) => {
@@ -42,6 +55,8 @@ export default function CreateNFT() {
 			return result
 		}
 	})
+
+	const mintNFTMutation = useMintNFTCreator()
 
 	const metadataPreview = validateMetadataMutation.data
 	const mappedObject = {
@@ -95,12 +110,76 @@ export default function CreateNFT() {
 		}
 	}, [openErrorDialog, validateMetadataMutation.error, validateMetadataMutation.isError])
 
-	const onValidate = (payload: UploadNFTMetadataPayload) => validateMetadataMutation.mutate(payload.metadata_uri)
+	useEffect(() => {
+		if (mintNFTMutation.isSuccess && mintNFTMutation.data) {
+			setIsSuccessDialog(true)
+			form.reset()
+			setStep('upload')
+		}
+	}, [form, mintNFTMutation.data, mintNFTMutation.isSuccess])
+
+	useEffect(() => {
+		if (mintNFTMutation.isError && mintNFTMutation.error) {
+			openErrorDialog({
+				title: 'We can not proceed your transaction',
+				description: mintNFTMutation.error.message
+			})
+		}
+	}, [mintNFTMutation.error, mintNFTMutation.isError, openErrorDialog])
+
+	const onValidate = (payload: UploadNFTMetadataPayload) => {
+		if (getTokenBalance.isError || (!getTokenBalance.data && address)) {
+			toast.error('Empty balance amount')
+			return
+		}
+		validateMetadataMutation.mutate(payload.metadata_uri)
+	}
+
+	const onMintNFT = () =>
+		mintNFTMutation.mutate({
+			name: form.getValues('name'),
+			symbol: '',
+			uri: form.getValues('metadata_uri'),
+			collection: null,
+			uses: null
+		})
+
+	if (address && getTokenBalance.isLoading)
+		return (
+			<div className="h-full w-full  mt-60 flex flex-col space-y-3 items-center justify-center">
+				<Loader2 className="animate-spin" width={40} height={40} />
+				<p>Please wait...</p>
+			</div>
+		)
 
 	return (
 		<div className="md:mt-40 mt-20 md:mb-20 mb-5">
-			<ParsingMetadataDialog isOpen={validateMetadataMutation.isPending} />
-			<SuccessParsedDialog isOpen={isSuccessDialog} onOpenChange={setIsSuccessDialog} />
+			<LoadingDialog
+				title={mintNFTMutation.isPending ? 'Minting NFT' : 'Parsing Metadata'}
+				description={
+					mintNFTMutation.isPending
+						? 'We’re minting your NFT. This may take a few seconds...'
+						: 'We’re loading and validating your metadata. Please wait a moment.'
+				}
+				isOpen={mintNFTMutation.isPending}
+			/>
+			<SuccessDialog
+				isOpen={isSuccessDialog}
+				onOpenChange={setIsSuccessDialog}
+				title={mintNFTMutation.isSuccess ? 'NFTs Minted Successfully!' : 'Metadata Preview Loaded Successfully'}
+				description={
+					mintNFTMutation.isSuccess
+						? 'Your NFTs has been minted and added to your wallet.'
+						: 'Metadata loaded successfully. You can now review and mint.'
+				}
+			/>
+			{getTokenBalance.isError ||
+				(!getTokenBalance.data && address && (
+					<div className="xl:px-48 md:px-16 px-[15px] md:mb-9 mb-3">
+						{' '}
+						<NoBalanceAlert address={address} />{' '}
+					</div>
+				))}
 			{step === 'preview' && (
 				<div className="xl:px-24 md:px-16 px-[15px]">
 					<Button
@@ -150,13 +229,22 @@ export default function CreateNFT() {
 								</section>
 							</CardContent>
 						</Card>
-						<div>
+						{/* <div>
 							<Label></Label>
 							<SelectCollection
 								selected={selectedCollection}
 								setSelected={setSelectedCollection}
 								collectionList={DummyCollection}
 							/>
+						</div> */}
+						<div className="flex justify-center">
+							<Button
+								type="button"
+								className="md:w-[350px] rounded-[48px] md:h-[55px] h-[43px] text-base md:text-xl py-3 w-full text-main-white bg-main-green"
+								onClick={onMintNFT}
+							>
+								Mint NFT
+							</Button>
 						</div>
 					</form>
 				</div>
