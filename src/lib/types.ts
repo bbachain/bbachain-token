@@ -1,3 +1,6 @@
+import { Collection, Creator, Uses } from '@bbachain/spl-token-metadata'
+import { NFTMetadataPayload } from './validation'
+
 export type FAQItem = {
 	question: string
 	answer: string
@@ -65,5 +68,25 @@ export type GetTokenResponse = GetTokenMetadataResponse & {
 	decimals: number
 	supply: number
 	authoritiesState: GetTokenAuthoritiesState
+	date: number
+}
+
+export type NFTMetadataContent = NFTMetadataPayload
+
+export type GetNFTMetadataResponse = {
+	metadataAddress: string
+	name: string | null
+	symbol: string | null
+	collection: Collection | null
+	uses: Uses | null
+	creators: Creator[] | null
+	metadataURI: NFTMetadataContent | null
+	metadataLink: string | null
+}
+
+export type GetNFTResponse = GetNFTMetadataResponse & {
+	mintAddress: string
+	decimals: number
+	supply: number
 	date: number
 }
