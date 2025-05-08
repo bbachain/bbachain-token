@@ -59,16 +59,17 @@ const config: Config = {
 				},
 				box: 'hsl(var(--box))',
 				main: {
-					green: 'hsl(var(--main-green))',
-					black: 'hsl(var(--main-black))',
-					white: 'hsl(var(--main-white))'
+					green: 'hsl(var(--primary-green))',
+					black: 'hsl(var(--primary-black))',
+					white: 'hsl(var(--primary-white))'
 				},
 				light: {
-					grey: 'hsl(var(--light-grey))',
-					green: 'hsl(var(--light-green))'
+					grey: 'hsl(var(--secondary-light-grey))',
+					green: 'hsl(var(--secondary-light-green))'
 				},
-				'hover-green': 'hsl(var(--hover-green))',
-				'dark-grey': 'hsl(var(--dark-grey))'
+				strokes: 'hsl(var(--secondary-strokes))',
+				'hover-green': 'hsl(var(--secondary-hover-green))',
+				'dark-grey': 'hsl(var(--secondary-dark-grey))'
 			}
 		}
 	},

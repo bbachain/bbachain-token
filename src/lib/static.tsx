@@ -16,6 +16,24 @@ export const NavMenu = [
 		href: '/my-tokens'
 	},
 	{
+		name: 'NFT',
+		href: '',
+		subMenu: [
+			{
+				name: 'Mint New NFT',
+				href: '/create-nft'
+			},
+			{
+				name: 'Create Collection',
+				href: '/create-nft'
+			},
+			{
+				name: 'My NFTs',
+				href: '/create-nft'
+			}
+		]
+	},
+	{
 		name: 'Contact',
 		href: '/contact'
 	}

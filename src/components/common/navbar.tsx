@@ -21,6 +21,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { useGetBalance } from '../account/account-data-access'
 import { PublicKey } from '@bbachain/web3.js'
 import { BalanceComponent } from '../account/account-ui'
+import {
+	NavigationMenu,
+	NavigationMenuContent,
+	NavigationMenuItem,
+	NavigationMenuLink,
+	NavigationMenuList,
+	NavigationMenuTrigger,
+	navigationMenuTriggerStyle
+} from '../ui/navigation-menu'
+import { ChevronRight } from 'lucide-react'
 
 function ThemeToggle() {
 	const { resolvedTheme, setTheme } = useTheme()
@@ -186,17 +196,42 @@ export default function Navbar() {
 						alt="Quick Token Logo"
 					/>
 				</Link>
-				<section className="lg:flex space-x-9 items-center hidden">
-					{NavMenu.map((nav) => (
-						<Link
-							key={nav.name}
-							className="text-sm font-normal hover:!text-hover-green text-main-black"
-							href={nav.href}
-						>
-							{nav.name}
-						</Link>
-					))}
-				</section>
+				<NavigationMenu className="lg:flex hidden">
+					<NavigationMenuList className="lg:flex space-x-9 items-center hidden">
+						{NavMenu.map((nav) =>
+							nav.subMenu ? (
+								<NavigationMenuItem key={nav.name}>
+									<NavigationMenuTrigger className="text-sm w-full p-0 hover:!bg-transparent font-normal hover:!text-hover-green text-main-black">
+										{nav.name}
+									</NavigationMenuTrigger>
+									<NavigationMenuContent className='absolute top-full left-44 bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80'>
+										<ul className="flex flex-col w-[230px] p-3">
+											{nav.subMenu.map((subNav) => (
+												<Link
+													className="flex px-3 py-2.5 justify-between text-sm font-normal hover:!text-hover-green text-main-black"
+													key={subNav.name}
+													href={subNav.href}
+												>
+													{subNav.name}
+													<ChevronRight />
+												</Link>
+											))}
+										</ul>
+									</NavigationMenuContent>
+								</NavigationMenuItem>
+							) : (
+								<NavigationMenuItem
+									className="text-sm font-normal hover:!text-hover-green text-main-black"
+									key={nav.name}
+								>
+									<Link href={nav.href} legacyBehavior passHref>
+										<NavigationMenuLink>{nav.name}</NavigationMenuLink>
+									</Link>
+								</NavigationMenuItem>
+							)
+						)}
+					</NavigationMenuList>
+				</NavigationMenu>
 			</div>
 			{!mounted ? (
 				<Skeleton className="h-[31px] w-32" />

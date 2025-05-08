@@ -47,12 +47,6 @@ const createTokenSteps: CreateTokenStepProps[] = [
 	}
 ]
 
-const initialErrorDialogState = {
-	isOpen: false,
-	title: '',
-	description: ''
-}
-
 export default function CreateToken() {
 	const { publicKey } = useWallet()
 

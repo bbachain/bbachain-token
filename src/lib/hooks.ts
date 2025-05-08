@@ -9,7 +9,7 @@ type WalletListDialogState = {
 
 type ErrorContentProps = {
 	title: string
-	description: string
+	description: string | JSX.Element
 }
 
 type ErrorDialogState = {

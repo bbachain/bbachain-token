@@ -4,11 +4,14 @@ import {
 	AuthorityType,
 	createAssociatedTokenAccountInstruction,
 	createInitializeMintInstruction,
+	createMint,
 	createMintToInstruction,
 	createSetAuthorityInstruction,
 	getAssociatedTokenAddress,
 	getMinimumBalanceForRentExemptMint,
+	getOrCreateAssociatedTokenAccount,
 	MINT_SIZE,
+	mintTo,
 	TOKEN_2022_PROGRAM_ID,
 	TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
@@ -27,11 +30,12 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useTransactionToast } from '../common/ui-layout'
-import { CreateBBATokenPayload } from '@/lib/validation'
+import { CreateBBATokenPayload, MintNFTPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
 import {
 	createCreateMetadataAccountInstruction,
 	createUpdateMetadataAccountInstruction,
+	Data,
 	Metadata,
 	PROGRAM_ID
 } from '@bbachain/spl-token-metadata'
@@ -175,6 +179,9 @@ export function useGetTokenDataQueries({ address }: { address: PublicKey }) {
 						const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
 						const decimals = mintAccountInfo.decimals
 						const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+
+						if (decimals === 0 && supply === 1) return null
+
 						const revokeMint = mintAccountInfo.mintAuthority === null
 						const revokeFreeze = mintAccountInfo.freezeAuthority === null
 
@@ -202,7 +209,7 @@ export function useGetTokenDataQueries({ address }: { address: PublicKey }) {
 						} satisfies GetTokenResponse
 					} catch (err) {
 						console.error(`Error fetching metadata for mint ${mint}:`, err)
-						return undefined
+						return null
 					}
 				},
 				enabled: true
@@ -754,5 +761,119 @@ export function useUpdateMetadata({ mintAddress }: { mintAddress: PublicKey }) {
 					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
 				})
 			])
+	})
+}
+
+export function useMintNFTCreator() {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+
+	return useMutation({
+		mutationKey: ['nft-creator', { endpoint: connection.rpcEndpoint }],
+		mutationFn: async (payload: MintNFTPayload) => {
+			if (!publicKey) throw new Error('Wallet not connected')
+			try {
+				// Create mint with decimals = 0 for NFT
+				const daltons = await getMinimumBalanceForRentExemptMint(connection)
+				const latestBlockhash = await connection.getLatestBlockhash()
+				const mintKeypair = Keypair.generate()
+				const tokenATA = await getAssociatedTokenAddress(mintKeypair.publicKey, publicKey)
+
+				// Create instructions to create a new mint account
+				const createAccountTx = new Transaction().add(
+					SystemProgram.createAccount({
+						fromPubkey: publicKey,
+						newAccountPubkey: mintKeypair.publicKey,
+						space: MINT_SIZE,
+						daltons,
+						programId: TOKEN_PROGRAM_ID
+					}),
+					createInitializeMintInstruction(
+						mintKeypair.publicKey,
+						0, // decimals
+						publicKey,
+						publicKey,
+						TOKEN_PROGRAM_ID
+					),
+					createAssociatedTokenAccountInstruction(publicKey, tokenATA, publicKey, mintKeypair.publicKey),
+					createMintToInstruction(
+						mintKeypair.publicKey,
+						tokenATA,
+						publicKey, // mint authority
+						1 // amount
+					)
+				)
+				createAccountTx.recentBlockhash = latestBlockhash.blockhash
+				createAccountTx.feePayer = publicKey
+
+				console.log('Successfully create account', createAccountTx)
+
+				// Paritially sign the transaction with the mint keypair
+				createAccountTx.partialSign(mintKeypair)
+				const createSignature = await sendTransaction(createAccountTx, connection)
+
+				await connection.confirmTransaction({ signature: createSignature, ...latestBlockhash }, 'confirmed')
+
+				const [metadataPda] = PublicKey.findProgramAddressSync(
+					[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintKeypair.publicKey.toBuffer()],
+					PROGRAM_ID
+				)
+
+				// Create metadata
+				const data = {
+					name: payload.name,
+					symbol: payload.symbol,
+					uri: payload.uri,
+					sellerFeeBasisPoints: 500,
+					creators: [{ address: publicKey, verified: true, share: 100 }],
+					collection: payload.collection,
+					uses: payload.uses
+				}
+
+				const metadataIx = createCreateMetadataAccountInstruction(
+					{
+						metadata: metadataPda,
+						mint: mintKeypair.publicKey,
+						mintAuthority: publicKey,
+						payer: publicKey,
+						updateAuthority: publicKey
+					},
+					{
+						createMetadataAccountArgs: {
+							data,
+							isMutable: true,
+							collectionDetails: null
+						}
+					}
+				)
+
+				// Send metadata transaction
+				const metadataTx = new Transaction().add(metadataIx)
+				metadataTx.recentBlockhash = latestBlockhash.blockhash
+				metadataTx.feePayer = publicKey
+
+				const signature = await sendTransaction(metadataTx, connection)
+				await connection.confirmTransaction({ signature, ...latestBlockhash }, 'confirmed')
+
+				return {
+					mintAddress: mintKeypair.publicKey.toBase58(),
+					metadataAddress: metadataPda.toBase58(),
+					signature
+				}
+			} catch (error: unknown) {
+				throw new Error(`NFT creation failed: ${error}`)
+			}
+		},
+		onSuccess: () => {
+			return Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-balance', { endpoint: connection.rpcEndpoint, address: publicKey }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, address: publicKey }]
+				})
+			])
+		}
 	})
 }

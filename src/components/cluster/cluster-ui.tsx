@@ -7,7 +7,6 @@ import { useQuery } from '@tanstack/react-query'
 import { ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { AppModal } from '../common/ui-layout'
 import { ClusterNetwork, useCluster } from './cluster-data-access'
 import { cn } from '@/lib/utils'
@@ -55,8 +54,16 @@ export function ClusterChecker({ children }: { children: ReactNode }) {
 
 export function ClusterUiSelect({ className }: { className?: string }) {
 	const { clusters, setCluster, cluster } = useCluster()
+
+	const [open, setOpen] = useState(false)
+
+	const handleSelect = (item: typeof cluster) => {
+		setCluster(item)
+		setOpen(false)
+	}
+
 	return (
-		<Popover>
+		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
 					type="button"
@@ -76,7 +83,7 @@ export function ClusterUiSelect({ className }: { className?: string }) {
 								type="button"
 								variant="ghost"
 								className={cn('hover:bg-hover-green h-8 w-full p-0', item.active ? 'bg-hover-green' : 'bg-transparent')}
-								onClick={() => setCluster(item)}
+								onClick={() => handleSelect(item)}
 							>
 								{item.name}
 							</Button>

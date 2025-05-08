@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import Decimal from 'decimal.js'
+import { Collection, Uses } from '@bbachain/spl-token-metadata'
 
 const REQUIRED_MESSAGE = 'This field is required'
 const INVALID_SIZE_IMAGE_MESSAGE = 'Image size must be less than 5MB'
 const INVALID_TYPE_FILE_MESSAGE = 'Only .jpg, .jpeg, and .png files are accepted'
 const INVALID_NUMBER_FORMAT = 'Only non-negative whole numbers are allowed (no commas or decimals).'
 const INVALID_DECIMALS_RANGE = 'Decimals must be a number between 0 and 12'
+const INVALID_METADATA_URI = 'Invalid metadata url'
 
 const MAX_SUPPLY_RAW = new Decimal('18446744073709551615')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -77,4 +79,58 @@ export const CreateBBATokenValidation = z.intersection(
 	CreateIconTokenValidation.merge(CreateFeatureTokenValidation)
 )
 
+const NFTAttributeSchema = z.object({
+	trait_type: z.string(),
+	value: z.union([z.string(), z.number()])
+})
+
+const NFTCreatorSchema = z.object({
+	address: z.string(),
+	share: z.number()
+})
+
+const NFTFileSchema = z.object({
+	uri: z.string().url(),
+	type: z.string()
+})
+
+// Properties schema
+const NFTPropertiesSchema = z.object({
+	files: z.array(NFTFileSchema).optional(),
+	category: z.string().optional(),
+	creators: z.array(NFTCreatorSchema).optional()
+})
+
+// Collection schema
+const NFTCollectionSchema = z.object({
+	name: z.string(),
+	family: z.string()
+})
+
+export const NFTMetadataSchema = z.object({
+	name: z.string(),
+	symbol: z.string(),
+	description: z.string(),
+	image: z.string().url(),
+	seller_fee_basis_points: z.number(),
+	external_url: z.string().url().optional(),
+	attributes: z.array(NFTAttributeSchema).optional(),
+	collection: NFTCollectionSchema.optional(),
+	properties: NFTPropertiesSchema.optional()
+})
+
+export const UploadNFTMetadataSchema = z.object({
+	name: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	metadata_uri: z.string().min(1, { message: REQUIRED_MESSAGE }).url({ message: INVALID_METADATA_URI })
+})
+
 export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>
+export type NFTMetadataPayload = z.infer<typeof NFTMetadataSchema>
+export type UploadNFTMetadataPayload = z.infer<typeof UploadNFTMetadataSchema>
+export type MintNFTPayload = {
+	name: string
+	symbol: string
+	uri: string
+	collection: Collection | null
+	uses: Uses | null
+}
