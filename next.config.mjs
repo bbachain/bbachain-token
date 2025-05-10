@@ -3,15 +3,30 @@
 const nextConfig = {
     output: "standalone",
     images: {
-      remotePatterns: [
+    remotePatterns: [
         {
           protocol: 'https',
-          hostname: 'ipfs.io',
+          hostname: '**.ipfs.dweb.link',
           pathname: '/ipfs/**',
         },
         {
           protocol: 'https',
-          hostname: 'gateway.pinata.cloud',
+          hostname: '**.infura-ipfs.io',
+          pathname: '/ipfs/**',
+        },
+        {
+          protocol: 'https',
+          hostname: '**.mypinata.cloud',
+          pathname: '/ipfs/**',
+        },
+        {
+          protocol: 'https',
+          hostname: '**.pinata.cloud',
+          pathname: '/ipfs/**',
+        },
+        {
+          protocol: 'https',
+          hostname: '**.ipfs.io',
           pathname: '/ipfs/**',
         },
         {
@@ -19,11 +34,6 @@ const nextConfig = {
           hostname: 'arweave.net',
           pathname: '/**',
         },
-        {
-          protocol: 'https',
-          hostname: '**.infura-ipfs.io', // wildcard subdomain support
-          pathname: '/ipfs/**',
-        }
       ],
     },
   };

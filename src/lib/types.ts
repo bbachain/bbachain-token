@@ -80,6 +80,7 @@ export type GetNFTMetadataResponse = {
 	collection: Collection | null
 	uses: Uses | null
 	creators: Creator[] | null
+	sellerFeeBasisPoints: number
 	metadataURI: NFTMetadataContent | null
 	metadataLink: string | null
 }

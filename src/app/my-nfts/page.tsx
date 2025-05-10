@@ -54,7 +54,7 @@ function GetNFTsComponent({ address }: { address: PublicKey }) {
 	}
 
 	return (
-		<div className="xl:px-[90px] md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
+		<div className="xl:px-[90px] md:px-16 px-6 md:mt-40 mt-20 md:mb-20 mb-5 flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
 			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">My NFTs</h1>
 			<NFTList data={nftMetadata} columns={columns} />
 		</div>

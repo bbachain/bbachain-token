@@ -4,14 +4,11 @@ import {
 	AuthorityType,
 	createAssociatedTokenAccountInstruction,
 	createInitializeMintInstruction,
-	createMint,
 	createMintToInstruction,
 	createSetAuthorityInstruction,
 	getAssociatedTokenAddress,
 	getMinimumBalanceForRentExemptMint,
-	getOrCreateAssociatedTokenAccount,
 	MINT_SIZE,
-	mintTo,
 	TOKEN_2022_PROGRAM_ID,
 	TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
@@ -48,7 +45,8 @@ import {
 	GetTokenResponse,
 	MetadataURI,
 	UpdateMetadataPayload,
-	UploadToMetadataPayload
+	UploadToMetadataPayload,
+	NFTMetadataContent
 } from '@/lib/types'
 import { TokenListProps } from '../tokens/columns'
 
@@ -805,6 +803,7 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 							collection: metadata.collection,
 							uses: metadata.uses,
 							creators: metadata.creators,
+							sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
 							decimals,
 							supply,
 							metadataAddress: metadataAddress.toBase58(),
@@ -829,6 +828,46 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 	})
 
 	return NFTMetadataQueries
+}
+
+export function useGetNFTDataDetail({ mintAddress }: { mintAddress: PublicKey }) {
+	const { connection } = useConnection()
+	return useQuery({
+		queryKey: ['get-nft-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
+		queryFn: async () => {
+			try {
+				const [metadata, signatures, mintAccountInfo] = await Promise.all([
+					geTokenMetadata({ connection, mintAddress }),
+					connection.getSignaturesForAddress(mintAddress),
+					getMint(connection, mintAddress)
+				])
+
+				const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+				const decimals = mintAccountInfo.decimals
+				const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+
+				const metadataAddress = new PublicKey(metadata.metadataAddress)
+
+				return {
+					mintAddress: mintAddress.toBase58(),
+					name: metadata.name,
+					symbol: metadata.symbol,
+					collection: metadata.collection,
+					uses: metadata.uses,
+					creators: metadata.creators,
+					sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
+					decimals,
+					supply,
+					metadataAddress: metadataAddress.toBase58(),
+					metadataLink: metadata.metadataLink,
+					metadataURI: metadata.metadataURI as NFTMetadataContent,
+					date: blockTime
+				} satisfies GetNFTResponse
+			} catch (err) {
+				console.error(`Error fetching nft for mint ${mintAddress}:`, err)
+			}
+		}
+	})
 }
 
 export function useMintNFTCreator() {

@@ -66,7 +66,7 @@ export default function NFTList<TData, TValue>({ columns, data }: DataTableProps
 						</SelectGroup>
 					</SelectContent>
 				</Select>
-				<section className="relative">
+				<section className="relative w-full md:w-auto">
 					<IoSearchOutline className="absolute left-3 top-1/2 text-xl -translate-y-1/2 text-gray-500" />
 					<Input
 						placeholder="Search"
@@ -76,7 +76,7 @@ export default function NFTList<TData, TValue>({ columns, data }: DataTableProps
 					/>
 				</section>
 			</div>
-			<div className="grid grid-cols-2 md:grid-cols-5 xl:gap-x-10 xl:gap-y-14 md:gap-6 gap-3">
+			<div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 xl:gap-x-10 xl:gap-y-14 md:gap-6 gap-3 ">
 				{table.getRowModel().rows?.length > 0 &&
 					table.getRowModel().rows.map((row) => {
 						const original = row.original as NftCardProps

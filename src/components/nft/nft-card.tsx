@@ -3,6 +3,8 @@
 import Image from 'next/image'
 import Moment from 'react-moment'
 import { useState } from 'react'
+import { Skeleton } from '../ui/skeleton'
+import Link from 'next/link'
 
 export interface NftCardProps {
 	address: string
@@ -13,15 +15,24 @@ export interface NftCardProps {
 }
 
 export const NftCard: React.FC<NftCardProps> = ({ image, name, collection, address, date }) => {
+	const [isLoading, setIsLoading] = useState(false)
+
+	if (isLoading) {
+		return <Skeleton className="md:h-[282px] md:w-[220px] w-[130px] h-[146px] rounded-[10px] shadow-lg" />
+	}
+
 	return (
-		<div className="relative md:h-[282px] md:w-[220px] w-[130px] h-[146px] rounded-[10px] overflow-hidden shadow-lg">
+		<Link
+			href={`/my-nfts/${address}`}
+			className="relative sm:h-[282px] sm:w-[220px] w-[130px] h-[146px] rounded-[10px] overflow-hidden shadow-lg"
+		>
 			<Image
 				src={image}
 				alt={name}
 				fill
 				style={{ objectFit: 'cover' }}
 				className="w-full"
-				// onLoad={() => setIsLoading(false)}
+				onLoad={() => setIsLoading(false)}
 				priority
 			/>
 
@@ -41,6 +52,6 @@ export const NftCard: React.FC<NftCardProps> = ({ image, name, collection, addre
 					</Moment>
 				</p>
 			</div>
-		</div>
+		</Link>
 	)
 }

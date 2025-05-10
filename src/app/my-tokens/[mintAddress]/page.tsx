@@ -416,7 +416,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 						</div>
 					</TokenDetailCard>
 				</section>
-				<TokenDetailCard title="Token Overview">
+				<TokenDetailCard title="Metadata">
 					<section className="flex md:flex-row md:space-y-0 space-y-2.5 flex-col justify-between">
 						<div className="flex flex-col space-y-[18px]">
 							{tokenMetaData.map((overviewData) => (
