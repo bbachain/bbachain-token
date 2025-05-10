@@ -161,7 +161,7 @@ export default function CreateNFT() {
 						? 'We’re minting your NFT. This may take a few seconds...'
 						: 'We’re loading and validating your metadata. Please wait a moment.'
 				}
-				isOpen={mintNFTMutation.isPending}
+				isOpen={mintNFTMutation.isPending || validateMetadataMutation.isPending}
 			/>
 			<SuccessDialog
 				isOpen={isSuccessDialog}

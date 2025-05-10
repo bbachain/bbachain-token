@@ -4,14 +4,11 @@ import {
 	AuthorityType,
 	createAssociatedTokenAccountInstruction,
 	createInitializeMintInstruction,
-	createMint,
 	createMintToInstruction,
 	createSetAuthorityInstruction,
 	getAssociatedTokenAddress,
 	getMinimumBalanceForRentExemptMint,
-	getOrCreateAssociatedTokenAccount,
 	MINT_SIZE,
-	mintTo,
 	TOKEN_2022_PROGRAM_ID,
 	TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
@@ -43,11 +40,13 @@ import { getMint, setAuthority } from '@bbachain/spl-token'
 import axios from 'axios'
 import {
 	CreateTokenResponse,
+	GetNFTResponse,
 	GetTokenMetadataResponse,
 	GetTokenResponse,
 	MetadataURI,
 	UpdateMetadataPayload,
-	UploadToMetadataPayload
+	UploadToMetadataPayload,
+	NFTMetadataContent
 } from '@/lib/types'
 import { TokenListProps } from '../tokens/columns'
 
@@ -90,13 +89,7 @@ export function useGetTokenAccounts({ address }: { address: PublicKey }) {
 	})
 }
 
-export async function geTokenMetadata({
-	connection,
-	mintAddress
-}: {
-	connection: Connection
-	mintAddress: PublicKey
-}): Promise<GetTokenMetadataResponse> {
+export async function geTokenMetadata({ connection, mintAddress }: { connection: Connection; mintAddress: PublicKey }) {
 	try {
 		// Convert string to PublicKey
 
@@ -121,17 +114,21 @@ export async function geTokenMetadata({
 				metadataAddress: metadataPda.toBase58(),
 				name: null,
 				symbol: null,
+				collection: null,
+				uses: null,
+				creators: null,
+				sellerFeeBasisPoints: 0,
 				metadataLink: null,
 				metadataURI: null
 			}
 
-		const { name, symbol, uri: metadataUri } = metadata.data
+		const { name, symbol, uri: metadataUri, collection, uses, creators, sellerFeeBasisPoints } = metadata.data
 
 		let uriData = null
 
 		if (metadataUri) {
 			try {
-				const response = await axios.get<MetadataURI>(metadataUri)
+				const response = await axios.get(metadataUri)
 				uriData = response.data
 			} catch (uriError) {
 				console.error('Error fetching URI data:', uriError)
@@ -142,6 +139,10 @@ export async function geTokenMetadata({
 			metadataAddress: metadataPda.toBase58(),
 			name: name.replace(/\0/g, ''),
 			symbol: symbol.replace(/\0/g, ''),
+			collection,
+			uses,
+			creators,
+			sellerFeeBasisPoints,
 			metadataLink: metadataUri.replace(/\0/g, ''),
 			metadataURI: uriData
 		}
@@ -151,6 +152,10 @@ export async function geTokenMetadata({
 			metadataAddress: '',
 			name: null,
 			symbol: null,
+			collection: null,
+			uses: null,
+			creators: null,
+			sellerFeeBasisPoints: 0,
 			metadataLink: null,
 			metadataURI: null
 		}
@@ -761,6 +766,107 @@ export function useUpdateMetadata({ mintAddress }: { mintAddress: PublicKey }) {
 					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
 				})
 			])
+	})
+}
+
+export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
+	const { connection } = useConnection()
+	const tokenAccounts = useGetTokenAccounts({ address })
+
+	const NFTMetadataQueries = useQueries({
+		queries: (tokenAccounts.data ?? []).map((account) => {
+			const mint = account.account.data.parsed.info.mint
+			const mintKey = new PublicKey(mint)
+
+			return {
+				queryKey: ['get-nft-data', { endpoint: connection.rpcEndpoint, mintKey }],
+				queryFn: async () => {
+					try {
+						const [metadata, signatures, mintAccountInfo] = await Promise.all([
+							geTokenMetadata({ connection, mintAddress: mintKey }),
+							connection.getSignaturesForAddress(mintKey),
+							getMint(connection, mintKey)
+						])
+
+						const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+						const decimals = mintAccountInfo.decimals
+						const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+
+						if (decimals !== 0 && supply !== 1) return null
+
+						const metadataAddress = new PublicKey(metadata.metadataAddress)
+
+						return {
+							mintAddress: mintKey.toBase58(),
+							name: metadata.name,
+							symbol: metadata.symbol,
+							collection: metadata.collection,
+							uses: metadata.uses,
+							creators: metadata.creators,
+							sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
+							decimals,
+							supply,
+							metadataAddress: metadataAddress.toBase58(),
+							metadataLink: metadata.metadataLink,
+							metadataURI: metadata.metadataURI,
+							date: blockTime
+						} satisfies GetNFTResponse
+					} catch (err) {
+						console.error(`Error fetching metadata for mint ${mint}:`, err)
+						return null
+					}
+				},
+				enabled: true
+			}
+		}),
+		combine: (results) => ({
+			data: results
+				.map((r) => r.data)
+				.filter((r): r is GetNFTResponse => !!r?.mintAddress && typeof r.date === 'number'),
+			isPending: results.some((r) => r.isPending)
+		})
+	})
+
+	return NFTMetadataQueries
+}
+
+export function useGetNFTDataDetail({ mintAddress }: { mintAddress: PublicKey }) {
+	const { connection } = useConnection()
+	return useQuery({
+		queryKey: ['get-nft-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
+		queryFn: async () => {
+			try {
+				const [metadata, signatures, mintAccountInfo] = await Promise.all([
+					geTokenMetadata({ connection, mintAddress }),
+					connection.getSignaturesForAddress(mintAddress),
+					getMint(connection, mintAddress)
+				])
+
+				const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+				const decimals = mintAccountInfo.decimals
+				const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+
+				const metadataAddress = new PublicKey(metadata.metadataAddress)
+
+				return {
+					mintAddress: mintAddress.toBase58(),
+					name: metadata.name,
+					symbol: metadata.symbol,
+					collection: metadata.collection,
+					uses: metadata.uses,
+					creators: metadata.creators,
+					sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
+					decimals,
+					supply,
+					metadataAddress: metadataAddress.toBase58(),
+					metadataLink: metadata.metadataLink,
+					metadataURI: metadata.metadataURI as NFTMetadataContent,
+					date: blockTime
+				} satisfies GetNFTResponse
+			} catch (err) {
+				console.error(`Error fetching nft for mint ${mintAddress}:`, err)
+			}
+		}
 	})
 }
 

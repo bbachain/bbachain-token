@@ -29,7 +29,7 @@ export const NavMenu = [
 			},
 			{
 				name: 'My NFTs',
-				href: '/create-nft'
+				href: '/my-nfts'
 			}
 		]
 	},
