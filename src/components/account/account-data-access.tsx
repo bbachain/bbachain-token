@@ -103,7 +103,17 @@ export async function geTokenMetadata({ connection, mintAddress }: { connection:
 
 		const accountInfo = await connection.getAccountInfo(metadataPda)
 		if (!accountInfo?.data) {
-			throw new Error(`No metadata found for mint address ${mintAddress.toString()}`)
+			return {
+				metadataAddress: metadataPda.toBase58(),
+				name: null,
+				symbol: null,
+				collection: null,
+				uses: null,
+				creators: null,
+				sellerFeeBasisPoints: 0,
+				metadataLink: null,
+				metadataURI: null
+			}
 		}
 
 		const [metadata] = Metadata.deserialize(accountInfo.data)
@@ -162,6 +172,58 @@ export async function geTokenMetadata({ connection, mintAddress }: { connection:
 	}
 }
 
+export async function getParsedTokenMetadata(connection: Connection, mintKey: PublicKey) {
+	// Default values
+	let name = null
+	let symbol = null
+	let collection = null
+	let uses = null
+	let creators = null
+	let sellerFeeBasisPoints = 0
+	let metadataAddress: string = ''
+	let metadataLink = null
+	let metadataURI = null
+	let immutableMetadata = false
+
+	try {
+		const metadata = await geTokenMetadata({ connection, mintAddress: mintKey })
+
+		if (metadata) {
+			metadataAddress = new PublicKey(metadata.metadataAddress).toBase58()
+			metadataLink = metadata.metadataLink ?? null
+			metadataURI = metadata.metadataURI
+			name = metadata.name
+			symbol = metadata.symbol
+			collection = metadata.collection
+			uses = metadata.uses
+			creators = metadata.creators
+			sellerFeeBasisPoints = metadata.sellerFeeBasisPoints
+
+			try {
+				const metadataAccount = await Metadata.fromAccountAddress(connection, new PublicKey(metadata.metadataAddress))
+				immutableMetadata = !metadataAccount.isMutable
+			} catch (e) {
+				console.warn('Could not fetch immutability info:', e)
+			}
+		}
+	} catch (e) {
+		console.warn('Could not fetch token metadata:', e)
+	}
+
+	return {
+		name,
+		symbol,
+		collection,
+		uses,
+		creators,
+		sellerFeeBasisPoints,
+		metadataAddress,
+		metadataLink,
+		metadataURI,
+		immutableMetadata
+	}
+}
+
 export function useGetTokenDataQueries({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
 	const tokenAccounts = useGetTokenAccounts({ address })
@@ -171,15 +233,19 @@ export function useGetTokenDataQueries({ address }: { address: PublicKey }) {
 			const mint = account.account.data.parsed.info.mint
 			const mintKey = new PublicKey(mint)
 
+			console.log(account)
+
 			return {
 				queryKey: ['get-token-data', { endpoint: connection.rpcEndpoint, mintKey }],
 				queryFn: async () => {
 					try {
-						const [metadata, signatures, mintAccountInfo] = await Promise.all([
-							geTokenMetadata({ connection, mintAddress: mintKey }),
+						const [signatures, mintAccountInfo] = await Promise.all([
 							connection.getSignaturesForAddress(mintKey),
 							getMint(connection, mintKey)
 						])
+
+						console.log('signature nih', signatures)
+						console.log('account info nih', mintAccountInfo)
 
 						const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
 						const decimals = mintAccountInfo.decimals
@@ -187,28 +253,41 @@ export function useGetTokenDataQueries({ address }: { address: PublicKey }) {
 
 						if (decimals === 0 && supply === 1) return null
 
+						const parsedMetadata = await getParsedTokenMetadata(connection, mintKey)
+
 						const revokeMint = mintAccountInfo.mintAuthority === null
 						const revokeFreeze = mintAccountInfo.freezeAuthority === null
-
-						const metadataAddress = new PublicKey(metadata.metadataAddress)
-						const metadataAccount = await Metadata.fromAccountAddress(connection, metadataAddress)
-						const immutableMetadata = !metadataAccount.isMutable
 
 						const authoritiesState = {
 							revoke_freeze: revokeFreeze,
 							revoke_mint: revokeMint,
-							immutable_metadata: immutableMetadata
+							immutable_metadata: parsedMetadata.immutableMetadata
+						}
+
+						if (!parsedMetadata) {
+							return {
+								mintAddress: mintKey.toBase58(),
+								name: null,
+								symbol: null,
+								decimals,
+								supply,
+								metadataAddress: '',
+								metadataLink: '',
+								metadataURI: null,
+								authoritiesState,
+								date: blockTime
+							} satisfies GetTokenResponse
 						}
 
 						return {
 							mintAddress: mintKey.toBase58(),
-							name: metadata.name,
-							symbol: metadata.symbol,
+							name: parsedMetadata.name,
+							symbol: parsedMetadata.symbol,
 							decimals,
 							supply,
-							metadataAddress: metadataAddress.toBase58(),
-							metadataLink: metadata.metadataLink,
-							metadataURI: metadata.metadataURI,
+							metadataAddress: parsedMetadata.metadataAddress,
+							metadataLink: parsedMetadata.metadataLink,
+							metadataURI: parsedMetadata.metadataURI,
 							authoritiesState,
 							date: blockTime
 						} satisfies GetTokenResponse
@@ -237,8 +316,7 @@ export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey 
 		queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
 		queryFn: async () => {
 			try {
-				const [metadata, signatures, mintAccountInfo] = await Promise.all([
-					geTokenMetadata({ connection, mintAddress }),
+				const [signatures, mintAccountInfo] = await Promise.all([
 					connection.getSignaturesForAddress(mintAddress),
 					getMint(connection, mintAddress)
 				])
@@ -246,41 +324,42 @@ export function useGetTokenDataDetail({ mintAddress }: { mintAddress: PublicKey 
 				const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
 				const decimals = mintAccountInfo.decimals
 				const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+
+				const parsedMetadata = await getParsedTokenMetadata(connection, mintAddress)
+
 				const revokeMint = mintAccountInfo.mintAuthority === null
 				const revokeFreeze = mintAccountInfo.freezeAuthority === null
-
-				const metadataAddress = new PublicKey(metadata.metadataAddress)
-				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataAddress)
-				const immutableMetadata = !metadataAccount.isMutable
 
 				const authoritiesState = {
 					revoke_freeze: revokeFreeze,
 					revoke_mint: revokeMint,
-					immutable_metadata: immutableMetadata
+					immutable_metadata: parsedMetadata.immutableMetadata
 				}
 
-				console.log({
-					mintAddress: mintAddress.toBase58(),
-					name: metadata.name,
-					symbol: metadata.symbol,
-					decimals,
-					supply,
-					metadataAddress: metadataAddress.toBase58(),
-					metadataLink: metadata.metadataLink,
-					metadataURI: metadata.metadataURI,
-					authoritiesState,
-					date: blockTime
-				})
+				if (!parsedMetadata) {
+					return {
+						mintAddress: mintAddress.toBase58(),
+						name: null,
+						symbol: null,
+						decimals,
+						supply,
+						metadataAddress: '',
+						metadataLink: '',
+						metadataURI: null,
+						authoritiesState,
+						date: blockTime
+					} satisfies GetTokenResponse
+				}
 
 				return {
 					mintAddress: mintAddress.toBase58(),
-					name: metadata.name,
-					symbol: metadata.symbol,
+					name: parsedMetadata.name,
+					symbol: parsedMetadata.symbol,
 					decimals,
 					supply,
-					metadataAddress: metadataAddress.toBase58(),
-					metadataLink: metadata.metadataLink,
-					metadataURI: metadata.metadataURI,
+					metadataAddress: parsedMetadata.metadataAddress,
+					metadataLink: parsedMetadata.metadataLink,
+					metadataURI: parsedMetadata.metadataURI,
 					authoritiesState,
 					date: blockTime
 				} satisfies GetTokenResponse
@@ -754,7 +833,7 @@ export function useUpdateMetadata({ mintAddress }: { mintAddress: PublicKey }) {
 				await connection.confirmTransaction({ signature: updateSignature, ...latestBlockhash }, 'confirmed')
 				return { message: 'Successfully update metadata' }
 			} catch (error: unknown) {
-				throw new Error(`Revoke authority failed! ${error}`)
+				throw new Error(`Failed! ${error}`)
 			}
 		},
 		onSuccess: () =>
@@ -782,8 +861,7 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 				queryKey: ['get-nft-data', { endpoint: connection.rpcEndpoint, mintKey }],
 				queryFn: async () => {
 					try {
-						const [metadata, signatures, mintAccountInfo] = await Promise.all([
-							geTokenMetadata({ connection, mintAddress: mintKey }),
+						const [signatures, mintAccountInfo] = await Promise.all([
 							connection.getSignaturesForAddress(mintKey),
 							getMint(connection, mintKey)
 						])
@@ -794,21 +872,21 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 
 						if (decimals !== 0 && supply !== 1) return null
 
-						const metadataAddress = new PublicKey(metadata.metadataAddress)
+						const parsedMetadata = await getParsedTokenMetadata(connection, mintKey)
 
 						return {
 							mintAddress: mintKey.toBase58(),
-							name: metadata.name,
-							symbol: metadata.symbol,
-							collection: metadata.collection,
-							uses: metadata.uses,
-							creators: metadata.creators,
-							sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
+							name: parsedMetadata.name,
+							symbol: parsedMetadata.symbol,
+							collection: parsedMetadata.collection,
+							uses: parsedMetadata.uses,
+							creators: parsedMetadata.creators,
+							sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
 							decimals,
 							supply,
-							metadataAddress: metadataAddress.toBase58(),
-							metadataLink: metadata.metadataLink,
-							metadataURI: metadata.metadataURI,
+							metadataAddress: parsedMetadata.metadataAddress,
+							metadataLink: parsedMetadata.metadataLink,
+							metadataURI: parsedMetadata.metadataURI,
 							date: blockTime
 						} satisfies GetNFTResponse
 					} catch (err) {
