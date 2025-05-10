@@ -6,6 +6,16 @@ const nextConfig = {
     remotePatterns: [
         {
           protocol: 'https',
+          hostname: '**',
+          pathname: '**', 
+        },
+        {
+          protocol: 'https',
+          hostname: 'ipfs.io', 
+          pathname: '/ipfs/**',
+        },
+        {
+          protocol: 'https',
           hostname: '**.ipfs.dweb.link',
           pathname: '/ipfs/**',
         },
