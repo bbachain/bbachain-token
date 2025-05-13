@@ -34,7 +34,7 @@ function mapToNFTPropsList(tokens: GetNFTResponse[]): NftCardProps[] {
 			address: token.mintAddress,
 			name: token.name ?? fallback,
 			image: token.metadataURI?.image ?? '/icon-placeholder.svg',
-			collection: token.collection?.key.toBase58() ?? '-',
+			collection: token.collectionName ?? '-',
 			date: token.date
 		}
 	})

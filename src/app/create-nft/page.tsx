@@ -23,6 +23,8 @@ import { useSearchParams } from 'next/navigation'
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import { NoBalanceAlert } from '@/components/common/alert'
 import toast from 'react-hot-toast'
+import { PublicKey } from '@bbachain/web3.js'
+import { useRouter } from 'next/navigation'
 
 export default function CreateNFT() {
 	const { publicKey } = useWallet()
@@ -31,6 +33,8 @@ export default function CreateNFT() {
 		if (!publicKey) return
 		return publicKey
 	}, [publicKey])
+
+	const router = useRouter()
 
 	const getCollectionQuery = useGetCollectionDataQueries({ address: address! })
 	const collectionListData = useMemo(() => {
@@ -157,7 +161,12 @@ export default function CreateNFT() {
 			name: form.getValues('name'),
 			symbol: '',
 			uri: form.getValues('metadata_uri'),
-			collection: null,
+			collection: selectedCollection
+				? {
+						key: new PublicKey(selectedCollection?.mintAddress ?? ''),
+						verified: false
+					}
+				: null,
 			uses: null
 		})
 
@@ -247,12 +256,13 @@ export default function CreateNFT() {
 							</CardContent>
 						</Card>
 						<div>
-							<Label className='text-main-black text-sm font-medium'>Assign to a Collection (optional)</Label>
+							<Label className="text-main-black text-sm font-medium">Assign to a Collection (optional)</Label>
 							<SelectCollection
 								selected={selectedCollection}
 								setSelected={setSelectedCollection}
 								isDataPending={getCollectionQuery.isPending}
 								collectionList={collectionListData}
+								onCreateNew={() => router.push('/create-collection')}
 							/>
 						</div>
 						<div className="flex justify-center">

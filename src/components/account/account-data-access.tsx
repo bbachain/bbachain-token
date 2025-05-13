@@ -884,12 +884,19 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 						if (decimals !== 0 && supply !== 1) return null
 
 						const parsedMetadata = await getParsedTokenMetadata(connection, mintKey)
+						const getCollection = await getCollectionDetail({
+							mintAddress: new PublicKey(parsedMetadata?.collection?.key ?? ''),
+							connection
+						})
+
+						if (parsedMetadata.collectionDetails) return null
 
 						return {
 							mintAddress: mintKey.toBase58(),
 							name: parsedMetadata.name,
 							symbol: parsedMetadata.symbol,
 							collection: parsedMetadata.collection,
+							collectionName: getCollection?.name ?? '',
 							uses: parsedMetadata.uses,
 							creators: parsedMetadata.creators,
 							sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
@@ -925,8 +932,7 @@ export function useGetNFTDataDetail({ mintAddress }: { mintAddress: PublicKey })
 		queryKey: ['get-nft-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
 		queryFn: async () => {
 			try {
-				const [metadata, signatures, mintAccountInfo] = await Promise.all([
-					geTokenMetadata({ connection, mintAddress }),
+				const [signatures, mintAccountInfo] = await Promise.all([
 					connection.getSignaturesForAddress(mintAddress),
 					getMint(connection, mintAddress)
 				])
@@ -935,21 +941,47 @@ export function useGetNFTDataDetail({ mintAddress }: { mintAddress: PublicKey })
 				const decimals = mintAccountInfo.decimals
 				const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
 
-				const metadataAddress = new PublicKey(metadata.metadataAddress)
+				const parsedMetadata = await getParsedTokenMetadata(connection, mintAddress)
+
+				const metadataAddress = new PublicKey(parsedMetadata.metadataAddress)
+				const getCollection = await getCollectionDetail({
+					mintAddress: new PublicKey(parsedMetadata?.collection?.key ?? ''),
+					connection
+				})
+
+				if (!parsedMetadata) {
+					return {
+						mintAddress: mintAddress.toBase58(),
+						name: null,
+						symbol: null,
+						collection: null,
+						collectionName: getCollection?.name ?? '',
+						uses: null,
+						creators: null,
+						sellerFeeBasisPoints: 0,
+						decimals,
+						supply,
+						metadataAddress: '',
+						metadataLink: '',
+						metadataURI: null,
+						date: blockTime
+					} satisfies GetNFTResponse
+				}
 
 				return {
 					mintAddress: mintAddress.toBase58(),
-					name: metadata.name,
-					symbol: metadata.symbol,
-					collection: metadata.collection,
-					uses: metadata.uses,
-					creators: metadata.creators,
-					sellerFeeBasisPoints: metadata.sellerFeeBasisPoints,
+					name: parsedMetadata.name,
+					symbol: parsedMetadata.symbol,
+					collection: parsedMetadata.collection,
+					collectionName: '',
+					uses: parsedMetadata.uses,
+					creators: parsedMetadata.creators,
+					sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
 					decimals,
 					supply,
 					metadataAddress: metadataAddress.toBase58(),
-					metadataLink: metadata.metadataLink,
-					metadataURI: metadata.metadataURI as NFTMetadataContent,
+					metadataLink: parsedMetadata.metadataLink,
+					metadataURI: parsedMetadata.metadataURI as NFTMetadataContent,
 					date: blockTime
 				} satisfies GetNFTResponse
 			} catch (err) {
@@ -1224,6 +1256,7 @@ export function useGetCollectionDataQueries({ address }: { address: PublicKey })
 							name: parsedMetadata.name,
 							symbol: parsedMetadata.symbol,
 							collection: parsedMetadata.collection,
+							collectionName: '',
 							uses: parsedMetadata.uses,
 							creators: parsedMetadata.creators,
 							sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
@@ -1251,4 +1284,77 @@ export function useGetCollectionDataQueries({ address }: { address: PublicKey })
 	})
 
 	return CollectionMetadataQueries
+}
+
+export async function getCollectionDetail({
+	mintAddress,
+	connection
+}: {
+	mintAddress: PublicKey
+	connection: Connection
+}) {
+	const [signatures, mintAccountInfo] = await Promise.all([
+		connection.getSignaturesForAddress(mintAddress),
+		getMint(connection, mintAddress)
+	])
+
+	const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
+	const decimals = mintAccountInfo.decimals
+	const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
+
+	const parsedMetadata = await getParsedTokenMetadata(connection, mintAddress)
+
+	const metadataAddress = new PublicKey(parsedMetadata.metadataAddress)
+
+	if (!parsedMetadata) {
+		return {
+			mintAddress: mintAddress.toBase58(),
+			name: null,
+			symbol: null,
+			collection: null,
+			collectionName: '',
+			uses: null,
+			creators: null,
+			sellerFeeBasisPoints: 0,
+			decimals,
+			supply,
+			metadataAddress: '',
+			metadataLink: '',
+			metadataURI: null,
+			date: blockTime
+		} satisfies GetNFTResponse
+	}
+
+	if (!parsedMetadata.collectionDetails) return null
+
+	return {
+		mintAddress: mintAddress.toBase58(),
+		name: parsedMetadata.name,
+		symbol: parsedMetadata.symbol,
+		collection: parsedMetadata.collection,
+		collectionName: '',
+		uses: parsedMetadata.uses,
+		creators: parsedMetadata.creators,
+		sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
+		decimals,
+		supply,
+		metadataAddress: metadataAddress.toBase58(),
+		metadataLink: parsedMetadata.metadataLink,
+		metadataURI: parsedMetadata.metadataURI as NFTMetadataContent,
+		date: blockTime
+	} satisfies GetNFTResponse
+}
+
+export function useGetCollectionDataDetail({ mintAddress }: { mintAddress: PublicKey }) {
+	const { connection } = useConnection()
+	return useQuery({
+		queryKey: ['get-collection-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }],
+		queryFn: async () => {
+			try {
+				await getCollectionDetail({ mintAddress, connection })
+			} catch (err) {
+				console.error(`Error fetching collection for mint ${mintAddress}:`, err)
+			}
+		}
+	})
 }

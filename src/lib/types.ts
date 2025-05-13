@@ -78,6 +78,7 @@ export type GetNFTMetadataResponse = {
 	name: string | null
 	symbol: string | null
 	collection: Collection | null
+	collectionName: string
 	uses: Uses | null
 	creators: Creator[] | null
 	sellerFeeBasisPoints: number
