@@ -1,9 +1,12 @@
 import { Dispatch } from 'react'
-import { Button } from '../ui/button'
+import { Button, buttonVariants } from '../ui/button'
 import { Dialog, DialogTitle, DialogClose, DialogContent, DialogFooter, DialogHeader } from '../ui/dialog'
 import Image from 'next/image'
 import { SetStateAction } from 'jotai'
 import { Description, DialogDescription } from '@radix-ui/react-dialog'
+import Link from 'next/link'
+import { useCluster } from '../cluster/cluster-data-access'
+import { cn } from '@/lib/utils'
 
 type BasicDialog = {
 	isOpen: boolean
@@ -26,7 +29,7 @@ export function LoadingDialog({ isOpen, title, description }: BasicDialog) {
 	)
 }
 
-export function SuccessDialog({
+export function SuccessDialogNFT({
 	isOpen,
 	title,
 	description,
@@ -52,6 +55,55 @@ export function SuccessDialog({
 						>
 							Close{' '}
 						</Button>
+					</DialogClose>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	)
+}
+
+export function SuccessDialogCollection({
+	isOpen,
+	onOpenChange,
+	data
+}: {
+	isOpen: boolean
+	onOpenChange: Dispatch<SetStateAction<boolean>>
+	data: {
+		name: string
+		image: string
+		mintAddress: string
+	}
+}) {
+	const { getExplorerUrl } = useCluster()
+
+	return (
+		<Dialog open={isOpen} onOpenChange={onOpenChange}>
+			<DialogContent className="flex flex-col items-center text-center px-11 py-9">
+				<DialogHeader>
+					<DialogTitle></DialogTitle>
+				</DialogHeader>
+				<Image src="/success-parsed.svg" width={64} height={64} alt="success parsed" />
+				<h4 className="mt-8 text-center text-main-black font-semibold text-lg mb-6">{`${data.name} Successfully Created`}</h4>
+				<a
+					className="flex items-center text-main-green hover:text-hover-green "
+					href={getExplorerUrl(`address/${data?.mintAddress}`)}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					View on Explorer
+				</a>
+				<DialogFooter>
+					<DialogClose asChild>
+						<Link
+							className={cn(
+								buttonVariants({ size: 'lg' }),
+								'bg-main-green md:w-[373px] w-full hover:bg-hover-green rounded-[30px] h-[48px] text-xl text-main-white'
+							)}
+							href={`/create-nft?collectionKey=${data.mintAddress}`}
+						>
+							Start Minting NFTs to this Collection{' '}
+						</Link>
 					</DialogClose>
 				</DialogFooter>
 			</DialogContent>

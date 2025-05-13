@@ -10,20 +10,19 @@ import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { ChevronRight, Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { LoadingDialog, SuccessDialog } from '@/components/nft/dialog'
+import { LoadingDialog, SuccessDialogNFT } from '@/components/nft/dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { capitalCase } from 'text-case'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { ZodError } from 'zod'
 import { useErrorDialog } from '@/lib/hooks'
 import { Label } from '@/components/ui/label'
-import SelectCollection from '@/components/nft/select-collection'
-import { useGetBalance, useMintNFTCreator } from '@/components/account/account-data-access'
+import SelectCollection, { SelectedItem } from '@/components/nft/select-collection'
+import { useGetBalance, useGetCollectionDataQueries, useMintNFTCreator } from '@/components/account/account-data-access'
+import { useSearchParams } from 'next/navigation'
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import { NoBalanceAlert } from '@/components/common/alert'
 import toast from 'react-hot-toast'
-
-const DummyCollection = ['Collection 1', 'Collection 2']
 
 export default function CreateNFT() {
 	const { publicKey } = useWallet()
@@ -32,6 +31,17 @@ export default function CreateNFT() {
 		if (!publicKey) return
 		return publicKey
 	}, [publicKey])
+
+	const getCollectionQuery = useGetCollectionDataQueries({ address: address! })
+	const collectionListData = useMemo(() => {
+		return getCollectionQuery.data.map((data) => ({
+			mintAddress: data.mintAddress,
+			name: data.name ?? ''
+		}))
+	}, [getCollectionQuery.data])
+
+	const query = useSearchParams()
+	const collectionKey = query.get('collectionKey')
 
 	const form = useForm<UploadNFTMetadataPayload>({
 		resolver: zodResolver(UploadNFTMetadataSchema),
@@ -43,7 +53,7 @@ export default function CreateNFT() {
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
-	const [selectedCollection, setSelectedCollection] = useState<string | null>(null)
+	const [selectedCollection, setSelectedCollection] = useState<SelectedItem | null>(null)
 
 	const getTokenBalance = useGetBalance({ address: address! })
 
@@ -65,6 +75,13 @@ export default function CreateNFT() {
 		description: metadataPreview?.description
 	}
 	const { openErrorDialog } = useErrorDialog()
+
+	useEffect(() => {
+		if (collectionKey && collectionListData.length > 0) {
+			const data = collectionListData.find((data) => data.mintAddress === collectionKey)
+			if (data) setSelectedCollection(data)
+		}
+	}, [collectionKey, collectionListData])
 
 	useEffect(() => {
 		if (validateMetadataMutation.isSuccess && validateMetadataMutation.data) {
@@ -163,7 +180,7 @@ export default function CreateNFT() {
 				}
 				isOpen={mintNFTMutation.isPending || validateMetadataMutation.isPending}
 			/>
-			<SuccessDialog
+			<SuccessDialogNFT
 				isOpen={isSuccessDialog}
 				onOpenChange={setIsSuccessDialog}
 				title={mintNFTMutation.isSuccess ? 'NFTs Minted Successfully!' : 'Metadata Preview Loaded Successfully'}
@@ -229,14 +246,15 @@ export default function CreateNFT() {
 								</section>
 							</CardContent>
 						</Card>
-						{/* <div>
-							<Label></Label>
+						<div>
+							<Label className='text-main-black text-sm font-medium'>Assign to a Collection (optional)</Label>
 							<SelectCollection
 								selected={selectedCollection}
 								setSelected={setSelectedCollection}
-								collectionList={DummyCollection}
+								isDataPending={getCollectionQuery.isPending}
+								collectionList={collectionListData}
 							/>
-						</div> */}
+						</div>
 						<div className="flex justify-center">
 							<Button
 								type="button"
