@@ -14,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Download, Maximize2 } from 'lucide-react'
 import { useState } from 'react'
 import { ShowImageDialog } from '@/components/nft/dialog'
-import { cn } from '@/lib/utils'
 
 export default function NFTDetail({ params }: { params: { mintAddress: string } }) {
 	const mintKey = new PublicKey(params.mintAddress)
@@ -41,19 +40,19 @@ export default function NFTDetail({ params }: { params: { mintAddress: string } 
 	const NFTAboutData = [
 		{
 			label: 'Name',
-			value: NFTDetailData?.metadataURI.name ?? ''
+			value: NFTDetailData?.metadataURI?.name ?? ''
 		},
 		{
 			label: 'Symbol',
-			value: NFTDetailData?.metadataURI.symbol ?? ''
+			value: NFTDetailData?.metadataURI?.symbol ?? ''
 		},
 		{
 			label: 'Collection',
-			value: '-'
+			value: NFTDetailData?.collectionName
 		},
 		{
 			label: 'Family',
-			value: NFTDetailData?.metadataURI.collection?.family ?? '-'
+			value: NFTDetailData?.metadataURI?.collection?.family ?? '-'
 		},
 		{
 			label: 'Mint Date',
@@ -92,13 +91,13 @@ export default function NFTDetail({ params }: { params: { mintAddress: string } 
 	const metaDataInfo = [
 		{
 			label: 'Description',
-			component: <p className="truncate text-main-black text-base">{NFTDetailData?.metadataURI.description}</p>
+			component: <p className="truncate text-main-black text-base">{NFTDetailData?.metadataURI?.description}</p>
 		},
 		{
 			label: 'Attributes',
 			component: (
 				<div className="flex flex-wrap gap-2">
-					{NFTDetailData?.metadataURI.attributes?.map((attribute) => (
+					{NFTDetailData?.metadataURI?.attributes?.map((attribute) => (
 						<div
 							key={attribute.trait_type}
 							className="bg-box w-auto text-sm px-3 h-8 py-1.5 rounded-[8px] flex items-center space-x-1.5"
@@ -174,8 +173,8 @@ export default function NFTDetail({ params }: { params: { mintAddress: string } 
 			<ShowImageDialog
 				isOpen={isImageOpen}
 				onOpenChange={setIsImageOpen}
-				title={NFTDetailData?.metadataURI.name ?? '-'}
-				image={NFTDetailData?.metadataURI.image ?? ''}
+				title={NFTDetailData?.metadataURI?.name ?? '-'}
+				image={NFTDetailData?.metadataURI?.image ?? ''}
 				description={''}
 			/>
 			<div className="flex flex-col md:space-y-6 space-y-3">
@@ -189,7 +188,7 @@ export default function NFTDetail({ params }: { params: { mintAddress: string } 
 						<h4>My NFTs</h4>
 					</Button>
 					<h2 className="text-main-black text-center md:text-[32px] text-xl  font-medium">
-						{NFTDetailData?.metadataURI.name ?? ''}
+						{NFTDetailData?.metadataURI?.name ?? ''}
 					</h2>
 				</section>
 				<section className="flex xl:flex-row flex-col xl:space-x-6 md:space-y-6 space-y-3 xl:space-y-0 justify-between">
@@ -206,10 +205,10 @@ export default function NFTDetail({ params }: { params: { mintAddress: string } 
 							</div>
 							<div className="group w-[169px] h-[169px] relative flex md:flex-col md:order-2 order-1 justify-center flex-row items-center  md:space-x-0 space-x-2.5">
 								<Image
-									src={NFTDetailData?.metadataURI.image ?? '/icon-placeholder.svg'}
+									src={NFTDetailData?.metadataURI?.image ?? '/icon-placeholder.svg'}
 									fill
 									style={{ objectFit: 'cover' }}
-									alt={NFTDetailData?.metadataURI.name + '-' + 'icon'}
+									alt={NFTDetailData?.metadataURI?.name + '-' + 'icon'}
 									className="rounded-[10px]"
 								/>
 								<div className="absolute rounded-[10px] h-full w-full inset-0 bg-black/50 hidden group-hover:flex items-center justify-center gap-4">
@@ -226,7 +225,7 @@ export default function NFTDetail({ params }: { params: { mintAddress: string } 
 										variant="outline"
 										className={'rounded-full text-white bg-transparent border-white'}
 										onClick={() =>
-											downloadImage(NFTDetailData?.metadataURI.image ?? '', NFTDetailData?.metadataURI.name ?? '')
+											downloadImage(NFTDetailData?.metadataURI?.image ?? '', NFTDetailData?.metadataURI?.name ?? '')
 										}
 									>
 										<Download />

@@ -124,6 +124,16 @@ export const UploadNFTMetadataSchema = z.object({
 	metadata_uri: z.string().min(1, { message: REQUIRED_MESSAGE }).url({ message: INVALID_METADATA_URI })
 })
 
+export const UploadCollectionSchema = z.object({
+	name: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	metadata_uri: z.string().min(1, { message: REQUIRED_MESSAGE }).url({ message: INVALID_METADATA_URI }),
+	symbol: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	royalities: z
+		.string()
+		.min(1, { message: REQUIRED_MESSAGE })
+		.regex(POSITIVE_NUMBER_REGEX, { message: INVALID_NUMBER_FORMAT })
+})
+
 export type CreateBBATokenPayload = z.infer<typeof CreateBBATokenValidation>
 export type NFTMetadataPayload = z.infer<typeof NFTMetadataSchema>
 export type UploadNFTMetadataPayload = z.infer<typeof UploadNFTMetadataSchema>
@@ -134,3 +144,5 @@ export type MintNFTPayload = {
 	collection: Collection | null
 	uses: Uses | null
 }
+
+export type UploadCollectionPayload = z.infer<typeof UploadCollectionSchema>

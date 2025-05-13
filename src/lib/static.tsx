@@ -25,7 +25,7 @@ export const NavMenu = [
 			},
 			{
 				name: 'Create Collection',
-				href: '/create-nft'
+				href: '/create-collection'
 			},
 			{
 				name: 'My NFTs',
