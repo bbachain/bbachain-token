@@ -799,8 +799,66 @@ export function useUpdateMetadata({ mintAddress }: { mintAddress: PublicKey }) {
 
 				console.log('After metadataPda')
 
-				const metadataAccount = await Metadata.fromAccountAddress(connection, metadataPda)
+				let metadataAccount
+				try {
+					metadataAccount = await Metadata.fromAccountAddress(connection, metadataPda)
+				} catch (err) {
+					console.warn(`Metadata not found, creating new metadata...`)
+
+					// Upload token icon to IPFS
+					let iconUri = ''
+					if (data.token_icon) {
+						iconUri = await uploadIconToPinata(data.token_icon)
+					}
+
+					const uploadToIPFSPayload: UploadToMetadataPayload = {
+						token_name: data.token_name,
+						token_symbol: data.token_symbol,
+						token_icon: iconUri,
+						description: data.description
+					}
+
+					const ipfsUri = await uploadMetadataToPinata(uploadToIPFSPayload)
+
+					const createData = {
+						name: data.token_name,
+						symbol: data.token_symbol,
+						uri: ipfsUri,
+						sellerFeeBasisPoints: 0,
+						creators: null,
+						collection: null,
+						uses: null
+					}
+
+					const createIx = createCreateMetadataAccountInstruction(
+						{
+							metadata: metadataPda,
+							mint: mintAddress,
+							mintAuthority: publicKey,
+							payer: publicKey,
+							updateAuthority: publicKey
+						},
+						{
+							createMetadataAccountArgs: {
+								data: createData,
+								isMutable: true,
+								collectionDetails: null
+							}
+						}
+					)
+
+					const createTx = new Transaction().add(createIx)
+					const latestBlockhash = await connection.getLatestBlockhash()
+					const sig = await sendTransaction(createTx, connection)
+					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
+
+					return { message: 'Successfully created new metadata' }
+				}
+
+				
 				const latestBlockhash = await connection.getLatestBlockhash()
+
+				console.log('After Metadata 2')
 
 				const uriData = await axios.get<MetadataURI>(metadataAccount.data.uri)
 				let iconUri: string = uriData.data.image
