@@ -56,4 +56,4 @@ Build the web app
 pnpm build
 ```
 
-Deploy #25
+Deploy #25.1
