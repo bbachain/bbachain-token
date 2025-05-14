@@ -883,20 +883,46 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 
 						if (decimals !== 0 && supply !== 1) return null
 
-						const parsedMetadata = await getParsedTokenMetadata(connection, mintKey)
-						const getCollection = await getCollectionDetail({
-							mintAddress: new PublicKey(parsedMetadata?.collection?.key ?? ''),
-							connection
-						})
+						console.log('account info ', mintAccountInfo)
 
-						if (parsedMetadata.collectionDetails) return null
+						const parsedMetadata = await getParsedTokenMetadata(connection, mintKey)
+						let collectionProps = null
+						if (parsedMetadata.collection) {
+							collectionProps = await getCollectionDetail({
+								mintAddress: new PublicKey(parsedMetadata?.collection?.key ?? ''),
+								connection
+							})
+						}
+
+						console.log('parsed metadata ', parsedMetadata)
+
+						// if (parsedMetadata.collectionDetails) return null
+
+						if (!parsedMetadata) {
+							return {
+								mintAddress: mintKey.toBase58(),
+								name: null,
+								symbol: null,
+								collection: null,
+								collectionName: '',
+								uses: null,
+								creators: null,
+								sellerFeeBasisPoints: 0,
+								decimals,
+								supply,
+								metadataAddress: '',
+								metadataLink: '',
+								metadataURI: null,
+								date: blockTime
+							} satisfies GetNFTResponse
+						}
 
 						return {
 							mintAddress: mintKey.toBase58(),
 							name: parsedMetadata.name,
 							symbol: parsedMetadata.symbol,
 							collection: parsedMetadata.collection,
-							collectionName: getCollection?.name ?? '',
+							collectionName: collectionProps?.name ?? '-',
 							uses: parsedMetadata.uses,
 							creators: parsedMetadata.creators,
 							sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
@@ -955,7 +981,7 @@ export function useGetNFTDataDetail({ mintAddress }: { mintAddress: PublicKey })
 						name: null,
 						symbol: null,
 						collection: null,
-						collectionName: getCollection?.name ?? '',
+						collectionName: '',
 						uses: null,
 						creators: null,
 						sellerFeeBasisPoints: 0,
@@ -973,7 +999,7 @@ export function useGetNFTDataDetail({ mintAddress }: { mintAddress: PublicKey })
 					name: parsedMetadata.name,
 					symbol: parsedMetadata.symbol,
 					collection: parsedMetadata.collection,
-					collectionName: '',
+					collectionName: getCollection?.name ?? '',
 					uses: parsedMetadata.uses,
 					creators: parsedMetadata.creators,
 					sellerFeeBasisPoints: parsedMetadata.sellerFeeBasisPoints,
