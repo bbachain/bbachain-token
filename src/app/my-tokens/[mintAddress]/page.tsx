@@ -349,10 +349,15 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 							</div>
 							<div className="flex md:flex-col flex-row items-center md:space-y-2.5 md:space-x-0 space-x-2.5">
 								<Image
-									src={tokenPreview ?? tokenDetailData?.metadataURI?.image ?? '/icon-placeholder.svg'}
+									src={
+										tokenPreview ||
+										(tokenDetailData?.metadataURI?.image?.trim()
+											? tokenDetailData.metadataURI.image
+											: '/icon-placeholder.svg')
+									}
 									width={isMobile ? 62 : 111}
 									height={isMobile ? 62 : 111}
-									alt={tokenDetailData?.name + '-' + 'icon'}
+									alt={`${tokenDetailData?.name ?? 'token'}-icon`}
 								/>
 								{!isMetadataLocked && (
 									<Button

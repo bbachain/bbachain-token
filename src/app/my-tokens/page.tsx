@@ -18,7 +18,7 @@ function mapToTokenListPropsList(tokens: GetTokenResponse[]): TokenListProps[] {
 			id: token.mintAddress,
 			name: token.name ?? fallback,
 			symbol: token.symbol ?? fallback,
-			icon: token.metadataURI?.image ?? '/icon-placeholder.svg',
+			icon: token?.metadataURI?.image?.trim() ? token.metadataURI.image : '/icon-placeholder.svg',
 			supply: token.supply?.toLocaleString?.() ?? '0',
 			date: token.date
 		}
@@ -54,8 +54,6 @@ export default function Tokens() {
 		return publicKey
 	}, [publicKey])
 
-
-	
 	const [mounted, setMounted] = useState<boolean>(false)
 	useEffect(() => setMounted(true), [])
 
