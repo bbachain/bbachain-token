@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CreateTokenValidation } from '@/lib/validation/token.validation'
+import type { CreateTokenValidation } from '@/validation/token.validation'
 
 export type CreateTokenPayload = z.infer<typeof CreateTokenValidation>
 

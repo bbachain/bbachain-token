@@ -52,7 +52,6 @@ import BN from 'bn.js'
 
 export function useGetBalance({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
-	
 
 	return useQuery({
 		queryKey: ['get-balance', { endpoint: connection.rpcEndpoint, address }],
@@ -514,7 +513,6 @@ export function useTokenCreator({ address }: { address: PublicKey }) {
 				const latestBlockhash = await connection.getLatestBlockhash()
 				const mintKeypair = Keypair.generate()
 				const tokenATA = await getAssociatedTokenAddress(mintKeypair.publicKey, publicKey)
-				connection.sendTransaction
 
 				const mappedPayload = {
 					...input,

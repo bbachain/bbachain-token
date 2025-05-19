@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { Connection, PublicKey } from '@bbachain/web3.js'
 import { Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
-import type { TNFTMetadata, TNFTMetadataOffChain, TNFTMetadataOffChainData } from '@/lib/types/response.types'
+import type { TNFTMetadata, TNFTMetadataOffChain, TNFTMetadataOffChainData } from '@/types/response.types'
 
 export const getNFTMetadata = async (connection: Connection, mintAddress: PublicKey) => {
 	const initialMetadataOffChainData: TNFTMetadataOffChainData = {

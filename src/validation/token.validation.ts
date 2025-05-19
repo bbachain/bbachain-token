@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import Decimal from 'decimal.js'
-import VALIDATION_MESSAGE from '../constant/validation.constant'
-import REGEX from '../constant/regex.constant'
+import VALIDATION_MESSAGE from '../constants/validation'
+import REGEX from '../constants/regex'
 
 const MAX_SUPPLY_RAW = new Decimal('18446744073709551615')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -48,7 +48,7 @@ export const CreateBasicTokenValidation = z
 	})
 
 export const CreateIconTokenValidation = z.object({
-	token_icon: z
+	icon: z
 		.custom<File>((file) => file instanceof File, {
 			message: VALIDATION_MESSAGE.REQUIRED
 		})

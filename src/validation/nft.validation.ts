@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Collection } from '@bbachain/spl-token-metadata'
-import VALIDATION_MESSAGE from '../constant/validation.constant'
+import VALIDATION_MESSAGE from '../constants/validation'
 
 const NFTMetadataAttributeSchema = z.object({
 	trait_type: z.string(),

@@ -1,13 +1,13 @@
 import axios from 'axios'
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
-import { Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
+import { createCreateMetadataAccountInstruction, Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
 import type {
 	TCreateToken,
 	TGetToken,
 	TTokenMetadata,
 	TTokenMetadataOffChain,
 	TTokenMetadataOffChainData
-} from '@/lib/types/response.types'
+} from '@/types/response.types'
 import {
 	createAssociatedTokenAccountInstruction,
 	createInitializeMintInstruction,
@@ -18,10 +18,60 @@ import {
 	MINT_SIZE,
 	TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
-import { CreateTokenPayload } from '../types/request.types'
+import { CreateTokenPayload, UploadToMetadataPayload } from '../types/request.types'
 import { WalletAdapterProps } from '@bbachain/wallet-adapter-base'
+import { getTokenAccounts, uploadIconToPinata, uploadMetadataToPinata } from './global.service'
+import { useMutation } from '@tanstack/react-query'
+import SERVICES_KEY from '@/constants/service'
+import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 
-export const getTokenMetadata = async (connection: Connection, mintAddress: PublicKey) => {
+// helper functions
+
+const createTokenMetadataTx = async (ownerAddress: PublicKey, mintAddress: PublicKey, payload: CreateTokenPayload) => {
+	const [metadataPda] = PublicKey.findProgramAddressSync(
+		[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+		PROGRAM_ID
+	)
+
+	// Off Chain Metadata Upload
+	const iconUri = await uploadIconToPinata(payload.icon)
+	const offChainMetadataPayload: UploadToMetadataPayload = {
+		name: payload.name,
+		symbol: payload.symbol,
+		description: payload.description === '' ? null : payload.description,
+		icon: iconUri
+	}
+	const ipfsUri = await uploadMetadataToPinata(offChainMetadataPayload)
+
+	// On Chain Metadata Upload
+	const onChainMetadataPayload = {
+		name: payload.name,
+		symbol: payload.symbol,
+		uri: ipfsUri,
+		sellerFeeBasisPoints: 0,
+		creators: null,
+		collection: null,
+		uses: null
+	}
+
+	const ix = createCreateMetadataAccountInstruction(
+		{
+			metadata: metadataPda,
+			mint: mintAddress,
+			mintAuthority: ownerAddress,
+			payer: ownerAddress,
+			updateAuthority: ownerAddress
+		},
+		{ createMetadataAccountArgs: { data: onChainMetadataPayload, isMutable: true, collectionDetails: null } }
+	)
+
+	const createdMetadataTx = new Transaction().add(ix)
+	return createdMetadataTx
+}
+
+const revokeAuthorityTx = async () => {}
+
+const getTokenMetadata = async (connection: Connection, mintAddress: PublicKey) => {
 	const initialMetadataOffChainData: TTokenMetadataOffChainData = {
 		name: null,
 		symbol: null,
@@ -72,11 +122,7 @@ export const getTokenMetadata = async (connection: Connection, mintAddress: Publ
 	return tokenMetadata
 }
 
-export const createTokenMetadata = async (connection: Connection, mintKeypair: Keypair, ) => {
-
-}
-
-export const getTokenData = async (connection: Connection, mintAddress: PublicKey): Promise<TGetToken | null> => {
+const getTokenData = async (connection: Connection, mintAddress: PublicKey): Promise<TGetToken | null> => {
 	const mintAccountInfo = await getMint(connection, mintAddress)
 	const decimals = mintAccountInfo.decimals
 	const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
@@ -102,6 +148,30 @@ export const getTokenData = async (connection: Connection, mintAddress: PublicKe
 	}
 }
 
+// main services
+
+export const useGetTokens = () => {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useMutation({
+		mutationKey: [SERVICES_KEY.TOKEN.GET_TOKEN, ownerAddress],
+		mutationFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			const tokenAccounts = await getTokenAccounts(connection, ownerAddress)
+			let tokenData: TGetToken[] = []
+			for (const account of tokenAccounts) {
+				const mintKey = new PublicKey(account.mintAddress)
+				const data = await getTokenData(connection, mintKey)
+				if (data) {
+					tokenData.push(data)
+				}
+			}
+			return tokenData
+		}
+	})
+}
+
 export const createToken = async (
 	connection: Connection,
 	ownerAddress: PublicKey,
@@ -113,13 +183,10 @@ export const createToken = async (
 	const mintKeypair = Keypair.generate()
 	const tokenATA = await getAssociatedTokenAddress(mintKeypair.publicKey, ownerAddress)
 
-	const payloadData = {
-		...payload,
-		description: payload.description === '' ? null : payload.description,
-		decimals: Number(payload.decimals),
-		supply: Number(payload.supply)
-	}
+	const supply = Number(payload.supply)
+	const decimals = Number(payload.decimals)
 
+	// Create the account
 	const createAccountTx = new Transaction().add(
 		SystemProgram.createAccount({
 			fromPubkey: ownerAddress,
@@ -128,19 +195,13 @@ export const createToken = async (
 			daltons,
 			programId: TOKEN_PROGRAM_ID
 		}),
-		createInitializeMintInstruction(
-			mintKeypair.publicKey,
-			payloadData.decimals,
-			ownerAddress,
-			ownerAddress,
-			TOKEN_PROGRAM_ID
-		),
+		createInitializeMintInstruction(mintKeypair.publicKey, decimals, ownerAddress, ownerAddress, TOKEN_PROGRAM_ID),
 		createAssociatedTokenAccountInstruction(ownerAddress, tokenATA, ownerAddress, mintKeypair.publicKey),
 		createMintToInstruction(
 			mintKeypair.publicKey,
 			tokenATA,
 			ownerAddress, // mint authority
-			payloadData.supply * Math.pow(10, payloadData.decimals)
+			supply * Math.pow(10, decimals)
 		)
 	)
 
@@ -148,13 +209,11 @@ export const createToken = async (
 	createAccountTx.feePayer = ownerAddress
 
 	createAccountTx.partialSign(mintKeypair)
-	const createSignature = await sendTransaction(createAccountTx, connection)
-
-	await connection.confirmTransaction({ signature: createSignature, ...latestBlockhash }, 'confirmed')
+	const accountSignature = await sendTransaction(createAccountTx, connection)
+	await connection.confirmTransaction({ signature: accountSignature, ...latestBlockhash }, 'confirmed')
 
 	// Create the metadata account
-	const [metadataPda] = PublicKey.findProgramAddressSync(
-		[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintKeypair.publicKey.toBuffer()],
-		PROGRAM_ID
-	)
+	const createdMetadataTx = await createTokenMetadataTx(ownerAddress, mintKeypair.publicKey, payload)
+	const metadataSignature = await sendTransaction(createdMetadataTx, connection)
+	await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
 }
