@@ -1,5 +1,6 @@
 'use client'
 import {
+	useBurnToken,
 	useGetTokenDataDetail,
 	useLockMetadata,
 	useRevokeAuthority,
@@ -42,6 +43,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	const router = useRouter()
 
 	const getTokenDetailData = useGetTokenDataDetail({ mintAddress: mintKey })
+	const burnTokenMutation = useBurnToken({ mintAddress: mintKey })
 	const tokenDetailData = getTokenDetailData.data
 	const isMintRevoked = tokenDetailData?.authoritiesState?.revoke_mint ?? false
 	const isFreezeRevoked = tokenDetailData?.authoritiesState?.revoke_freeze ?? false
@@ -57,6 +59,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	const [updatePayload, setUpdatePayload] = useState<UpdateMetadataPayload>(initialUpdatedPayload)
 	const [isChanged, setIsChanged] = useState<boolean>(false)
 	const [tokenPreview, setTokenPreview] = useState<string | null>(null)
+	const [burnTokenAmount, setBurnTokenAmount] = useState<string>('')
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -125,7 +128,8 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 
 	const { openErrorDialog } = useErrorDialog()
 	const isMobile = useIsMobile()
-	const isDisabled = onMetadataUpdate.isPending || revokeAuthority.isPending || lockMetadata.isPending
+	const isDisabled =
+		onMetadataUpdate.isPending || revokeAuthority.isPending || lockMetadata.isPending || burnTokenMutation.isPending
 
 	const tokenOverviewData: BasicTokenProps[] = [
 		{
@@ -198,8 +202,8 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 			label: 'Burn Token',
 			type: 'input',
 			tip: 'Permanently remove tokens from circulation. Useful for reducing supply or managing errors.',
-			pending: false,
-			onClick: () => {}
+			pending: burnTokenMutation.isPending,
+			onClick: () => burnTokenMutation.mutate({ amount: burnTokenAmount, decimals: tokenDetailData?.decimals! })
 		}
 	]
 
@@ -281,6 +285,13 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	}, [lockMetadata.data, lockMetadata.isSuccess])
 
 	useEffect(() => {
+		if (burnTokenMutation.isSuccess && burnTokenMutation.data) {
+			setBurnTokenAmount('')
+			toast.success(burnTokenMutation.data.message)
+		}
+	}, [burnTokenMutation.data, burnTokenMutation.isSuccess])
+
+	useEffect(() => {
 		if (onMetadataUpdate.isError && onMetadataUpdate.error)
 			openErrorDialog({ title: 'We can not proceed your transaction', description: onMetadataUpdate.error.message })
 	}, [openErrorDialog, onMetadataUpdate.error, onMetadataUpdate.isError])
@@ -294,6 +305,11 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		if (lockMetadata.isError && lockMetadata.error)
 			openErrorDialog({ title: 'We can not proceed your transaction', description: lockMetadata.error.message })
 	}, [openErrorDialog, lockMetadata.error, lockMetadata.isError])
+
+	useEffect(() => {
+		if (burnTokenMutation.isError && burnTokenMutation.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: burnTokenMutation.error.message })
+	}, [openErrorDialog, burnTokenMutation.error, burnTokenMutation.isError])
 
 	if (getTokenDetailData.isLoading) {
 		return (
@@ -389,8 +405,19 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 											<h5 className="md:text-lg text-sm text-main-black">{optionData.label}</h5>
 										</section>
 										<section className="flex ml-9 space-x-2.5">
-											<Input className="md:w-52 rounded-[8px]" placeholder="Enter amount" />
-											<Button type="button" disabled className="bg-main-green rounded-[8px]">
+											<Input
+												onChange={(e) => setBurnTokenAmount(e.target.value)}
+												className="md:w-52 rounded-[8px]"
+												placeholder="Enter amount"
+												type="number"
+											/>
+											<Button
+												onClick={optionData.onClick}
+												type="button"
+												disabled={isDisabled || burnTokenAmount === '' || burnTokenAmount === '0'}
+												className="bg-main-green rounded-[8px]"
+											>
+												{optionData.pending && <Loader2 className="animate-spin" />}
 												Burnt
 											</Button>
 										</section>

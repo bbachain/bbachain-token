@@ -3,6 +3,7 @@
 import {
 	AuthorityType,
 	createAssociatedTokenAccountInstruction,
+	createBurnInstruction,
 	createInitializeMintInstruction,
 	createMintToInstruction,
 	createSetAuthorityInstruction,
@@ -27,7 +28,7 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useTransactionToast } from '../common/ui-layout'
-import { CreateBBATokenPayload, MintNFTPayload, UploadCollectionPayload } from '@/lib/validation'
+import { BurnTokenPayload, CreateBBATokenPayload, MintNFTPayload, UploadCollectionPayload } from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
 import {
 	createCreateMetadataAccountInstruction,
@@ -49,6 +50,40 @@ import {
 	NFTMetadataContent
 } from '@/lib/types'
 import BN from 'bn.js'
+
+export function useBurnToken({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['burn-token', { endpoint: connection.rpcEndpoint, mintAddress }],
+		mutationFn: async (payload: BurnTokenPayload) => {
+			if (!publicKey) throw new Error('Wallet not connected')
+			const latestBlockhash = await connection.getLatestBlockhash()
+			const amount = BigInt(Math.floor(parseFloat(payload.amount) * Math.pow(10, payload.decimals)))
+			const tokenAccount = await getAssociatedTokenAddress(mintAddress, publicKey)
+
+			const burnIx = createBurnInstruction(tokenAccount, mintAddress, publicKey, amount, [], TOKEN_PROGRAM_ID)
+
+			const burnTx = new Transaction().add(burnIx)
+			burnTx.recentBlockhash = latestBlockhash.blockhash
+			burnTx.feePayer = publicKey
+
+			const burnSignature = await sendTransaction(burnTx, connection)
+			await connection.confirmTransaction({ signature: burnSignature, ...latestBlockhash }, 'confirmed')
+			return { message: `Successfully burn ${payload.amount} tokens from your account` }
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}
 
 export function useGetBalance({ address }: { address: PublicKey }) {
 	const { connection } = useConnection()
@@ -855,7 +890,6 @@ export function useUpdateMetadata({ mintAddress }: { mintAddress: PublicKey }) {
 					return { message: 'Successfully created new metadata' }
 				}
 
-				
 				const latestBlockhash = await connection.getLatestBlockhash()
 
 				console.log('After Metadata 2')
