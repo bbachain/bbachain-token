@@ -15,6 +15,13 @@ const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
 const POSITIVE_NUMBER_REGEX = /^\d+$/
 const ZERO_TO_TWELVE_RANGE_REGEX = /^(0|[1-9]|1[0-2])$/
 
+export const BurnTokenValidation = z.object({
+	amount: z
+		.string()
+		.min(1, { message: REQUIRED_MESSAGE })
+		.regex(/^\d+([.,]\d+)?$/, { message: 'Invalid number' })
+})
+
 export const CreateBasicTokenValidation = z
 	.object({
 		token_name: z.string().min(1, { message: REQUIRED_MESSAGE }),
@@ -146,3 +153,6 @@ export type MintNFTPayload = {
 }
 
 export type UploadCollectionPayload = z.infer<typeof UploadCollectionSchema>
+export type BurnTokenPayload = z.infer<typeof BurnTokenValidation> & {
+	decimals: number
+}
