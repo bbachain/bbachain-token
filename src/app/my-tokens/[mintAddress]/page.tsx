@@ -1,8 +1,10 @@
 'use client'
 import {
 	useBurnToken,
+	useGetBalance,
 	useGetTokenDataDetail,
 	useLockMetadata,
+	useMintSupply,
 	useRevokeAuthority,
 	useUpdateMetadata
 } from '@/components/account/account-data-access'
@@ -15,7 +17,7 @@ import { UpdateMetadataPayload } from '@/lib/types'
 import { AuthorityType } from '@bbachain/spl-token'
 import { PublicKey } from '@bbachain/web3.js'
 import { Loader2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { FileInput as FlowbiteFileInput } from 'flowbite-react'
 import toast, { Toast } from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
@@ -23,6 +25,8 @@ import Image from 'next/image'
 import { HiArrowPath } from 'react-icons/hi2'
 import { CreateIconTokenValidation } from '@/lib/validation'
 import { useRouter } from 'next/navigation'
+import { useWallet } from '@bbachain/wallet-adapter-react'
+import { NoAdressAlert } from '@/components/common/alert'
 
 type BasicTokenProps = {
 	label: string
@@ -42,8 +46,16 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	const mintKey = new PublicKey(params.mintAddress)
 	const router = useRouter()
 
+	const { publicKey } = useWallet()
+
+	const address = useMemo(() => {
+		if (!publicKey) return
+		return publicKey
+	}, [publicKey])
+
 	const getTokenDetailData = useGetTokenDataDetail({ mintAddress: mintKey })
 	const burnTokenMutation = useBurnToken({ mintAddress: mintKey })
+	const mintTokenMutation = useMintSupply({ mintAddress: mintKey })
 	const tokenDetailData = getTokenDetailData.data
 	const isMintRevoked = tokenDetailData?.authoritiesState?.revoke_mint ?? false
 	const isFreezeRevoked = tokenDetailData?.authoritiesState?.revoke_freeze ?? false
@@ -60,6 +72,7 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	const [isChanged, setIsChanged] = useState<boolean>(false)
 	const [tokenPreview, setTokenPreview] = useState<string | null>(null)
 	const [burnTokenAmount, setBurnTokenAmount] = useState<string>('')
+	const [mintTokenAmount, setMintTokenAmount] = useState<string>('')
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -129,7 +142,11 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	const { openErrorDialog } = useErrorDialog()
 	const isMobile = useIsMobile()
 	const isDisabled =
-		onMetadataUpdate.isPending || revokeAuthority.isPending || lockMetadata.isPending || burnTokenMutation.isPending
+		onMetadataUpdate.isPending ||
+		revokeAuthority.isPending ||
+		lockMetadata.isPending ||
+		burnTokenMutation.isPending ||
+		mintTokenMutation.isPending
 
 	const tokenOverviewData: BasicTokenProps[] = [
 		{
@@ -201,9 +218,24 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		{
 			label: 'Burn Token',
 			type: 'input',
+			buttonLabel: 'Burnt',
+			defaultValue: burnTokenAmount,
 			tip: 'Permanently remove tokens from circulation. Useful for reducing supply or managing errors.',
 			pending: burnTokenMutation.isPending,
-			onClick: () => burnTokenMutation.mutate({ amount: burnTokenAmount, decimals: tokenDetailData?.decimals! })
+			disabled: isDisabled || burnTokenAmount === '' || burnTokenAmount === '0' || tokenDetailData?.supply === 0,
+			onClick: () => burnTokenMutation.mutate({ amount: burnTokenAmount, decimals: tokenDetailData?.decimals! }),
+			onChange: (e: ChangeEvent<HTMLInputElement>) => setBurnTokenAmount(e.target.value)
+		},
+		{
+			label: 'Mint Token',
+			type: 'input',
+			buttonLabel: 'Mint',
+			defaultValue: mintTokenAmount,
+			tip: 'Add more token supply to your account',
+			pending: mintTokenMutation.isPending,
+			disabled: isDisabled || mintTokenAmount === '' || mintTokenAmount === '0' || isMintRevoked,
+			onClick: () => mintTokenMutation.mutate({ amount: mintTokenAmount, decimals: tokenDetailData?.decimals! }),
+			onChange: (e: ChangeEvent<HTMLInputElement>) => setMintTokenAmount(e.target.value)
 		}
 	]
 
@@ -227,6 +259,12 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 			type: 'view text'
 		}
 	]
+
+	useEffect(() => {
+		if (!address) {
+			toast.error('Please select your wallet first')
+		}
+	}, [address])
 
 	useEffect(() => {
 		if (getTokenDetailData.isSuccess && getTokenDetailData.data) {
@@ -292,6 +330,13 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 	}, [burnTokenMutation.data, burnTokenMutation.isSuccess])
 
 	useEffect(() => {
+		if (mintTokenMutation.isSuccess && mintTokenMutation.data) {
+			setBurnTokenAmount('')
+			toast.success(mintTokenMutation.data.message)
+		}
+	}, [mintTokenMutation.data, mintTokenMutation.isSuccess])
+
+	useEffect(() => {
 		if (onMetadataUpdate.isError && onMetadataUpdate.error)
 			openErrorDialog({ title: 'We can not proceed your transaction', description: onMetadataUpdate.error.message })
 	}, [openErrorDialog, onMetadataUpdate.error, onMetadataUpdate.isError])
@@ -310,6 +355,18 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 		if (burnTokenMutation.isError && burnTokenMutation.error)
 			openErrorDialog({ title: 'We can not proceed your transaction', description: burnTokenMutation.error.message })
 	}, [openErrorDialog, burnTokenMutation.error, burnTokenMutation.isError])
+
+	useEffect(() => {
+		if (mintTokenMutation.isError && mintTokenMutation.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: mintTokenMutation.error.message })
+	}, [openErrorDialog, mintTokenMutation.error, mintTokenMutation.isError])
+
+	if (!address)
+		return (
+			<div className="xl:px-[90px] md:px-16 px-[15px] md:mt-40 mt-20 md:mb-20 mb-5">
+				<NoAdressAlert />
+			</div>
+		)
 
 	if (getTokenDetailData.isLoading) {
 		return (
@@ -406,7 +463,8 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 										</section>
 										<section className="flex ml-9 space-x-2.5">
 											<Input
-												onChange={(e) => setBurnTokenAmount(e.target.value)}
+												defaultValue={optionData.defaultValue}
+												onChange={optionData.onChange}
 												className="md:w-52 rounded-[8px]"
 												placeholder="Enter amount"
 												type="number"
@@ -414,11 +472,11 @@ export default function TokenDetail({ params }: { params: { mintAddress: string 
 											<Button
 												onClick={optionData.onClick}
 												type="button"
-												disabled={isDisabled || burnTokenAmount === '' || burnTokenAmount === '0'}
+												disabled={optionData.disabled}
 												className="bg-main-green rounded-[8px]"
 											>
 												{optionData.pending && <Loader2 className="animate-spin" />}
-												Burnt
+												{optionData.buttonLabel}
 											</Button>
 										</section>
 									</div>

@@ -27,10 +27,12 @@ import {
 	NavigationMenuItem,
 	NavigationMenuLink,
 	NavigationMenuList,
-	NavigationMenuTrigger,
-	navigationMenuTriggerStyle
+	NavigationMenuTrigger
 } from '../ui/navigation-menu'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { ChevronRight } from 'lucide-react'
+import { useCluster } from '../cluster/cluster-data-access'
+import { ItemIndicator } from '@radix-ui/react-dropdown-menu'
 
 function ThemeToggle() {
 	const { resolvedTheme, setTheme } = useTheme()
@@ -49,6 +51,10 @@ function ThemeToggle() {
 }
 
 function MobileMenuDrawer() {
+	const { clusters, setCluster, cluster } = useCluster()
+
+	const handleSelect = (item: typeof cluster) => setCluster(item)
+
 	return (
 		<Drawer direction="right">
 			<DrawerTrigger asChild>
@@ -67,16 +73,67 @@ function MobileMenuDrawer() {
 				</DrawerHeader>
 				<section className="flex py-5 h-full flex-col justify-between">
 					<div className="flex w-full items-start flex-col pt-1.5">
-						{NavMenu.map((nav) => (
-							<DrawerClose key={nav.name} asChild>
-								<Link
-									className="text-sm w-full px-3.5 font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black"
-									href={nav.href}
-								>
-									{nav.name}
-								</Link>
-							</DrawerClose>
-						))}
+						{NavMenu.map((nav) =>
+							nav.subMenu ? (
+								<Accordion key={nav.name} type="single" className="w-full" collapsible>
+									<AccordionItem value="item-1">
+										<AccordionTrigger className="text-sm w-full px-3.5 hover:no-underline font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black">
+											{nav.name}
+										</AccordionTrigger>
+										<AccordionContent className="flex w-full items-start flex-col">
+											{nav.subMenu.map((subMenu) => (
+												<DrawerClose key={subMenu.name} asChild>
+													<Link
+														className="text-sm w-full px-3.5 font-normal text-dark-grey py-1.5 hover:!text-hover-green"
+														href={subMenu.href}
+													>
+														{subMenu.name}
+													</Link>
+												</DrawerClose>
+											))}
+										</AccordionContent>
+									</AccordionItem>
+								</Accordion>
+							) : (
+								<DrawerClose key={nav.name} asChild>
+									{nav.name === 'Contact' ? (
+										<a
+											href={nav.href}
+											className="text-sm w-full px-3.5 font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black"
+										>
+											{nav.name}
+										</a>
+									) : (
+										<Link
+											className="text-sm w-full px-3.5 font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black"
+											href={nav.href}
+										>
+											{nav.name}
+										</Link>
+									)}
+								</DrawerClose>
+							)
+						)}
+						<Accordion type="single" className="w-full" collapsible>
+							<AccordionItem value="item-1">
+								<AccordionTrigger className="text-sm w-full px-3.5 hover:no-underline font-normal border-b-[1px] border-[#E9E9E9] py-1.5 hover:!text-hover-green text-main-black">
+									{cluster.name}
+								</AccordionTrigger>
+								<AccordionContent className="flex w-full items-start flex-col">
+									{clusters.map((item) => (
+										<DrawerClose key={item.name} asChild>
+											<Button
+												variant="ghost"
+												className="text-sm w-full text-left justify-start px-3.5 font-normal text-dark-grey py-1.5 hover:!text-hover-green"
+												onClick={() => handleSelect(item)}
+											>
+												{item.name}
+											</Button>
+										</DrawerClose>
+									))}
+								</AccordionContent>
+							</AccordionItem>
+						</Accordion>
 					</div>
 					<div className="flex flex-col space-y-2 pt-1.5 pb-4 border-b-2 border-main-black items-center justify-center">
 						<ThemeToggle />
@@ -204,7 +261,7 @@ export default function Navbar() {
 									<NavigationMenuTrigger className="text-sm w-full p-0 hover:!bg-transparent font-normal hover:!text-hover-green text-main-black">
 										{nav.name}
 									</NavigationMenuTrigger>
-									<NavigationMenuContent className='absolute top-full left-44 bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80'>
+									<NavigationMenuContent className="absolute top-full left-44 bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80">
 										<ul className="flex flex-col w-[230px] p-3">
 											{nav.subMenu.map((subNav) => (
 												<Link
@@ -224,9 +281,13 @@ export default function Navbar() {
 									className="text-sm font-normal hover:!text-hover-green text-main-black"
 									key={nav.name}
 								>
-									<Link href={nav.href} legacyBehavior passHref>
-										<NavigationMenuLink>{nav.name}</NavigationMenuLink>
-									</Link>
+									{nav.name === 'Contact' ? (
+										<a href={nav.href}>{nav.name}</a>
+									) : (
+										<Link href={nav.href} legacyBehavior passHref>
+											<NavigationMenuLink>{nav.name}</NavigationMenuLink>
+										</Link>
+									)}
 								</NavigationMenuItem>
 							)
 						)}

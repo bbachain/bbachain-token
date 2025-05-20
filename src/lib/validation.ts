@@ -15,6 +15,14 @@ const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
 const POSITIVE_NUMBER_REGEX = /^\d+$/
 const ZERO_TO_TWELVE_RANGE_REGEX = /^(0|[1-9]|1[0-2])$/
 
+export const CreateMessageContactValidation = z.object({
+	name: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	email: z.string().email({ message: 'Invalid email format' }).min(1, { message: REQUIRED_MESSAGE }),
+	subject: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	category: z.string().min(1, { message: REQUIRED_MESSAGE }),
+	message: z.string().min(1, { message: REQUIRED_MESSAGE })
+})
+
 export const BurnTokenValidation = z.object({
 	amount: z
 		.string()
@@ -156,3 +164,4 @@ export type UploadCollectionPayload = z.infer<typeof UploadCollectionSchema>
 export type BurnTokenPayload = z.infer<typeof BurnTokenValidation> & {
 	decimals: number
 }
+export type CreateMessagePayload = z.infer<typeof CreateMessageContactValidation>

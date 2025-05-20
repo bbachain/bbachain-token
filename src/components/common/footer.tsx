@@ -19,11 +19,17 @@ export default function Footer() {
 					alt="Quick Token Logo"
 				/>
 				<div className="md:flex hidden md:space-x-9 space-x-[15px] justify-center">
-					{FooterMenu.map((menu) => (
-						<Link className="text-sm text-main-black hover:text-hover-green" key={menu.name} href={menu.href}>
-							{menu.name}
-						</Link>
-					))}
+					{FooterMenu.map((menu) =>
+						menu.name === 'Contact' ? (
+							<a className="text-sm text-main-black hover:text-hover-green" key={menu.name} href={menu.href}>
+								{menu.name}
+							</a>
+						) : (
+							<Link className="text-sm text-main-black hover:text-hover-green" key={menu.name} href={menu.href}>
+								{menu.name}
+							</Link>
+						)
+					)}
 				</div>
 				<div className="md:hidden flex md:space-x-9 space-x-[15px] justify-center">
 					{topMobileMenu.map((menu) => (

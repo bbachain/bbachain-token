@@ -1,11 +1,12 @@
 'use client'
 
 import FAQItem from '@/components/common/faq-item'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FAQData } from '@/lib/static'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { cn } from '@/lib/utils'
 
 export default function Home() {
 	const router = useRouter()
@@ -132,14 +133,15 @@ export default function Home() {
 				<p className="text-[#676767] md:text-lg text-xs text-center">
 					Have any questions? We&apos;re here to assist you.
 				</p>
-				<Button
-					type="button"
-					onClick={() => router.push('/contact')}
-					size="lg"
-					className="md:w-[230px] hover:bg-hover-green w-[140px] md:mt-9 mt-3 md:text-2xl text-base md:h-[54px] h-[34px] rounded-[30px] bg-main-green"
+				<a
+					href="mailto:developers@bbachain.com"
+					className={cn(
+						buttonVariants({ size: 'lg' }),
+						'md:w-[230px] hover:bg-hover-green w-[140px] md:mt-9 mt-3 md:text-2xl text-base md:h-[54px] h-[34px] rounded-[30px] bg-main-green'
+					)}
 				>
 					Contact
-				</Button>
+				</a>
 			</section>
 			<section className="grid md:grid-cols-3 content-center md:px-20 px-[15px] md:pb-20 pb-7 pt-6 gap-6">
 				{FAQData.map((value) => (

@@ -28,12 +28,17 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useTransactionToast } from '../common/ui-layout'
-import { BurnTokenPayload, CreateBBATokenPayload, MintNFTPayload, UploadCollectionPayload } from '@/lib/validation'
+import {
+	BurnTokenPayload,
+	CreateBBATokenPayload,
+	CreateMessagePayload,
+	MintNFTPayload,
+	UploadCollectionPayload
+} from '@/lib/validation'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/function'
 import {
 	createCreateMetadataAccountInstruction,
 	createUpdateMetadataAccountInstruction,
-	Data,
 	Metadata,
 	PROGRAM_ID
 } from '@bbachain/spl-token-metadata'
@@ -42,7 +47,6 @@ import axios from 'axios'
 import {
 	CreateTokenResponse,
 	GetNFTResponse,
-	GetTokenMetadataResponse,
 	GetTokenResponse,
 	MetadataURI,
 	UpdateMetadataPayload,
@@ -50,6 +54,47 @@ import {
 	NFTMetadataContent
 } from '@/lib/types'
 import BN from 'bn.js'
+
+export function useMintSupply({ mintAddress }: { mintAddress: PublicKey }) {
+	const { publicKey, sendTransaction } = useWallet()
+	const { connection } = useConnection()
+	const client = useQueryClient()
+	return useMutation({
+		mutationKey: ['mint-supply', { endpoint: connection.rpcEndpoint, mintAddress }],
+		mutationFn: async (payload: BurnTokenPayload) => {
+			if (!publicKey) throw new Error('Wallet not connected')
+			const latestBlockhash = await connection.getLatestBlockhash()
+			const amount = BigInt(Math.floor(parseFloat(payload.amount) * Math.pow(10, payload.decimals)))
+			const tokenAccount = await getAssociatedTokenAddress(mintAddress, publicKey)
+
+			const mintIx = createMintToInstruction(
+				mintAddress,
+				tokenAccount,
+				publicKey,
+				amount,
+				[], // no multi-signers
+				TOKEN_PROGRAM_ID
+			)
+
+			const mintTx = new Transaction().add(mintIx)
+			mintTx.recentBlockhash = latestBlockhash.blockhash
+			mintTx.feePayer = publicKey
+
+			const mintSignature = await sendTransaction(mintTx, connection)
+			await connection.confirmTransaction({ signature: mintSignature, ...latestBlockhash }, 'confirmed')
+			return { message: `Successfully mint ${payload.amount} tokens to your account` }
+		},
+		onSuccess: () =>
+			Promise.all([
+				client.invalidateQueries({
+					queryKey: ['get-token-data-detail', { endpoint: connection.rpcEndpoint, mintAddress }]
+				}),
+				client.invalidateQueries({
+					queryKey: ['get-signatures', { endpoint: connection.rpcEndpoint, publicKey }]
+				})
+			])
+	})
+}
 
 export function useBurnToken({ mintAddress }: { mintAddress: PublicKey }) {
 	const { publicKey, sendTransaction } = useWallet()
@@ -988,7 +1033,7 @@ export function useGetNFTDataQueries({ address }: { address: PublicKey }) {
 
 						console.log('parsed metadata ', parsedMetadata)
 
-						// if (parsedMetadata.collectionDetails) return null
+						if (parsedMetadata.collectionDetails) return null
 
 						if (!parsedMetadata) {
 							return {
