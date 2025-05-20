@@ -35,7 +35,7 @@ export const NavMenu = [
 	},
 	{
 		name: 'Contact',
-		href: '/contact'
+		href: 'mailto:developers@bbachain.com'
 	}
 ]
 
@@ -50,7 +50,7 @@ export const FooterMenu = [
 	},
 	{
 		name: 'Contact',
-		href: '/contact'
+		href: 'mailto:developers@bbachain.com'
 	},
 	{
 		name: 'Terms &Service',
