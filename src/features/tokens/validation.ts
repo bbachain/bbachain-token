@@ -1,7 +1,8 @@
-import { z } from 'zod'
 import Decimal from 'decimal.js'
-import VALIDATION_MESSAGE from '@/constants/validation'
+import { z } from 'zod'
+
 import REGEX from '@/constants/regex'
+import VALIDATION_MESSAGE from '@/constants/validation'
 
 const MAX_SUPPLY_RAW = new Decimal('18446744073709551615')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB

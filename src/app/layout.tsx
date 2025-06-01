@@ -1,10 +1,11 @@
 import './globals.css'
-import { ClusterProvider } from '@/components/cluster/cluster-data-access'
-import { BBAChainProvider } from '@/components/contexts/bbachain-provider'
-import { UiLayout } from '@/components/common/ui-layout'
-import { ReactQueryProvider } from './react-query-provider'
-import { ThemeProvider } from 'next-themes'
 import { Roboto } from 'next/font/google'
+import { ThemeProvider } from 'next-themes'
+
+import BBAChainProvider from '@/components/providers/BBAChainProvider'
+import { ClusterProvider } from '@/components/providers/ClusterProvider'
+import ReactQueryProvider from '@/components/providers/QueryProvider'
+import UiProvider from '@/components/providers/UiProvider'
 
 const roboto = Roboto({
 	weight: ['100', '300', '400', '500', '700', '900'],
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<ClusterProvider>
 						<BBAChainProvider>
 							<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-								<UiLayout>{children}</UiLayout>
+								<UiProvider>{children}</UiProvider>
 							</ThemeProvider>
 						</BBAChainProvider>
 					</ClusterProvider>

@@ -1,7 +1,8 @@
 import axios from 'axios'
-import ERROR from '@/constants/error'
+
 import ENDPOINTS from '@/constants/endpoint'
-import type { UploadToMetadataPayload } from '@/types/request.types'
+import ERROR from '@/constants/error'
+import type { UploadToMetadataPayload } from '@/features/tokens/types'
 
 export const uploadIconToPinata = async (file: File): Promise<string> => {
 	const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY

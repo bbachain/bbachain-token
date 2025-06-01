@@ -1,62 +1,11 @@
-import axios from 'axios'
-import { Connection, PublicKey, Transaction } from '@bbachain/web3.js'
-import { createCreateMetadataAccountInstruction, Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
 import { getMint } from '@bbachain/spl-token'
-import {
-	CreateTokenPayload,
-	UploadToMetadataPayload,
-	TGetTokenResponse,
-	TTokenMetadata,
-	TTokenMetadataOffChain,
-	TTokenMetadataOffChainData
-} from './types'
-import { uploadIconToPinata, uploadMetadataToPinata } from '@/utils/pinata'
+import { Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
+import { Connection, PublicKey } from '@bbachain/web3.js'
+import axios from 'axios'
 
-export const createTokenMetadataTx = async (ownerAddress: PublicKey, mintAddress: PublicKey, payload: CreateTokenPayload) => {
-	const [metadataPda] = PublicKey.findProgramAddressSync(
-		[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
-		PROGRAM_ID
-	)
+import { TGetTokenDataResponse, TTokenMetadata, TTokenMetadataOffChain, TTokenMetadataOffChainData } from './types'
 
-	// Off Chain Metadata Upload
-	const iconUri = await uploadIconToPinata(payload.icon)
-	const offChainMetadataPayload: UploadToMetadataPayload = {
-		name: payload.name,
-		symbol: payload.symbol,
-		description: payload.description === '' ? null : payload.description,
-		icon: iconUri
-	}
-	const ipfsUri = await uploadMetadataToPinata(offChainMetadataPayload)
-
-	// On Chain Metadata Upload
-	const onChainMetadataPayload = {
-		name: payload.name,
-		symbol: payload.symbol,
-		uri: ipfsUri,
-		sellerFeeBasisPoints: 0,
-		creators: null,
-		collection: null,
-		uses: null
-	}
-
-	const ix = createCreateMetadataAccountInstruction(
-		{
-			metadata: metadataPda,
-			mint: mintAddress,
-			mintAuthority: ownerAddress,
-			payer: ownerAddress,
-			updateAuthority: ownerAddress
-		},
-		{ createMetadataAccountArgs: { data: onChainMetadataPayload, isMutable: true, collectionDetails: null } }
-	)
-
-	const createdMetadataTx = new Transaction().add(ix)
-	return createdMetadataTx
-}
-
-
-
-export const getTokenMetadata = async (connection: Connection, mintAddress: PublicKey) => {
+export const getTokenMetadata = async (connection: Connection, metadataAddress: PublicKey) => {
 	const initialMetadataOffChainData: TTokenMetadataOffChainData = {
 		name: null,
 		symbol: null,
@@ -74,26 +23,28 @@ export const getTokenMetadata = async (connection: Connection, mintAddress: Publ
 		isMutable: true,
 		name: null,
 		symbol: null,
+		sellerFeeBasisPoints: 0,
+		creators: null,
+		collection: null,
+		uses: null,
 		metadataOffChain: initialMetadataOffChain
 	}
 
 	try {
-		const [metadataPda] = PublicKey.findProgramAddressSync(
-			[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
-			PROGRAM_ID
-		)
+		const accountInfo = await connection.getAccountInfo(metadataAddress)
+		if (!accountInfo || !accountInfo?.data) return tokenMetadata
 
-		tokenMetadata.metadataAddress = metadataPda.toBase58()
-		const accountInfo = await connection.getAccountInfo(metadataPda)
-
-		if (!accountInfo?.data) return tokenMetadata
-
+		tokenMetadata.metadataAddress = metadataAddress.toBase58()
 		const [metadata] = Metadata.deserialize(accountInfo.data)
 		tokenMetadata.isMutable = metadata.isMutable
 
-		const { name, symbol, uri } = metadata.data
+		const { name, symbol, uri, collection, creators, uses, sellerFeeBasisPoints } = metadata.data
 		tokenMetadata.name = name
 		tokenMetadata.symbol = symbol
+		tokenMetadata.collection = collection
+		tokenMetadata.creators = creators
+		tokenMetadata.uses = uses
+		tokenMetadata.sellerFeeBasisPoints = sellerFeeBasisPoints
 
 		if (uri) {
 			const { data } = await axios.get<TTokenMetadataOffChainData>(uri)
@@ -107,7 +58,10 @@ export const getTokenMetadata = async (connection: Connection, mintAddress: Publ
 	return tokenMetadata
 }
 
-export const getTokenData = async (connection: Connection, mintAddress: PublicKey): Promise<TGetTokenResponse | null> => {
+export const getTokenData = async (
+	connection: Connection,
+	mintAddress: PublicKey
+): Promise<TGetTokenDataResponse | null> => {
 	const mintAccountInfo = await getMint(connection, mintAddress)
 	const decimals = mintAccountInfo.decimals
 	const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
@@ -121,7 +75,13 @@ export const getTokenData = async (connection: Connection, mintAddress: PublicKe
 	const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0
 
 	const authoritiesState = { revokeFreeze, revokeMint }
-	const metadata = await getTokenMetadata(connection, mintAddress)
+
+	const [metadataPda] = PublicKey.findProgramAddressSync(
+		[Buffer.from('metadata'), PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+		PROGRAM_ID
+	)
+
+	const metadata = await getTokenMetadata(connection, metadataPda)
 
 	return {
 		mintAddress: mintAddress.toBase58(),

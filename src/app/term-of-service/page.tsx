@@ -1,5 +1,5 @@
-import InfoCard from '@/components/common/info-card'
-import { TermsOfServices } from '@/lib/static'
+import InfoCard from '@/components/layout/InfoCard'
+import TermsOfServices from '@/staticData/termOfServices'
 
 export default function TermOfService() {
 	return (

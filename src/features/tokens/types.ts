@@ -1,5 +1,15 @@
+import { Collection, Creator, Uses } from '@bbachain/spl-token-metadata'
 import { z } from 'zod'
+
 import { type CreateTokenValidation } from '@/features/tokens/validation'
+import { TSuccessMessage } from '@/types'
+
+export type UploadToMetadataPayload = {
+	name: string
+	symbol: string
+	image: string
+	description: string | null
+}
 
 export type TTokenMetadataOffChainData = {
 	name: string | null
@@ -18,6 +28,10 @@ export type TTokenMetadata = {
 	isMutable: boolean
 	name: string | null
 	symbol: string | null
+	sellerFeeBasisPoints: number
+	creators: Creator[] | null
+	collection: Collection | null
+	uses: Uses | null
 	metadataOffChain: TTokenMetadataOffChain
 }
 
@@ -26,14 +40,7 @@ type TAuthoritiesState = {
 	revokeMint: boolean
 }
 
-type TCreatedMetadataToken = {
-	metadataAddress: string
-	name: string
-	symbol: string
-	image: string
-}
-
-export type TGetTokenResponse = {
+export type TGetTokenDataResponse = {
 	mintAddress: string
 	decimals: number
 	supply: number
@@ -42,17 +49,39 @@ export type TGetTokenResponse = {
 	createdAt: number
 }
 
-export type TCreateTokenResponse = {
+export type TCreateTokenDataResponse = {
 	ownerAddress: string
 	mintAddress: string
-	metadata: TCreatedMetadataToken
+	metadataAddress: string
+	metadata: UploadToMetadataPayload
 }
 
-export type CreateTokenPayload = z.infer<typeof CreateTokenValidation>
+export type TGetTokenResponse = TSuccessMessage & {
+	data: TGetTokenDataResponse[]
+}
 
-export type UploadToMetadataPayload = {
+export type TGetTokenDetailResponse = TSuccessMessage & {
+	data: TGetTokenDataResponse
+}
+
+export type TCreateTokenResponse = TSuccessMessage & {
+	data: TCreateTokenDataResponse
+}
+
+export type TUpdateTokenMetadataResponse = TCreateTokenResponse
+
+export type TCreateTokenPayload = z.infer<typeof CreateTokenValidation>
+
+export type TUpdateTokenMetadataPayload = {
 	name: string
 	symbol: string
-	icon: string
-	description: string | null
+	icon: File | null
+	description: string
 }
+
+export type TBurnTokenPayload = {
+	amount: number
+	decimals: number
+}
+
+export type TMintTokenPayload = TBurnTokenPayload

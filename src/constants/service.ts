@@ -1,7 +1,10 @@
 const GLOBAL_SERVICE_KEY = {
-	GET_BALANCE: 'get-balance',
 	GET_SIGNATURES: 'get-signatures',
-	GET_TOKEN_ACCOUNTS: 'get-token-accounts',
+	GET_TOKEN_ACCOUNTS: 'get-token-accounts'
+} as const
+
+const WALLET_SERVICE_KEY = {
+	GET_BALANCE: 'get-balance',
 	TRANSFER_BBA: 'transfer-bba',
 	REQUEST_AIRDROP: 'request-airdrop'
 } as const
@@ -10,21 +13,26 @@ const TOKEN_SERVICE_KEY = {
 	CREATE_TOKEN: 'create-token',
 	GET_TOKEN: 'get-token',
 	GET_TOKEN_DETAIL: 'get-token-detail',
-	UPDATE_METADATA: 'update-metadata',
-	REVOKE_AUTHORITY: 'revoke-authority',
-	LOCK_METADATA: 'lock-metadata'
+	UPDATE_TOKEN_METADATA: 'update-token-metadata',
+	REVOKE_FREEZE: 'revoke-freeze',
+	REVOKE_MINT: 'revoke-mint',
+	LOCK_METADATA: 'lock-metadata',
+	BURN_TOKEN_SUPPLY: 'burn-token-supply',
+	MINT_TOKEN_SUPPLY: 'mint-token-supply'
 } as const
 
 const NFT_SERVICE_KEY = {
 	CREATE_NFT: 'create-nft',
-	CREATE_COLLECTION: 'create-collection',
 	GET_NFT: 'get-nft',
+	GET_NFT_DETAIL: 'get-nft-detail',
+	CREATE_COLLECTION: 'create-collection',
 	GET_COLLECTION: 'get-collection',
-	GET_NFT_DETAIL: 'get-nft-detail'
+	VALIDATE_METADATA_OFFCHAIN: 'validate-metadata-offchain'
 } as const
 
 const SERVICES_KEY = {
 	GLOBAL: GLOBAL_SERVICE_KEY,
+	WALLET: WALLET_SERVICE_KEY,
 	TOKEN: TOKEN_SERVICE_KEY,
 	NFT: NFT_SERVICE_KEY
 } as const

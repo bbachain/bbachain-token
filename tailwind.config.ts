@@ -1,5 +1,5 @@
-import type { Config } from 'tailwindcss'
 import flowbite from 'flowbite-react/tailwind'
+import type { Config } from 'tailwindcss'
 
 const config: Config = {
 	darkMode: ['class'],
@@ -7,6 +7,8 @@ const config: Config = {
 		'./src/pages/**/*.{js,ts,jsx,tsx,mdx}',
 		'./src/components/**/*.{js,ts,jsx,tsx,mdx}',
 		'./src/app/**/*.{js,ts,jsx,tsx,mdx}',
+		'./src/features/**/*.{js,ts,jsx,tsx}',
+		'./src/staticData/**/*.{js,ts,jsx,tsx}',
 		flowbite.content()
 	],
 	theme: {
@@ -70,6 +72,28 @@ const config: Config = {
 				strokes: 'hsl(var(--secondary-strokes))',
 				'hover-green': 'hsl(var(--secondary-hover-green))',
 				'dark-grey': 'hsl(var(--secondary-dark-grey))'
+			},
+			keyframes: {
+				'accordion-down': {
+					from: {
+						height: '0'
+					},
+					to: {
+						height: 'var(--radix-accordion-content-height)'
+					}
+				},
+				'accordion-up': {
+					from: {
+						height: 'var(--radix-accordion-content-height)'
+					},
+					to: {
+						height: '0'
+					}
+				}
+			},
+			animation: {
+				'accordion-down': 'accordion-down 0.2s ease-out',
+				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
 		}
 	},

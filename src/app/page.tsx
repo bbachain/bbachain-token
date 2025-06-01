@@ -1,11 +1,12 @@
 'use client'
 
-import FAQItem from '@/components/common/faq-item'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+
+import FAQItem from '@/components/layout/FaqItem'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FAQData } from '@/lib/static'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import FAQData from '@/staticData/faq'
 
 export default function Home() {
 	const router = useRouter()
