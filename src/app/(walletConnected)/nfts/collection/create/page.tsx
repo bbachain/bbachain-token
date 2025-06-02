@@ -132,7 +132,7 @@ export default function CreateCollection() {
 	}, [createCollectionMutation.error, createCollectionMutation.isError, openErrorDialog])
 
 	return (
-		<div>
+		<>
 			<LoadingDialog
 				title={loadingDialogProps.title}
 				description={loadingDialogProps.description}
@@ -284,6 +284,6 @@ export default function CreateCollection() {
 					)}
 				</form>
 			</Form>
-		</div>
+		</>
 	)
 }

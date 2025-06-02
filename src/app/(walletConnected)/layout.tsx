@@ -4,7 +4,7 @@ import { useWallet } from '@bbachain/wallet-adapter-react'
 import { Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
-import { NoAdressAlert, NoBalanceAlert } from '@/components/layout/Alert'
+import { NoAdressAlert } from '@/components/layout/Alert'
 
 export default function WalletConnectedLayout({ children }: { children: React.ReactNode }) {
 	const { publicKey: address } = useWallet()

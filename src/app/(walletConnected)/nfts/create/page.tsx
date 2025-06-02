@@ -154,7 +154,7 @@ export default function CreateNFT() {
 	const onCreateNFT = (payload: TCreateNFTPayload) => createNFTMutation.mutate(payload)
 
 	return (
-		<div>
+		<>
 			<LoadingDialog
 				isOpen={isLoadingDialog}
 				title={loadingDialogProps.title}
@@ -287,6 +287,6 @@ export default function CreateNFT() {
 					</form>
 				</Form>
 			)}
-		</div>
+		</>
 	)
 }
