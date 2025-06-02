@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Loader2 } from 'lucide-react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { capitalCase } from 'text-case'
 
+import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -44,6 +45,7 @@ export default function CreateNFT() {
 	const getCollectionQuery = useGetCollections()
 	const validateMetadataMutation = useValidateOffChainMetadata()
 	const getBalanceQuery = useGetBalance()
+	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
@@ -153,6 +155,14 @@ export default function CreateNFT() {
 
 	const onCreateNFT = (payload: TCreateNFTPayload) => createNFTMutation.mutate(payload)
 
+	if (getBalanceQuery.isLoading)
+		return (
+			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
+				<Loader2 className="animate-spin" width={40} height={40} />
+				<p>Creating your token...</p>
+			</div>
+		)
+
 	return (
 		<>
 			<LoadingDialog
@@ -166,7 +176,11 @@ export default function CreateNFT() {
 				title={successDialogProps.title}
 				description={successDialogProps.description}
 			/>
-
+			{isNoBalance && (
+				<div className="xl:px-24 md:px-16 px-[15px]">
+					<NoBalanceAlert />
+				</div>
+			)}
 			{step === 'preview' && (
 				<div className="xl:px-24 md:px-16 px-[15px]">
 					<Button

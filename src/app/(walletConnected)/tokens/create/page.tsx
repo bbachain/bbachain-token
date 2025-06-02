@@ -66,6 +66,7 @@ export default function CreateToken() {
 	const watchTokenSupply = form.watch('supply')
 	const createTokenMutation = useCreateToken()
 	const getBalanceQuery = useGetBalance()
+	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
 
 	const [currentStep, setCurrentStep] = useState<number>(0)
 	const [isSuccessOpen, setIsSuccessOpen] = useState<boolean>(false)
@@ -179,15 +180,7 @@ export default function CreateToken() {
 		if (supply > LIMIT_OF_SIXTH_DECIMALS) form.setValue('decimals', '6')
 	}, [form, watchTokenSupply])
 
-	if (getBalanceQuery.isLoading)
-		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Please wait...</p>
-			</div>
-		)
-
-	if (createTokenMutation.isPending)
+	if (getBalanceQuery.isLoading || createTokenMutation.isPending)
 		return (
 			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
 				<Loader2 className="animate-spin" width={40} height={40} />
@@ -202,7 +195,7 @@ export default function CreateToken() {
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="xl:px-48 md:px-16 px-[15px] w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 			>
-				{(getBalanceQuery.isError || !getBalanceQuery.data) && <NoBalanceAlert />}
+				{isNoBalance && <NoBalanceAlert />}
 				<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>

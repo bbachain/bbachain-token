@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
+import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -18,19 +19,6 @@ import { useGetBalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type FieldName = keyof TCreateCollectionPayload
-
-const createCollectionSteps = [
-	{
-		id: 1,
-		name: 'Upload Metadata',
-		fields: ['uri']
-	},
-	{
-		id: 2,
-		name: 'Collection Details',
-		fields: ['name', 'symbol', 'sellerFeeBasisPoints']
-	}
-]
 
 export default function CreateCollection() {
 	const form = useForm<TCreateCollectionPayload>({
@@ -46,6 +34,7 @@ export default function CreateCollection() {
 	const createCollectionMutation = useCreateCollection()
 	const validateMetadataMutation = useValidateOffChainMetadata()
 	const getBalanceQuery = useGetBalance()
+	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<number>(0)
 	const [isSuccessDialogMetadata, setIsSuccessDialogMetadata] = useState<boolean>(false)
@@ -156,6 +145,7 @@ export default function CreateCollection() {
 			<h1 className="text-center md:text-[55px] md:mb-9 md-3 leading-tight text-xl font-bold text-main-black">
 				Create NFT Collection
 			</h1>
+			{isNoBalance && <NoBalanceAlert />}
 			<Form {...form}>
 				<form
 					className="xl:px-[420px] md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
