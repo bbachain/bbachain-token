@@ -123,7 +123,13 @@ export const getNFTData = async (
 	const decimals = mintAccountInfo.decimals
 	const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
 
-	if (decimals !== 0 && supply !== 1) return null // this is hack to return only Non-Fungible Tokens, cause this condition is FT state
+	console.log(decimals)
+	console.log(supply)
+
+	if (decimals !== 0 || supply !== 1) {
+		console.log('This is not NFT')
+		return null
+	} // this is hack to return only Non-Fungible Tokens, cause this condition is FT state
 
 	const signatures = await connection.getSignaturesForAddress(mintAddress)
 	const blockTime = signatures?.[signatures.length - 1]?.blockTime ?? 0

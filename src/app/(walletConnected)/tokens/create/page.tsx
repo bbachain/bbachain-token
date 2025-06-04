@@ -66,7 +66,7 @@ export default function CreateToken() {
 	const watchTokenSupply = form.watch('supply')
 	const createTokenMutation = useCreateToken()
 	const getBalanceQuery = useGetBalance()
-	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
+	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [currentStep, setCurrentStep] = useState<number>(0)
 	const [isSuccessOpen, setIsSuccessOpen] = useState<boolean>(false)
