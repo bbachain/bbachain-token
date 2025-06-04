@@ -11,6 +11,16 @@ body {
 	@apply bg-main-green hover:bg-hover-green w-[124px] h-[34px] flex items-center justify-center text-main-white  px-2.5 py-2 rounded-[10px] text-sm font-normal !important;
 }
 
+.remove-arrow-input::-webkit-inner-spin-button,
+.remove-arrow-input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.remove-arrow-input {
+	-moz-appearance: textfield;
+}
+
 @layer base {
 	:root {
 		--background: 0 0% 100%;
@@ -24,6 +34,7 @@ body {
 		--secondary-dark-grey: 0 0% 40%;
 		--secondary-strokes: 0 0% 40% / 0.35;
 		--box: 0 0% 91%;
+		--box-2: 0 0% 85%;
 		--light-box: 0 0% 91%;
 		--card: 0 0% 100%;
 		--card-foreground: 0 0% 3.9%;
@@ -61,6 +72,7 @@ body {
 		--secondary-dark-grey: 0 0% 100%;
 		--secondary-strokes: 0 0% 100%;
 		--box: 0 0% 20%;
+		--box-2: 0 0% 17%;
 		--light-box: 0 0% 91%;
 		--card: 0 0% 3.9%;
 		--card-foreground: 0 0% 98%;

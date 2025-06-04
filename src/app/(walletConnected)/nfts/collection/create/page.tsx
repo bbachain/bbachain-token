@@ -148,7 +148,7 @@ export default function CreateCollection() {
 			{isNoBalance && <NoBalanceAlert />}
 			<Form {...form}>
 				<form
-					className="xl:px-[420px] md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
+					className="2xl:px-[420px] xl:px-80 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 					onSubmit={form.handleSubmit(onCreateCollection)}
 				>
 					{step === 1 && (

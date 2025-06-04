@@ -174,7 +174,7 @@ export default function Navbar() {
 									<NavigationMenuTrigger className="text-sm w-full p-0 hover:!bg-transparent font-normal hover:!text-hover-green text-main-black">
 										{nav.name}
 									</NavigationMenuTrigger>
-									<NavigationMenuContent className="absolute top-full left-44 bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80">
+									<NavigationMenuContent className="absolute top-full left-20 bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80">
 										<ul className="flex flex-col w-[230px] p-3">
 											{nav.subMenu.map((subNav) => (
 												<Link

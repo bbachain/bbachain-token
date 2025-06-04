@@ -4,8 +4,9 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 
 import FAQItem from '@/components/layout/FaqItem'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import FAQData from '@/staticData/faq'
 
 export default function Home() {
@@ -24,7 +25,7 @@ export default function Home() {
 				</div>
 				<Button
 					type="button"
-					onClick={() => router.push('/create-token')}
+					onClick={() => router.push('/tokens/create')}
 					className="bg-main-green hover:bg-hover-green md:w-80 w-full md:h-16 h-[34px] rounded-[30px] md:text-2xl text-base text-main-white"
 					size="lg"
 				>
@@ -133,14 +134,15 @@ export default function Home() {
 				<p className="text-[#676767] md:text-lg text-xs text-center">
 					Have any questions? We&apos;re here to assist you.
 				</p>
-				<Button
-					type="button"
-					onClick={() => router.push('/contact')}
-					size="lg"
-					className="md:w-[230px] hover:bg-hover-green w-[140px] md:mt-9 mt-3 md:text-2xl text-base md:h-[54px] h-[34px] rounded-[30px] bg-main-green"
+				<a
+					href="mailto:developers@bbachain.com"
+					className={cn(
+						buttonVariants({ size: 'lg' }),
+						'md:w-[230px] hover:bg-hover-green w-[140px] md:mt-9 mt-3 md:text-2xl text-base md:h-[54px] h-[34px] rounded-[30px] bg-main-green'
+					)}
 				>
 					Contact
-				</Button>
+				</a>
 			</section>
 			<section className="grid md:grid-cols-3 content-center md:px-20 px-[15px] md:pb-20 pb-7 pt-6 gap-6">
 				{FAQData.map((value) => (

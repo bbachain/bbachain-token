@@ -10,10 +10,7 @@ import { TGetTokenDataResponse } from '@/features/tokens/types'
 function mapToTokenListPropsList(tokens: TGetTokenDataResponse[]): TokenListProps[] {
 	return tokens.map((token) => {
 		const fallback = `${token.mintAddress.slice(0, 6)}...`
-
 		const { name, symbol, metadataOffChain } = token.metadata
-
-		console.log(metadataOffChain)
 
 		return {
 			id: token.mintAddress,
