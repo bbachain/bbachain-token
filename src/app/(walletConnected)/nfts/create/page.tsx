@@ -45,7 +45,7 @@ export default function CreateNFT() {
 	const getCollectionQuery = useGetCollections()
 	const validateMetadataMutation = useValidateOffChainMetadata()
 	const getBalanceQuery = useGetBalance()
-	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
+	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)

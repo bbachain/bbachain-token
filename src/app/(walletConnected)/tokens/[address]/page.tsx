@@ -61,7 +61,7 @@ export default function TokenDetail({ params }: { params: { address: string } })
 	const mintTokensMutation = useMintTokenSupply({ mintAddress })
 	const getBalanceQuery = useGetBalance()
 
-	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
+	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const tokenDetailData = getTokenDetailQuery.data?.data
 	const isMintRevoked = tokenDetailData?.authoritiesState?.revokeMint ?? false
 	const isFreezeRevoked = tokenDetailData?.authoritiesState?.revokeFreeze ?? false

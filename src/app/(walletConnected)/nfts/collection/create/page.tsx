@@ -34,7 +34,7 @@ export default function CreateCollection() {
 	const createCollectionMutation = useCreateCollection()
 	const validateMetadataMutation = useValidateOffChainMetadata()
 	const getBalanceQuery = useGetBalance()
-	const isNoBalance = getBalanceQuery.isError && !getBalanceQuery.data && getBalanceQuery.data === 0
+	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<number>(0)
 	const [isSuccessDialogMetadata, setIsSuccessDialogMetadata] = useState<boolean>(false)
