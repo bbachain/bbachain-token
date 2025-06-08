@@ -6,6 +6,7 @@ import BBAChainProvider from '@/components/providers/BBAChainProvider'
 import { ClusterProvider } from '@/components/providers/ClusterProvider'
 import ReactQueryProvider from '@/components/providers/QueryProvider'
 import UiProvider from '@/components/providers/UiProvider'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const roboto = Roboto({
 	weight: ['100', '300', '400', '500', '700', '900'],
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<ClusterProvider>
 						<BBAChainProvider>
 							<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-								<UiProvider>{children}</UiProvider>
+								<TooltipProvider>
+									<UiProvider>{children}</UiProvider>
+								</TooltipProvider>
 							</ThemeProvider>
 						</BBAChainProvider>
 					</ClusterProvider>

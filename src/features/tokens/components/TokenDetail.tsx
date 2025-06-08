@@ -8,25 +8,22 @@ import { PiPencilSimpleLineLight } from 'react-icons/pi'
 import { CopyButton } from '@/components/layout/CopyButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipArrow, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipArrow, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-
 
 export function TooltipComponent({ content }: { content: string }) {
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button variant="ghost" size="icon">
-						<AiOutlineInfoCircle className="text-[#989898]" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent className="w-full max-w-56 bg-white dark:bg-[#333333]">
-					<p className="text-xs text-[#424242] dark:text-[#A7A7A7]">{content}</p>
-					<TooltipArrow className="fill-white dark:fill-[#333333]" />
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button variant="ghost" size="icon">
+					<AiOutlineInfoCircle className="text-[#989898]" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent className="w-full max-w-56 bg-white dark:bg-[#333333]">
+				<p className="text-xs text-[#424242] dark:text-[#A7A7A7]">{content}</p>
+				<TooltipArrow className="fill-white dark:fill-[#333333]" />
+			</TooltipContent>
+		</Tooltip>
 	)
 }
 

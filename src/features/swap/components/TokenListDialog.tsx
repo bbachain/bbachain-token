@@ -8,7 +8,7 @@ import { IoSearchOutline } from 'react-icons/io5'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import { TTokenProps } from '../types'
@@ -77,21 +77,19 @@ export default function TokenListDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={setIsOpen}>
-			<DialogContent className="md:max-w-[436px] max-w-[300px]">
+			<DialogContent className="md:max-w-[436px] max-w-[300px] rounded-[12px] shadow-[0_6px_14.1px_6px_rgba(0,0,0,0.25)]">
 				<DialogHeader className="flex flex-row items-center space-x-0.5 w-full">
 					<DialogTitle className="font-normal text-lg text-main-black">Select Token</DialogTitle>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button variant="ghost" size="icon" className="w-4 h-4 !mt-0">
-									<AiOutlineQuestionCircle />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>
-								<p className="w-[198px]">{SelectTokenTips.titleTip}</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button variant="ghost" size="icon" className="w-4 h-4 !mt-0">
+								<AiOutlineQuestionCircle />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							<p className="w-[198px]">{SelectTokenTips.titleTip}</p>
+						</TooltipContent>
+					</Tooltip>
 				</DialogHeader>
 				<div className="flex flex-col space-y-6">
 					<section className="relative">
@@ -109,28 +107,30 @@ export default function TokenListDialog({
 								<Loader2 className="animate-spin" />
 							</div>
 						)}
-						{filteredData.map((token) => (
-							<DialogClose key={token.address} asChild>
-								<Button
-									variant="ghost"
-									type="button"
-									onClick={() => onSelectToken(token)}
-									className={cn(
-										'w-full flex hover:bg-box !py-2.5 h-11 px-[7px] justify-between',
-										selectedToken() === token && 'bg-box'
-									)}
-								>
-									<div className="flex space-x-2 items-center">
-										{/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-										<img src={token.icon} width={24} height={24} />
-										<section className="flex flex-col space-y-1">
-											<h5 className="text-sm text-start text-main-black">{token.symbol}</h5>
-											<p className="text-[10px] text-start text-light-grey">{token.name}</p>
-										</section>
-									</div>
-								</Button>
-							</DialogClose>
-						))}
+						{filteredData.length === 0 && <p className="text-center text-sm">No data found</p>}
+						{filteredData.length > 0 &&
+							filteredData.map((token) => (
+								<DialogClose key={token.address} asChild>
+									<Button
+										variant="ghost"
+										type="button"
+										onClick={() => onSelectToken(token)}
+										className={cn(
+											'w-full flex hover:bg-box !py-2.5 h-11 px-[7px] justify-between',
+											selectedToken() === token && 'bg-box'
+										)}
+									>
+										<div className="flex space-x-2 items-center">
+											{/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+											<img src={token.icon} width={24} height={24} />
+											<section className="flex flex-col space-y-1">
+												<h5 className="text-sm text-start text-main-black">{token.symbol}</h5>
+												<p className="text-[10px] text-start text-light-grey">{token.name}</p>
+											</section>
+										</div>
+									</Button>
+								</DialogClose>
+							))}
 					</section>
 				</div>
 			</DialogContent>

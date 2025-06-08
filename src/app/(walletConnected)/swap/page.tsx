@@ -6,13 +6,13 @@ import { IoMdSettings } from 'react-icons/io'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import ExpertModeWarningDialog from '@/features/swap/components/ExpertModeWarningDialog'
+import SettingDialog from '@/features/swap/components/SettingDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import { TTokenProps } from '@/features/swap/types'
 import { useGetTokens } from '@/features/tokens/services'
 import { TGetTokenDataResponse } from '@/features/tokens/types'
-
-const initialAmount = '0.00'
 
 const initialFromTokenProps: TTokenProps = {
 	address: 'abcd',
@@ -49,11 +49,16 @@ export default function Swap() {
 	const getTokensQuery = useGetTokens()
 	const tokenListData = getTokensQuery.data ? swapTokenListMapper(getTokensQuery.data.data) : []
 
-	const [fromAmount, setFromAmount] = useState<string>(initialAmount)
-	const [toAmount, setToAmount] = useState<string>(initialAmount)
+	const [fromAmount, setFromAmount] = useState<string>('')
+	const [toAmount, setToAmount] = useState<string>('')
 	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialFromTokenProps)
 	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialToTokenProps)
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
+	const [maxSlippage, setMaxSlippage] = useState<string>('0.05%')
+	const [timeLimit, setTimeLimit] = useState<string>('0')
+	const [isExpertMode, setIsExpertMode] = useState<boolean>(false)
+	const [isSettingDialogOpen, setIsSettingDialogOpen] = useState<boolean>(false)
+	const [isExpertModeDialogOpen, setIsExpertModeDialogOpen] = useState<boolean>(false)
 	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
 
 	const onSelectTokenFrom = () => {
@@ -67,8 +72,8 @@ export default function Swap() {
 	}
 
 	const onReverseSwap = () => {
-		setFromAmount(initialAmount)
-		setFromAmount(initialAmount)
+		setFromAmount('')
+		setFromAmount('')
 		setFromTokenProps(toTokenProps)
 		setToTokenProps(fromTokenProps)
 	}
@@ -79,7 +84,13 @@ export default function Swap() {
 			<Card className="md:w-[550px] w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 				<CardHeader className="text-center flex flex-row items-center justify-between space-y-0 p-0 md:pb-[18px] pb-3">
 					<CardTitle className="md:text-xl text-lg text-main-black font-medium">Swap</CardTitle>
-					<Button className="[&_svg]:size-5" size="icon" variant="ghost">
+					<Button
+						type="button"
+						onClick={() => setIsSettingDialogOpen(true)}
+						className="[&_svg]:size-5"
+						size="icon"
+						variant="ghost"
+					>
 						<IoMdSettings />
 					</Button>
 				</CardHeader>
@@ -114,7 +125,7 @@ export default function Swap() {
 						</div>
 					</section>
 					<p className="text-xs text-dark-grey">
-						Max slippage: <span className="text-main-black">0.05%</span>
+						Max slippage: <span className="text-main-black">{maxSlippage}</span>
 					</p>
 					<div className="flex flex-col space-y-2.5 border-2 border-dark-grey rounded-[10px] p-2.5">
 						<section className="flex text-xs justify-between">
@@ -150,6 +161,22 @@ export default function Swap() {
 				setSelectedFrom={setFromTokenProps}
 				selectedTo={toTokenProps}
 				setSelectedTo={setToTokenProps}
+			/>
+			<SettingDialog
+				isOpen={isSettingDialogOpen}
+				setIsOpen={setIsSettingDialogOpen}
+				maxSlippage={maxSlippage}
+				setMaxSlippage={setMaxSlippage}
+				timeLimit={timeLimit}
+				setTimeLimit={setTimeLimit}
+				isExpertMode={isExpertMode}
+				setIsExpertMode={setIsExpertMode}
+				setIsExpertModeOpen={setIsExpertModeDialogOpen}
+			/>
+			<ExpertModeWarningDialog
+				isOpen={isExpertModeDialogOpen}
+				setIsOpen={setIsExpertModeDialogOpen}
+				setIsExpertMode={setIsExpertMode}
 			/>
 		</div>
 	)
