@@ -11,9 +11,6 @@ import { useIsMobile } from '@/hooks/isMobile'
 import { useGetBalance } from '@/services/wallet'
 import { useWalletListDialog } from '@/stores/walletDialog'
 
-
-
-
 const balanceFormater = (balance: number) => Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000
 
 function BalanceValue() {
@@ -57,7 +54,7 @@ export default function CustomWalletButton() {
 					<Button
 						type="button"
 						variant="ghost"
-						className="flex bg-[#E9E9E9] dark:bg-[#343434] w-full md:px-2.5 px-1 hover:bg-light-grey space-x-2 rounded-[10px] items-center"
+						className="flex bg-box w-full md:px-2.5 px-1 hover:bg-box-2 space-x-2 rounded-[10px] items-center"
 					>
 						<BalanceValue />
 						{selectedWalletIcon && !isMobile && (

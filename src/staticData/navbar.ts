@@ -10,12 +10,18 @@ const NavMenu: NavMenuProps[] = [
 		href: '/'
 	},
 	{
-		name: 'Create Token',
-		href: '/tokens/create'
-	},
-	{
-		name: 'My Tokens',
-		href: '/tokens'
+		name: 'Tokens',
+		href: '',
+		subMenu: [
+			{
+				name: 'Create Token',
+				href: '/tokens/create'
+			},
+			{
+				name: 'My Tokens',
+				href: '/tokens'
+			}
+		]
 	},
 	{
 		name: 'NFT',
@@ -34,6 +40,10 @@ const NavMenu: NavMenuProps[] = [
 				href: '/nfts'
 			}
 		]
+	},
+	{
+		name: 'Swap',
+		href: '/swap'
 	},
 	{
 		name: 'Contact',

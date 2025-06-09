@@ -9,6 +9,7 @@ import toast, { Toast } from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { HiArrowPath } from 'react-icons/hi2'
 
+import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,6 +31,7 @@ import {
 import { type TUpdateTokenMetadataPayload } from '@/features/tokens/types'
 import { CreateIconTokenValidation } from '@/features/tokens/validation'
 import { useIsMobile } from '@/hooks/isMobile'
+import { useGetBalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type BasicTokenProps = {
@@ -57,7 +59,9 @@ export default function TokenDetail({ params }: { params: { address: string } })
 	const revokeFreezeAuthoritiMutation = useRevokeFreezeAuthority({ mintAddress })
 	const burnTokensMutation = useBurnTokenSupply({ mintAddress })
 	const mintTokensMutation = useMintTokenSupply({ mintAddress })
+	const getBalanceQuery = useGetBalance()
 
+	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const tokenDetailData = getTokenDetailQuery.data?.data
 	const isMintRevoked = tokenDetailData?.authoritiesState?.revokeMint ?? false
 	const isFreezeRevoked = tokenDetailData?.authoritiesState?.revokeFreeze ?? false
@@ -319,6 +323,20 @@ export default function TokenDetail({ params }: { params: { address: string } })
 	}, [lockMetadataMutation.data, lockMetadataMutation.isSuccess])
 
 	useEffect(() => {
+		if (burnTokensMutation.isSuccess && burnTokensMutation.data) {
+			toast.success(burnTokensMutation.data.message)
+			setBurnTokenAmount('')
+		}
+	}, [burnTokensMutation.data, burnTokensMutation.isSuccess])
+
+	useEffect(() => {
+		if (mintTokensMutation.isSuccess && mintTokensMutation.data) {
+			toast.success(mintTokensMutation.data.message)
+			setMintTokenAmount('')
+		}
+	}, [mintTokensMutation.data, mintTokensMutation.isSuccess])
+
+	useEffect(() => {
 		if (updateTokenMetadataMutation.isError && updateTokenMetadataMutation.error)
 			openErrorDialog({
 				title: 'We can not proceed your transaction',
@@ -347,7 +365,17 @@ export default function TokenDetail({ params }: { params: { address: string } })
 			openErrorDialog({ title: 'We can not proceed your transaction', description: lockMetadataMutation.error.message })
 	}, [openErrorDialog, lockMetadataMutation.error, lockMetadataMutation.isError])
 
-	if (getTokenDetailQuery.isLoading) {
+	useEffect(() => {
+		if (burnTokensMutation.isError && burnTokensMutation.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: burnTokensMutation.error.message })
+	}, [burnTokensMutation.error, burnTokensMutation.isError, openErrorDialog])
+
+	useEffect(() => {
+		if (mintTokensMutation.isError && mintTokensMutation.error)
+			openErrorDialog({ title: 'We can not proceed your transaction', description: mintTokensMutation.error.message })
+	}, [mintTokensMutation.error, mintTokensMutation.isError, openErrorDialog])
+
+	if (getBalanceQuery.isLoading || getTokenDetailQuery.isLoading) {
 		return (
 			<div className="xl:px-[90px] md:px-16 px-[15px] flex flex-col md:space-y-6 space-y-3">
 				<section className="w-full flex justify-center">
@@ -378,6 +406,7 @@ export default function TokenDetail({ params }: { params: { address: string } })
 						Manage Token - {pageTitle}
 					</h2>
 				</section>
+				{isNoBalance && <NoBalanceAlert />}
 				<section className="flex xl:flex-row flex-col xl:space-x-6 md:space-y-6 space-y-3 xl:space-y-0 justify-between">
 					<TokenDetailCard className="min-h-[346px]" title="Token Overview">
 						<section className="flex md:flex-row md:space-y-0 space-y-2.5 flex-col justify-between">

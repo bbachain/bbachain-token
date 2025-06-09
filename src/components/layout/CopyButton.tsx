@@ -6,7 +6,7 @@ import { BiCopy } from 'react-icons/bi'
 import { IoCheckmark } from 'react-icons/io5'
 
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export const copyToClipboard = async (text: string): Promise<void> => {
 	try {
@@ -42,21 +42,19 @@ export function CopyButton({
 	}, [isCopied])
 
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button type="button" onClick={handleCopyClick} className={className} size="icon" variant="ghost">
-						{isCopied ? (
-							<IoCheckmark className={`text-${iconSize} text-main-green`} />
-						) : (
-							<BiCopy className={`text-${iconSize}`} />
-						)}
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent key={isCopied ? 'copied' : 'not-copied'}>
-					<p>{isCopied ? 'Copied!' : 'Copy to clipboard'}</p>
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button type="button" onClick={handleCopyClick} className={className} size="icon" variant="ghost">
+					{isCopied ? (
+						<IoCheckmark className={`text-${iconSize} text-main-green`} />
+					) : (
+						<BiCopy className={`text-${iconSize}`} />
+					)}
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent key={isCopied ? 'copied' : 'not-copied'}>
+				<p>{isCopied ? 'Copied!' : 'Copy to clipboard'}</p>
+			</TooltipContent>
+		</Tooltip>
 	)
 }

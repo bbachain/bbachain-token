@@ -22,6 +22,10 @@ export function NoBalanceAlert() {
 			toast.success(requestAirdropMutation.data.message)
 	}, [requestAirdropMutation.data, requestAirdropMutation.isSuccess])
 
+	useEffect(() => {
+		if (requestAirdropMutation.isError) toast.error(requestAirdropMutation.error.message)
+	}, [requestAirdropMutation.error?.message, requestAirdropMutation.isError])
+
 	return (
 		<Alert className="flex md:flex-row flex-col items-center justify-between dark:border-yellow-300 border-yellow-400">
 			<InfoIcon />

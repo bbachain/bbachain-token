@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { TWalletListDialogStore } from '@/types/wallet'
+import { type TWalletListDialogStore } from '@/types/wallet'
 
 export const useWalletListDialog = create<TWalletListDialogStore>((set) => ({
 	isDialogOpen: false,

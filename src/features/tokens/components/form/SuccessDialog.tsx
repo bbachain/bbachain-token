@@ -1,3 +1,5 @@
+'use client'
+
 import Image from 'next/image'
 
 import { useCluster } from '@/components/providers/ClusterProvider'
@@ -29,7 +31,7 @@ export default function SuccessDialog(props: SuccessDialogProps) {
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="md:w-[506px] w-[320px] md:max-h-[490px] max-h-[500px] h-full md:py-[77px] md:px-[35px] p-6 bg-main-white flex flex-col space-y-2 items-center justify-center">
 				<DialogHeader className="m-0 w-full items-center justify-center p-0">
-					<Image src={data.metadata.icon} width={134} height={156} alt={data.metadata.name + ' - image'} />
+					<Image src={data.metadata.image} width={134} height={156} alt={data.metadata.name + ' - image'} />
 					<DialogTitle className="font-bold text-main-green text-center text-[32px]">CONGRATULATIONS!</DialogTitle>
 					<DialogDescription className="text-main-black text-center font-light text-base">
 						Your token creation is complete. You can now explore and manage your newly generated token with ease.

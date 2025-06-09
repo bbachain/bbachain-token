@@ -66,7 +66,10 @@ export const getTokenData = async (
 	const decimals = mintAccountInfo.decimals
 	const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
 
-	if (decimals === 0 && supply === 1) return null // this is hack to return only Fungible Tokens, cause this condition is NFT state
+	if (decimals === 0 && supply === 1) {
+		console.log('This is not FT')
+		return null
+	} // this is hack to return only Fungible Tokens, cause this condition is NFT state
 
 	const signatures = await connection.getSignaturesForAddress(mintAddress)
 
