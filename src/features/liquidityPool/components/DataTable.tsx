@@ -79,8 +79,6 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => {
-								const mintAddress = (row.original as TokenListProps).id
-
 								return (
 									<TableRow
 										key={row.id}
@@ -95,12 +93,24 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 												{flexRender(cell.column.columnDef.cell, cell.getContext())}
 											</TableCell>
 										))}
-										<TableCell className="pr-5">
+										<TableCell className="pr-5 w-full flex justify-end space-x-2.5">
 											<Link
-												href={`/tokens/${mintAddress}`}
-												className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), '[&_svg]:size-5')}
+												href={``}
+												className={cn(
+													buttonVariants({ variant: 'outline' }),
+													'border-main-green flex-auto px-3 w-[49.5px] font-medium rounded-[13px] text-xs text-main-green'
+												)}
 											>
-												<IoIosArrowForward />
+												Swap
+											</Link>
+											<Link
+												href={``}
+												className={cn(
+													buttonVariants({ variant: 'default' }),
+													'bg-main-green flex-auto px-3 w-[75px] font-medium rounded-[13px] text-xs text-main-white'
+												)}
+											>
+												Deposit
 											</Link>
 										</TableCell>
 									</TableRow>
