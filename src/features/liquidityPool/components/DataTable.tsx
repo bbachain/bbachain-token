@@ -18,8 +18,9 @@ import { IoSearchOutline } from 'react-icons/io5'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { type TokenListProps } from '@/features/tokens/components/Columns'
 import { cn } from '@/lib/utils'
+
+import { PoolListProps } from './Columns'
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]
@@ -79,6 +80,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => {
+								const id = (row.original as PoolListProps).id
 								return (
 									<TableRow
 										key={row.id}
@@ -104,10 +106,10 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 												Swap
 											</Link>
 											<Link
-												href={``}
+												href={`/liquidity-pools/deposit/${id}`}
 												className={cn(
 													buttonVariants({ variant: 'default' }),
-													'bg-main-green flex-auto px-3 w-[75px] font-medium rounded-[13px] text-xs text-main-white'
+													'bg-main-green hover:bg-hover-green flex-auto px-3 w-[75px] font-medium rounded-[13px] text-xs text-main-white'
 												)}
 											>
 												Deposit

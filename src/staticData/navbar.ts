@@ -46,6 +46,10 @@ const NavMenu: NavMenuProps[] = [
 		href: '/swap'
 	},
 	{
+		name: 'Liquidity Pool',
+		href: '/liquidity-pools'
+	},
+	{
 		name: 'Contact',
 		href: 'mailto:developers@bbachain.com'
 	}

@@ -5,34 +5,59 @@ import { capitalCase } from 'text-case'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 import { TSwapItem } from '../types'
 
 interface SwapItemProps extends TSwapItem {
+	noTitle?: boolean
 	setInputAmount: (inputAmount: string) => void
-	setTokenProps: () => void
+	setTokenProps?: () => void
 }
 
-export default function SwapItem({ type, tokenProps, setTokenProps, inputAmount, setInputAmount }: SwapItemProps) {
+export default function SwapItem({
+	type,
+	noTitle = false,
+	tokenProps,
+	setTokenProps,
+	inputAmount,
+	setInputAmount
+}: SwapItemProps) {
+	const isBalanceNotEnough = Number(inputAmount) > tokenProps.balance
+	const isAmountPositive = Number(inputAmount) >= 0
+	const isInValid = isBalanceNotEnough || !isAmountPositive
+
 	const onMaxClick = () => setInputAmount(tokenProps.balance.toString())
 	return (
 		<div className="bg-box rounded-[10px] p-2.5 flex flex-col space-y-1.5">
-			<h5 className="text-xs text-main-black">{capitalCase(type)}</h5>
+			{!noTitle && <h5 className="text-xs text-main-black">{capitalCase(type)}</h5>}
 			<section className="flex justify-between items-center">
-				<Button
-					type="button"
-					onClick={setTokenProps}
-					className="flex bg-box-2 px-1.5 py-2.5 rounded-[8px] w-full max-w-28 hover:bg-accent justify-between items-center"
-				>
-					{/* eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element */}
-					<img src={tokenProps.icon} width={21} height={21} alt={tokenProps.name + ' icon'} />
-					<h4 className="text-main-black !text-xs">{tokenProps.symbol}</h4>
-					<IoIosArrowDown className="text-light-grey" />
-				</Button>
-				<div className="flex justify-end space-x-0.5">
+				{setTokenProps ? (
+					<Button
+						type="button"
+						onClick={setTokenProps}
+						className="flex bg-box-2 px-1.5 py-2.5 rounded-[8px] w-full max-w-28 hover:bg-accent justify-between items-center"
+					>
+						{/* eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element */}
+						<img src={tokenProps.icon} width={21} height={21} alt={tokenProps.name + ' icon'} />
+						<h4 className="text-main-black !text-xs">{tokenProps.symbol}</h4>
+						<IoIosArrowDown className="text-light-grey" />
+					</Button>
+				) : (
+					<div className="flex space-x-2.5 items-center">
+						{/* eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element */}
+						<img src={tokenProps.icon} width={21} height={21} alt={tokenProps.name + ' icon'} />
+						<h4 className="text-main-black !text-xs">{tokenProps.symbol}</h4>
+					</div>
+				)}
+				<div className="flex relative justify-end space-x-0.5">
 					<Input
-						className="!text-xl remove-arrow-input p-0 text-main-black bg-transparent border-none text-right outline-none focus-visible:outline-none focus-visible:ring-0"
+						className={cn(
+							'!text-xl remove-arrow-input p-0 text-main-black bg-transparent border-none text-right outline-none focus-visible:outline-none focus-visible:ring-0',
+							isInValid && '!text-error'
+						)}
 						placeholder="0.00"
+						min={0}
 						type="number"
 						value={inputAmount}
 						onChange={(e) => setInputAmount(e.target.value)}
@@ -46,6 +71,12 @@ export default function SwapItem({ type, tokenProps, setTokenProps, inputAmount,
 						>
 							Max
 						</Button>
+					)}
+					{type === 'from' && isBalanceNotEnough && (
+						<p className="text-error absolute right-0 top-7 text-[10px]">Balance is not enough</p>
+					)}
+					{!isAmountPositive && (
+						<p className="text-error absolute right-0 top-7 text-[10px]">Amount can not be negative</p>
 					)}
 				</div>
 			</section>

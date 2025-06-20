@@ -73,7 +73,7 @@ export default function FileInput(props: FileInputProps) {
 				</div>
 			</Label>
 			<FlowbiteFileInput ref={fileInputRef} id="dropzone-file" className="hidden" onChange={handleFileChange} />
-			{errorMessage && <p className="md:text-lg text-sm text-center font-medium text-destructive">{errorMessage}</p>}
+			{errorMessage && <p className="md:text-lg text-sm text-center font-medium text-error">{errorMessage}</p>}
 		</div>
 	)
 }

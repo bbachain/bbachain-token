@@ -1,63 +1,136 @@
+'use client'
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { PoolListColumns, type PoolListProps } from '@/features/liquidityPool/components/Columns'
+import CreatePoolForm from '@/features/liquidityPool/components/CreatePoolForm'
 import { DataTable as PoolListTable } from '@/features/liquidityPool/components/DataTable'
 
 // this temporary static data
-const PoolStaticData: PoolListProps[] = [
+export const PoolStaticData: PoolListProps[] = [
 	{
 		id: '1',
 		name: 'BNB-USDT',
-		percentage: '0.01%',
-		fromIcon: '/bnb-swap-icon.svg',
-		toIcon: '/bba-swap-icon.svg',
+		swapFee: '0.01%',
+		fromToken: {
+			address: 'abcd',
+			name: 'Binance Coin',
+			symbol: 'BNB',
+			icon: '/bnb-swap-icon.svg',
+			balance: 2.8989,
+			currentPool: 6369541
+		},
+		toToken: {
+			address: 'efgh',
+			name: 'BBA Coin',
+			symbol: 'BBA',
+			icon: '/bba-swap-icon.svg',
+			balance: 3.9899,
+			currentPool: 44369541
+		},
 		liquidity: '$2,354,547',
-		volume: '$25,207,396',
-		fees: '$63,018',
-		apr: '75%'
+		volume24h: '$25,207,396',
+		fees24h: '$63,018',
+		apr24h: '75%'
 	},
 	{
 		id: '2',
 		name: 'BBA-USDT',
-		percentage: '0.01%',
-		fromIcon: '/bnb-swap-icon.svg',
-		toIcon: '/bba-swap-icon.svg',
+		swapFee: '0.01%',
+		fromToken: {
+			address: 'abcd',
+			name: 'Binance Coin',
+			symbol: 'BNB',
+			icon: '/bnb-swap-icon.svg',
+			balance: 2.8989,
+			currentPool: 6369541
+		},
+		toToken: {
+			address: 'efgh',
+			name: 'BBA Coin',
+			symbol: 'BBA',
+			icon: '/bba-swap-icon.svg',
+			balance: 3.9899,
+			currentPool: 44369541
+		},
 		liquidity: '$2,354,547',
-		volume: '$25,207,396',
-		fees: '$63,018',
-		apr: '75%'
+		volume24h: '$25,207,396',
+		fees24h: '$63,018',
+		apr24h: '75%'
 	},
 	{
 		id: '3',
 		name: 'ETH-USDT',
-		percentage: '0.01%',
-		fromIcon: '/bnb-swap-icon.svg',
-		toIcon: '/bba-swap-icon.svg',
+		swapFee: '0.01%',
+		fromToken: {
+			address: 'abcd',
+			name: 'Binance Coin',
+			symbol: 'BNB',
+			icon: '/bnb-swap-icon.svg',
+			balance: 2.8989,
+			currentPool: 6369541
+		},
+		toToken: {
+			address: 'efgh',
+			name: 'BBA Coin',
+			symbol: 'BBA',
+			icon: '/bba-swap-icon.svg',
+			balance: 3.9899,
+			currentPool: 44369541
+		},
 		liquidity: '$2,354,547',
-		volume: '$25,207,396',
-		fees: '$63,018',
-		apr: '75%'
+		volume24h: '$25,207,396',
+		fees24h: '$63,018',
+		apr24h: '75%'
 	},
 	{
 		id: '4',
 		name: 'SOL-USDT',
-		percentage: '0.01%',
-		fromIcon: '/bnb-swap-icon.svg',
-		toIcon: '/bba-swap-icon.svg',
+		swapFee: '0.01%',
+		fromToken: {
+			address: 'abcd',
+			name: 'Binance Coin',
+			symbol: 'BNB',
+			icon: '/bnb-swap-icon.svg',
+			balance: 2.8989,
+			currentPool: 6369541
+		},
+		toToken: {
+			address: 'efgh',
+			name: 'BBA Coin',
+			symbol: 'BBA',
+			icon: '/bba-swap-icon.svg',
+			balance: 3.9899,
+			currentPool: 44369541
+		},
 		liquidity: '$2,354,547',
-		volume: '$25,207,396',
-		fees: '$63,018',
-		apr: '75%'
+		volume24h: '$25,207,396',
+		fees24h: '$63,018',
+		apr24h: '75%'
 	},
 	{
 		id: '5',
 		name: 'BNB-USDT',
-		percentage: '0.01%',
-		fromIcon: '/bnb-swap-icon.svg',
-		toIcon: '/bba-swap-icon.svg',
+		swapFee: '0.01%',
+		fromToken: {
+			address: 'abcd',
+			name: 'Binance Coin',
+			symbol: 'BNB',
+			icon: '/bnb-swap-icon.svg',
+			balance: 2.8989,
+			currentPool: 6369541
+		},
+		toToken: {
+			address: 'efgh',
+			name: 'BBA Coin',
+			symbol: 'BBA',
+			icon: '/bba-swap-icon.svg',
+			balance: 3.9899,
+			currentPool: 44369541
+		},
 		liquidity: '$2,354,547',
-		volume: '$25,207,396',
-		fees: '$63,018',
-		apr: '75%'
+		volume24h: '$25,207,396',
+		fees24h: '$63,018',
+		apr24h: '75%'
 	}
 ]
 
@@ -93,7 +166,7 @@ export default function LiquidityPools() {
 					<PoolListTable columns={PoolListColumns} data={PoolStaticData} />
 				</TabsContent>
 				<TabsContent value="create-pool">
-					<p className="text-center">On Development</p>
+					<CreatePoolForm />
 				</TabsContent>
 			</Tabs>
 		</div>

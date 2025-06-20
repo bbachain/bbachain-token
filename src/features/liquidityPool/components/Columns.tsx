@@ -5,46 +5,44 @@ import Image from 'next/image'
 
 import { Button } from '@/components/ui/button'
 
+import { TLPTokenProps } from '../types'
+
 export interface PoolListProps {
 	id: string
 	name: string
-	percentage: string // Still unsure what kind of data is this, will be updated once Chathura reply
-	fromIcon: string
-	toIcon: string
+	swapFee: string
+	fromToken: TLPTokenProps
+	toToken: TLPTokenProps
 	liquidity: string
-	volume: string
-	fees: string
-	apr: string
+	volume24h: string
+	fees24h: string
+	apr24h: string
 }
 
 export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 	{
 		accessorKey: 'name',
-		header: ({ column }) => (
-			<Button
-				variant="ghost"
-				className="p-0 ml-5 font-semibold text-sm text-main-black"
-				onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-			>
-				Pool
-				<ArrowUpDown className="ml-2 h-4 w-4" />
-			</Button>
-		),
+		header: () => <h4 className="font-semibold ml-5 text-sm text-main-black">Pool</h4>,
 		cell: ({ row }) => (
 			<div className="flex items-center md:w-full w-[200px] space-x-3">
 				<section className="flex space-x-0 relative items-center">
-					<Image src={row.original.fromIcon} width={38} height={38} alt={`${row.original.name} - from icon`} />
 					<Image
-						className="-translate-x-2"
-						src={row.original.toIcon}
+						src={row.original.fromToken.icon}
 						width={38}
 						height={38}
-						alt={`${row.original.name} - to icon`}
+						alt={`${row.original.fromToken.name} - from icon`}
+					/>
+					<Image
+						className="-translate-x-2"
+						src={row.original.toToken.icon}
+						width={38}
+						height={38}
+						alt={`${row.original.toToken.name} - to icon`}
 					/>
 				</section>
-				<section className="flex space-x-1 flex-col">
+				<section className="flex space-y-1 flex-col">
 					<h4 className="text-sm text-main-black">{row.original.name}</h4>
-					<p className="text-sm ml-0 text-light-grey">{row.original.percentage}</p>
+					<p className="text-sm text-light-grey">{row.original.swapFee}</p>
 				</section>
 			</div>
 		)
@@ -63,7 +61,7 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		)
 	},
 	{
-		accessorKey: 'volume',
+		accessorKey: 'volume24h',
 		header: ({ column }) => (
 			<Button
 				variant="ghost"
@@ -76,7 +74,7 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		)
 	},
 	{
-		accessorKey: 'fees',
+		accessorKey: 'fees24h',
 		header: ({ column }) => (
 			<Button
 				variant="ghost"
@@ -89,7 +87,7 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		)
 	},
 	{
-		accessorKey: 'apr',
+		accessorKey: 'apr24h',
 		header: ({ column }) => (
 			<Button
 				variant="ghost"

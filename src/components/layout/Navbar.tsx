@@ -166,8 +166,8 @@ export default function Navbar() {
 						alt="Quick Token Logo"
 					/>
 				</Link>
-				<NavigationMenu className="lg:flex hidden">
-					<NavigationMenuList className="lg:flex space-x-9 items-center hidden">
+				<NavigationMenu className="xl:flex hidden">
+					<NavigationMenuList className="xl:flex space-x-9 items-center hidden">
 						{NavMenu.map((nav) =>
 							nav.subMenu ? (
 								<NavigationMenuItem key={nav.name}>
@@ -208,13 +208,13 @@ export default function Navbar() {
 			) : (
 				<div className="flex items-center space-x-1.5 md:space-x-4 lg:space-x-9 ">
 					<CustomWalletButton />
-					<span className="lg:block hidden">
+					<span className="xl:block hidden">
 						<SelectCluster />
 					</span>
-					<span className="lg:hidden block">
+					<span className="xl:hidden block">
 						<MobileMenuDrawer />
 					</span>
-					<span className="lg:block hidden">
+					<span className="xl:block hidden">
 						<ThemeToggle />
 					</span>
 				</div>

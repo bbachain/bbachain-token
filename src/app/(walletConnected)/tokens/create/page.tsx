@@ -180,7 +180,15 @@ export default function CreateToken() {
 		if (supply > LIMIT_OF_SIXTH_DECIMALS) form.setValue('decimals', '6')
 	}, [form, watchTokenSupply])
 
-	if (getBalanceQuery.isLoading || createTokenMutation.isPending)
+	if (getBalanceQuery.isLoading)
+		return (
+			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
+				<Loader2 className="animate-spin" width={40} height={40} />
+				<p>Please wait...</p>
+			</div>
+		)
+
+	if (createTokenMutation.isPending)
 		return (
 			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
 				<Loader2 className="animate-spin" width={40} height={40} />
@@ -199,7 +207,7 @@ export default function CreateToken() {
 				<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
-				<div className="w-full max-w-5xl mx-auto relative">
+				<div className="w-full mt-8 max-w-5xl mx-auto relative">
 					<FormProgressLine steps={createTokenSteps} currentStep={currentStep} />
 				</div>
 				{currentStep === 0 && (

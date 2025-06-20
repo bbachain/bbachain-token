@@ -36,6 +36,7 @@ body {
 		--box: 0 0% 91%;
 		--box-2: 0 0% 85%;
 		--light-box: 0 0% 91%;
+		--error: 0 93% 52%;
 		--card: 0 0% 100%;
 		--card-foreground: 0 0% 3.9%;
 		--popover: 0 0% 100%;
@@ -74,6 +75,7 @@ body {
 		--box: 0 0% 20%;
 		--box-2: 0 0% 17%;
 		--light-box: 0 0% 91%;
+		--error: 0 93% 52%;
 		--card: 0 0% 3.9%;
 		--card-foreground: 0 0% 98%;
 		--popover: 0 0% 3.9%;
