@@ -17,8 +17,7 @@ import TokenFarmItem from '@/features/liquidityPool/components/TokenFarmItem'
 import { TTokenFarmProps } from '@/features/liquidityPool/types'
 import SwapItem from '@/features/swap/components/SwapItem'
 import { TTokenProps } from '@/features/swap/types'
-
-import { PoolStaticData } from '../../page'
+import { PoolStaticData } from '@/staticData/poolList'
 
 const initialTokeProps: TTokenProps = {
 	address: '',
