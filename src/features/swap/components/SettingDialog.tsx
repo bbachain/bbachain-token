@@ -1,6 +1,6 @@
 'use client'
 
-import { Dispatch, SetStateAction } from 'react'
+import { type Dispatch, type SetStateAction, useState, useEffect } from 'react'
 import { AiOutlineQuestionCircle } from 'react-icons/ai'
 
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Dialog, DialogTitle, DialogContent, DialogHeader } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import REGEX from '@/constants/regex'
 import { cn } from '@/lib/utils'
 
 interface SettingDialogProps {
@@ -44,6 +45,22 @@ export default function SettingDialog(props: SettingDialogProps) {
 		setIsExpertModeOpen
 	} = props
 
+	const [customSlippageValue, setCustomSlippageValue] = useState<string>('')
+	const isInvalidCustomSlippage =
+		customSlippageValue !== '' && !REGEX.ZERO_POINT_ZERO_FIVE_TO_FIFTY_RANGE.test(customSlippageValue)
+
+	useEffect(() => {
+		if (!slippageOptions.includes(maxSlippage)) {
+			setCustomSlippageValue(maxSlippage.replace('%', ''))
+		}
+	}, [maxSlippage])
+
+	useEffect(() => {
+		if (isInvalidCustomSlippage) {
+			setMaxSlippage(slippageOptions[0])
+		}
+	}, [isInvalidCustomSlippage, setMaxSlippage])
+
 	const onEnableExpertMode = () => {
 		if (!isExpertMode) return setIsExpertModeOpen(true)
 		setIsExpertMode(false)
@@ -70,12 +87,13 @@ export default function SettingDialog(props: SettingDialogProps) {
 								</TooltipContent>
 							</Tooltip>
 						</h4>
-						<section className="flex justify-between">
+						<section className="relative flex justify-between">
 							{slippageOptions.map((value, index) => (
 								<Button
 									key={index}
 									onClick={() => {
 										setMaxSlippage(value)
+										setCustomSlippageValue('')
 									}}
 									className={cn(
 										'w-[60px] h-[34px] hover:bg-accent text-main-black text-xs md:w-24 rounded-[10px] bg-box',
@@ -92,26 +110,31 @@ export default function SettingDialog(props: SettingDialogProps) {
 								)}
 							>
 								<Input
-									className="w-full max-w-[45px] text-main-black !p-0 h-full remove-arrow-input !text-xs border-0 outline-none focus-visible:ring-0"
+									className="w-full text-center max-w-[45px] text-main-black !p-0 h-full remove-arrow-input !text-xs border-0 outline-none focus-visible:ring-0"
 									type="number"
 									placeholder="Custom"
-									value={!slippageOptions.includes(maxSlippage) ? maxSlippage.replace('%', '') : ''}
+									value={customSlippageValue}
 									onChange={(e) => {
 										const raw = e.target.value
+										setCustomSlippageValue(raw)
 										if (raw === '') {
+											// fallback on empty input
 											setMaxSlippage(slippageOptions[0])
 										} else {
 											setMaxSlippage(raw + '%')
 										}
 									}}
-									onBlur={(e) => {
-										if (e.target.value.trim() === '') {
+									onBlur={() => {
+										if (customSlippageValue.trim() === '') {
 											setMaxSlippage(slippageOptions[0])
 										}
 									}}
 								/>
 								<p className="text-main-black text-xs">%</p>
 							</div>
+							{isInvalidCustomSlippage && (
+								<p className="text-xs text-error absolute top-10 left-0">Slippage must be between 0.05% and 50%</p>
+							)}
 						</section>
 					</div>
 					<div className="py-1 flex justify-between items-center">

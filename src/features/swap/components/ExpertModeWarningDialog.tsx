@@ -43,7 +43,7 @@ export default function ExpertModeWarningDialog({ isOpen, setIsOpen, setIsExpert
 						</p>
 					</section>
 					<p className="text-main-black text-sm text-center">
-						Please type the word <span className="text-[#8A4200]">Confirm</span> below to enable expert Mode
+						Please type the word <span className="text-[#8A4200]">Confirm</span> below to enable expert Mode
 					</p>
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onConfirm)}>

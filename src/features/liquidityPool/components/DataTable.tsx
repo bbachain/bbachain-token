@@ -18,8 +18,9 @@ import { IoSearchOutline } from 'react-icons/io5'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { type TokenListProps } from '@/features/tokens/components/Columns'
 import { cn } from '@/lib/utils'
+
+import { PoolListProps } from './Columns'
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]
@@ -79,8 +80,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => {
-								const mintAddress = (row.original as TokenListProps).id
-
+								const id = (row.original as PoolListProps).id
 								return (
 									<TableRow
 										key={row.id}
@@ -95,12 +95,24 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 												{flexRender(cell.column.columnDef.cell, cell.getContext())}
 											</TableCell>
 										))}
-										<TableCell className="pr-5">
+										<TableCell className="pr-5 w-full flex justify-end space-x-2.5">
 											<Link
-												href={`/tokens/${mintAddress}`}
-												className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), '[&_svg]:size-5')}
+												href={``}
+												className={cn(
+													buttonVariants({ variant: 'outline' }),
+													'border-main-green flex-auto px-3 w-[49.5px] font-medium rounded-[13px] text-xs text-main-green'
+												)}
 											>
-												<IoIosArrowForward />
+												Swap
+											</Link>
+											<Link
+												href={`/liquidity-pools/deposit/${id}`}
+												className={cn(
+													buttonVariants({ variant: 'default' }),
+													'bg-main-green hover:bg-hover-green flex-auto px-3 w-[75px] font-medium rounded-[13px] text-xs text-main-white'
+												)}
+											>
+												Deposit
 											</Link>
 										</TableCell>
 									</TableRow>

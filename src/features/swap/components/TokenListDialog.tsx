@@ -107,7 +107,7 @@ export default function TokenListDialog({
 								<Loader2 className="animate-spin" />
 							</div>
 						)}
-						{filteredData.length === 0 && <p className="text-center text-sm">No data found</p>}
+						{!isDataLoading && filteredData.length === 0 && <p className="text-center text-sm">No data found</p>}
 						{filteredData.length > 0 &&
 							filteredData.map((token) => (
 								<DialogClose key={token.address} asChild>

@@ -17,7 +17,7 @@ type FormProgressLineProps = {
 
 export default function FormProgressLine({ steps, currentStep }: FormProgressLineProps) {
 	return (
-		<ol className="flex items-start justify-between w-full max-w-6xl mx-auto mt-8">
+		<ol className="flex items-start justify-between w-full max-w-6xl mx-auto">
 			{steps.map((step, index) => {
 				const isCompleted = index < currentStep
 				const isActive = index === currentStep

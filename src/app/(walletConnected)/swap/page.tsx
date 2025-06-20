@@ -6,6 +6,7 @@ import { IoMdSettings } from 'react-icons/io'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import REGEX from '@/constants/regex'
 import ExpertModeWarningDialog from '@/features/swap/components/ExpertModeWarningDialog'
 import SettingDialog from '@/features/swap/components/SettingDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
@@ -13,6 +14,7 @@ import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import { TTokenProps } from '@/features/swap/types'
 import { useGetTokens } from '@/features/tokens/services'
 import { TGetTokenDataResponse } from '@/features/tokens/types'
+import { cn } from '@/lib/utils'
 
 const initialFromTokenProps: TTokenProps = {
 	address: 'abcd',
@@ -60,6 +62,10 @@ export default function Swap() {
 	const [isSettingDialogOpen, setIsSettingDialogOpen] = useState<boolean>(false)
 	const [isExpertModeDialogOpen, setIsExpertModeDialogOpen] = useState<boolean>(false)
 	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
+
+	const isBalanceNotEnough = Number(fromAmount) > fromTokenProps.balance
+	const isAmountPositive = REGEX.POSITIVE_NUMBER.test(fromAmount) && REGEX.POSITIVE_NUMBER.test(toAmount)
+	const isValid = !isBalanceNotEnough && isAmountPositive
 
 	const onSelectTokenFrom = () => {
 		setTypeItem('from')
@@ -144,8 +150,12 @@ export default function Swap() {
 				</CardContent>
 				<CardFooter className="pt-[18px] !px-0 !pb-0">
 					<Button
+						disabled={!isValid}
 						type="button"
-						className="rounded-[48px] md:h-[55px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green"
+						className={cn(
+							'rounded-[48px] md:h-[55px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green',
+							!isValid && 'hover:cursor-not-allowed'
+						)}
 					>
 						Swap
 					</Button>

@@ -70,6 +70,7 @@ const config: Config = {
 					grey: 'hsl(var(--secondary-light-grey))',
 					green: 'hsl(var(--secondary-light-green))'
 				},
+				error: 'hsl(var(--error))',
 				strokes: 'hsl(var(--secondary-strokes))',
 				'hover-green': 'hsl(var(--secondary-hover-green))',
 				'dark-grey': 'hsl(var(--secondary-dark-grey))'
