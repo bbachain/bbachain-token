@@ -14,35 +14,48 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import LPSlippageDialog from '@/features/liquidityPool/components/LPSlippageDialog'
 import SelectTokenFarm from '@/features/liquidityPool/components/SelectTokenFarm'
 import TokenFarmItem from '@/features/liquidityPool/components/TokenFarmItem'
+import { useGetPoolById } from '@/features/liquidityPool/services'
 import { TTokenFarmProps } from '@/features/liquidityPool/types'
 import SwapItem from '@/features/swap/components/SwapItem'
+import { useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
-import { PoolStaticData } from '@/staticData/poolList'
 
 const initialTokeProps: TTokenProps = {
+	chainId: 101,
 	address: '',
+	programId: '',
 	name: '',
 	symbol: '',
-	icon: '',
-	balance: 0
+	logoURI: '',
+	decimals: 0,
+	tags: [],
+	extensions: {}
 }
 
 const tokenFarmData: TTokenFarmProps[] = [
 	{
 		id: '1',
 		fromToken: {
+			chainId: 101,
 			address: 'abcd',
+			programId: 'abcd',
 			name: 'Binance Coin',
 			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989
+			logoURI: '/bnb-swap-icon.svg',
+			decimals: 6,
+			tags: [],
+			extensions: {}
 		},
 		toToken: {
+			chainId: 101,
 			address: 'efgh',
+			programId: 'abcd',
 			name: 'BBA Coin',
 			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899
+			logoURI: '/bba-swap-icon.svg',
+			decimals: 6,
+			tags: [],
+			extensions: {}
 		},
 		tvl: '$1,435.34',
 		apr: '0%'
@@ -50,18 +63,26 @@ const tokenFarmData: TTokenFarmProps[] = [
 	{
 		id: '2',
 		fromToken: {
+			chainId: 101,
 			address: 'abcd',
-			name: 'Ethereum',
-			symbol: 'ETH',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989
+			programId: 'abcd',
+			name: 'Binance Coin',
+			symbol: 'BNB',
+			logoURI: '/bnb-swap-icon.svg',
+			decimals: 6,
+			tags: [],
+			extensions: {}
 		},
 		toToken: {
+			chainId: 101,
 			address: 'efgh',
+			programId: 'abcd',
 			name: 'BBA Coin',
 			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899
+			logoURI: '/bba-swap-icon.svg',
+			decimals: 6,
+			tags: [],
+			extensions: {}
 		},
 		tvl: '$2,547.00',
 		apr: '0.25%'
@@ -69,18 +90,26 @@ const tokenFarmData: TTokenFarmProps[] = [
 	{
 		id: '3',
 		fromToken: {
+			chainId: 101,
 			address: 'abcd',
+			programId: 'abcd',
 			name: 'Binance Coin',
 			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989
+			logoURI: '/bnb-swap-icon.svg',
+			decimals: 6,
+			tags: [],
+			extensions: {}
 		},
 		toToken: {
+			chainId: 101,
 			address: 'efgh',
+			programId: 'abcd',
 			name: 'BBA Coin',
 			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899
+			logoURI: '/bba-swap-icon.svg',
+			decimals: 6,
+			tags: [],
+			extensions: {}
 		},
 		tvl: '$11,400.50',
 		apr: '0.69%'
@@ -91,7 +120,8 @@ const farmAmountOptions = [25, 50, 75, 100] as const
 
 export default function LiquidityPoolDeposit({ params }: { params: { poolId: string } }) {
 	const poolId = params.poolId
-	const poolDetail = PoolStaticData.find((data) => data.id === poolId)
+	const getPoolByIdQuery = useGetPoolById({ poolId })
+	const poolDetailData = getPoolByIdQuery.data?.data
 	const router = useRouter()
 
 	const [fromAmount, setFromAmount] = useState<string>('')
@@ -99,10 +129,23 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 	const [farmAmount, setFarmAmount] = useState<string>('')
 	const [farmAmountPercentage, setFarmAmountPercentage] = useState<number>(0)
 	const [selectedFarmTokenId, setSelectedFarmTokenId] = useState<string>(tokenFarmData[0].id)
-	const [slippage, setSlippage] = useState<string>('1%')
+	const [slippage, setSlippage] = useState<number>(1)
 	const [isSlippageDialogOpen, setIsSlippageDialogOpen] = useState<boolean>(false)
 
 	const selectedFarmToken = tokenFarmData.find((t) => t.id === selectedFarmTokenId)
+
+	const getMintABalance = useGetUserBalanceByMint({ mintAddress: poolDetailData?.mintA.address ?? '' })
+	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: poolDetailData?.mintB.address ?? '' })
+	const getMintATokenPrice = useGetTokenPrice({ mintAddress: poolDetailData?.mintA.address ?? '' })
+	const getMintBTokenPrice = useGetTokenPrice({ mintAddress: poolDetailData?.mintB.address ?? '' })
+
+	const mintABalance = getMintABalance.data ? getMintABalance.data.balance : 0
+	const mintBBalance = getMintBBalance.data ? getMintBBalance.data.balance : 0
+	const mintAInitialPrice = getMintATokenPrice.data ? getMintATokenPrice.data.usdRate : 0
+	const mintBInitialPrice = getMintBTokenPrice.data ? getMintBTokenPrice.data.usdRate : 0
+
+	const baseTokenPrice = Number(fromAmount) > 0 ? Number(fromAmount) * mintAInitialPrice : 0
+	const quoteTokenPrice = Number(toAmount) > 0 ? Number(toAmount) * mintBInitialPrice : 0
 
 	return (
 		<div className="w-full px-[15px]">
@@ -137,14 +180,18 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 									<SwapItem
 										noTitle
 										type="from"
-										tokenProps={poolDetail?.fromToken ?? initialTokeProps}
+										tokenProps={poolDetailData?.mintA ?? initialTokeProps}
+										balance={mintABalance}
+										price={baseTokenPrice}
 										inputAmount={fromAmount}
 										setInputAmount={setFromAmount}
 									/>
 									<SwapItem
 										noTitle
 										type="to"
-										tokenProps={poolDetail?.toToken ?? initialTokeProps}
+										tokenProps={poolDetailData?.mintB ?? initialTokeProps}
+										balance={mintBBalance}
+										price={quoteTokenPrice}
 										inputAmount={toAmount}
 										setInputAmount={setToAmount}
 									/>
@@ -263,46 +310,61 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						<CardContent className="p-0 flex flex-col space-y-[18px]">
 							<div className="flex justify-between items-center">
 								<h4 className="text-sm text-dark-grey">Total APR 7D</h4>
-								<p className="text-lg font-bold text-main-black">20.05%</p>
+								<p className="text-lg font-bold text-main-black">{poolDetailData?.week.apr.toFixed(2)}%</p>
 							</div>
 							<div className="flex flex-col space-y-3">
 								<div className="flex justify-between items-center text-sm text-dark-grey">
 									<h4>Fees</h4>
-									<p>{poolDetail?.swapFee}</p>
+									<p>{poolDetailData?.week.feeApr}%</p>
 								</div>
-								<div className="flex justify-between items-center text-sm text-dark-grey">
-									<h4>Rewards</h4>
-									<p>8.19%</p>
-								</div>
+								{poolDetailData?.week &&
+									poolDetailData?.week.rewardApr.length > 0 &&
+									poolDetailData.week.rewardApr.map((value, index) => (
+										<div key={index} className="flex justify-between items-center text-sm text-dark-grey">
+											<section className="flex items-center space-x-[3px]">
+												<h4>Rewards</h4>
+												<Image
+													className="rounded-full"
+													src={poolDetailData.rewardDefaultInfos[index].mint.logoURI ?? ''}
+													width={11}
+													height={11}
+													alt={`${poolDetailData.rewardDefaultInfos[index].mint.name} - icon`}
+												/>
+											</section>
+											<p>{value.toFixed(2)}%</p>
+										</div>
+									))}
 							</div>
 							<div className="flex flex-col space-y-3">
 								<div className="flex justify-between items-center text-sm text-main-black">
 									<h4>Pool Liquidity</h4>
-									<p>{poolDetail?.liquidity}</p>
+									<p>${poolDetailData?.tvl.toLocaleString()}</p>
 								</div>
 								<div className="flex justify-between items-center text-sm text-dark-grey">
 									<section className="flex items-center space-x-[3px]">
-										<h4>Pooled {poolDetail?.fromToken.symbol}</h4>
+										<h4>Pooled {poolDetailData?.mintA.symbol}</h4>
 										<Image
-											src={poolDetail?.fromToken.icon ?? ''}
+											className="rounded-full"
+											src={poolDetailData?.mintA.logoURI ?? ''}
 											width={11}
 											height={11}
-											alt={`${poolDetail?.fromToken.name} - icon`}
+											alt={`${poolDetailData?.mintA.symbol} - icon`}
 										/>
 									</section>
-									<p>{poolDetail?.fromToken.currentPool.toLocaleString()}</p>
+									<p>{poolDetailData?.mintAmountA.toLocaleString()}</p>
 								</div>
 								<div className="flex justify-between items-center text-sm text-dark-grey">
 									<section className="flex items-center space-x-[3px]">
-										<h4 className="text-sm text-dark-grey">Pooled {poolDetail?.toToken.symbol}</h4>
+										<h4>Pooled {poolDetailData?.mintB.symbol}</h4>
 										<Image
-											src={poolDetail?.toToken.icon ?? ''}
+											className="rounded-full"
+											src={poolDetailData?.mintB.logoURI ?? ''}
 											width={11}
 											height={11}
-											alt={`${poolDetail?.toToken.name} - icon`}
+											alt={`${poolDetailData?.mintB.symbol} - icon`}
 										/>
 									</section>
-									<p>{poolDetail?.toToken.currentPool.toLocaleString()}</p>
+									<p>{poolDetailData?.mintAmountB.toLocaleString()}</p>
 								</div>
 							</div>
 						</CardContent>

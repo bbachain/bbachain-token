@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ChevronDown } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { FaPlus } from 'react-icons/fa6'
 import { PiPencilLight } from 'react-icons/pi'
@@ -17,10 +17,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
+import { useGetSwappableTokens, useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
 import FormProgressLine from '@/features/tokens/components/form/FormProgressLine'
-import { useGetTokens } from '@/features/tokens/services'
-import { TGetTokenDataResponse } from '@/features/tokens/types'
 import { cn } from '@/lib/utils'
 
 import { TCreatePoolPayload } from '../types'
@@ -47,21 +46,6 @@ const feeTierOptions = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.16, 0.18, 0.2
 
 type FieldName = keyof TCreatePoolPayload
 
-const selectTokenListMapper = (data: TGetTokenDataResponse[]): TTokenProps[] => {
-	return data.map((token) => {
-		const fallback = `${token.mintAddress.slice(0, 6)}...`
-		const { name, symbol, metadataOffChain } = token.metadata
-
-		return {
-			address: token.mintAddress,
-			name: name ?? fallback,
-			symbol: symbol ?? fallback,
-			icon: metadataOffChain.data.image ? metadataOffChain.data.image : '/icon-placeholder.svg',
-			balance: token.supply ?? 0
-		} satisfies TTokenProps
-	})
-}
-
 const tokenStaticData = [
 	{
 		address: 'efgh',
@@ -80,8 +64,8 @@ const tokenStaticData = [
 ]
 
 export default function CreatePoolForm() {
-	const getTokensQuery = useGetTokens()
-	const tokenListData = getTokensQuery.data ? selectTokenListMapper(getTokensQuery.data.data) : []
+	const getSwappableTokensQuery = useGetSwappableTokens()
+	const swappableTokenData = getSwappableTokensQuery.data ? getSwappableTokensQuery.data.data : []
 
 	const form = useForm<TCreatePoolPayload>({
 		mode: 'all',
@@ -89,6 +73,8 @@ export default function CreatePoolForm() {
 		defaultValues: {
 			baseToken: undefined,
 			quoteToken: undefined,
+			baseTokenBalance: 0,
+			quoteTokenBalance: 0,
 			feeTier: feeTierOptions[0].toString(),
 			priceSetting: 'wbnb',
 			rangeType: 'full-range',
@@ -102,6 +88,37 @@ export default function CreatePoolForm() {
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
 	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
 	const exchangeRate = form.watch('priceSetting') === 'wbnb' ? 'WBNB per USDT' : 'USDT per WBNB'
+
+	const getMintABalance = useGetUserBalanceByMint({
+		mintAddress: form.getValues('baseToken') ? form.getValues('baseToken').address : ''
+	})
+	const getMintBBalance = useGetUserBalanceByMint({
+		mintAddress: form.getValues('quoteToken') ? form.getValues('quoteToken').address : ''
+	})
+	const getMintATokenPrice = useGetTokenPrice({
+		mintAddress: form.getValues('baseToken') ? form.getValues('baseToken').address : ''
+	})
+	const getMintBTokenPrice = useGetTokenPrice({
+		mintAddress: form.getValues('quoteToken') ? form.getValues('quoteToken').address : ''
+	})
+
+	const mintABalance = getMintABalance.data ? getMintABalance.data.balance : 0
+	const mintBBalance = getMintBBalance.data ? getMintBBalance.data.balance : 0
+	const mintAInitialPrice = getMintATokenPrice.data ? getMintATokenPrice.data.usdRate : 0
+	const mintBInitialPrice = getMintBTokenPrice.data ? getMintBTokenPrice.data.usdRate : 0
+
+	const baseTokenPrice =
+		Number(form.getValues('baseTokenAmount')) > 0 ? Number(form.getValues('baseTokenAmount')) * mintAInitialPrice : 0
+	const quoteTokenPrice =
+		Number(form.getValues('quoteTokenAmount')) > 0 ? Number(form.getValues('quoteTokenAmount')) * mintBInitialPrice : 0
+
+	useEffect(() => {
+		form.setValue('baseTokenBalance', mintABalance)
+	}, [form, mintABalance])
+
+	useEffect(() => {
+		form.setValue('quoteTokenBalance', mintBBalance)
+	}, [form, mintBBalance])
 
 	const onNext = async () => {
 		const fields = createPoolSteps[currentStep].fields
@@ -164,7 +181,12 @@ export default function CreatePoolForm() {
 										<section>
 											{form.getValues('baseToken') ? (
 												<div className="flex space-x-2 items-center">
-													<Image width={20} height={20} src={form.getValues('baseToken').icon} alt="base token icon" />
+													<Image
+														width={20}
+														height={20}
+														src={form.getValues('baseToken').logoURI}
+														alt="base token icon"
+													/>
 													<p>{form.getValues('baseToken').symbol}</p>
 												</div>
 											) : (
@@ -189,7 +211,7 @@ export default function CreatePoolForm() {
 													<Image
 														width={20}
 														height={20}
-														src={form.getValues('quoteToken').icon}
+														src={form.getValues('quoteToken').logoURI}
 														alt="quote token icon"
 													/>
 													<p>{form.getValues('quoteToken').symbol}</p>
@@ -420,6 +442,8 @@ export default function CreatePoolForm() {
 											noTitle
 											type="from"
 											tokenProps={form.getValues('baseToken')}
+											price={baseTokenPrice}
+											balance={mintABalance}
 											inputAmount={form.getValues('baseTokenAmount')}
 											setInputAmount={onInputBaseTokenAmount}
 										/>
@@ -427,6 +451,8 @@ export default function CreatePoolForm() {
 											noTitle
 											type="to"
 											tokenProps={form.getValues('quoteToken')}
+											price={quoteTokenPrice}
+											balance={mintBBalance}
 											inputAmount={form.getValues('quoteTokenAmount')}
 											setInputAmount={onInputQuoteTokenAmount}
 										/>
@@ -451,12 +477,17 @@ export default function CreatePoolForm() {
 										<p className="text-dark-grey">Deposit Ratio</p>
 										<div className="flex space-x-[5px] items-center">
 											<section className="flex space-x-[5px] items-center">
-												<Image src={form.getValues('baseToken').icon} width={13} height={13} alt="base token icon" />
+												<Image src={form.getValues('baseToken').logoURI} width={13} height={13} alt="base token icon" />
 												<p className="text-xs text-main-black font-normal">0%</p>
 											</section>
 											<span className="text-xs text-main-black font-normal">/</span>
 											<section className="flex space-x-[5px] items-center">
-												<Image src={form.getValues('quoteToken').icon} width={13} height={13} alt="quote token icon" />
+												<Image
+													src={form.getValues('quoteToken').logoURI}
+													width={13}
+													height={13}
+													alt="quote token icon"
+												/>
 												<p className="text-xs text-main-black font-normal">0%</p>
 											</section>
 										</div>
@@ -476,8 +507,8 @@ export default function CreatePoolForm() {
 					</div>
 				)}
 				<TokenListDialog
-					data={tokenListData}
-					isDataLoading={getTokensQuery.isLoading}
+					data={swappableTokenData}
+					isDataLoading={getSwappableTokensQuery.isLoading}
 					isOpen={isTokenDialogOpen}
 					setIsOpen={setIsTokenDialogOpen}
 					type={typeItem}

@@ -27,6 +27,20 @@ interface DataTableProps<TData, TValue> {
 	data: TData[]
 }
 
+function customGlobalFilterFn<T extends PoolListProps>(row: any, columnId: string, filterValue: string) {
+	const { mintA, mintB } = row.original as PoolListProps
+	const search = filterValue.toLowerCase()
+
+	return (
+		mintA.name.toLowerCase().includes(search) ||
+		mintB.name.toLowerCase().includes(search) ||
+		mintA.symbol.toLowerCase().includes(search) ||
+		mintB.symbol.toLowerCase().includes(search) ||
+		mintA.address.includes(search) ||
+		mintB.address.includes(search)
+	)
+}
+
 export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
 	const [globalFilter, setGlobalFilter] = useState<string>('')
 	const [sorting, setSorting] = useState<SortingState>([])
@@ -40,6 +54,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
+		globalFilterFn: customGlobalFilterFn,
 		state: {
 			sorting,
 			globalFilter

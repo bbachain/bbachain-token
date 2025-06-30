@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 import { IoMdSettings } from 'react-icons/io'
@@ -11,61 +12,103 @@ import ExpertModeWarningDialog from '@/features/swap/components/ExpertModeWarnin
 import SettingDialog from '@/features/swap/components/SettingDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
+import {
+	useGetSwappableTokens,
+	useGetSwapTransactionByMint,
+	useGetTokenPrice,
+	useGetUserBalanceByMint
+} from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
-import { useGetTokens } from '@/features/tokens/services'
-import { TGetTokenDataResponse } from '@/features/tokens/types'
 import { cn } from '@/lib/utils'
 
-const initialFromTokenProps: TTokenProps = {
-	address: 'abcd',
-	name: 'Binance Coin',
-	symbol: 'BNB',
-	icon: '/bnb-swap-icon.svg',
-	balance: 2.8989
+const initialBaseTokenProps: TTokenProps = {
+	chainId: 101,
+	address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+	programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+	logoURI: 'https://img-v1.raydium.io/icon/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB.png',
+	symbol: 'USDT',
+	name: 'USDT',
+	decimals: 6,
+	tags: ['hasFreeze'],
+	extensions: {}
 }
 
-const initialToTokenProps: TTokenProps = {
-	address: 'efgh',
-	name: 'BBA Coin',
-	symbol: 'BBA',
-	icon: '/bba-swap-icon.svg',
-	balance: 3.9899
-}
-
-const swapTokenListMapper = (data: TGetTokenDataResponse[]): TTokenProps[] => {
-	return data.map((token) => {
-		const fallback = `${token.mintAddress.slice(0, 6)}...`
-		const { name, symbol, metadataOffChain } = token.metadata
-
-		return {
-			address: token.mintAddress,
-			name: name ?? fallback,
-			symbol: symbol ?? fallback,
-			icon: metadataOffChain.data.image ? metadataOffChain.data.image : '/icon-placeholder.svg',
-			balance: token.supply ?? 0
-		} satisfies TTokenProps
-	})
+const initialQuoteTokenProps: TTokenProps = {
+	chainId: 101,
+	address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+	programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+	logoURI: 'https://img-v1.raydium.io/icon/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v.png',
+	symbol: 'USDC',
+	name: 'USD Coin',
+	decimals: 6,
+	tags: ['hasFreeze'],
+	extensions: {}
 }
 
 export default function Swap() {
-	const getTokensQuery = useGetTokens()
-	const tokenListData = getTokensQuery.data ? swapTokenListMapper(getTokensQuery.data.data) : []
+	const getSwappableTokensQuery = useGetSwappableTokens()
+	const swappableTokenListData = getSwappableTokensQuery.data ? getSwappableTokensQuery.data.data : []
 
-	const [fromAmount, setFromAmount] = useState<string>('')
-	const [toAmount, setToAmount] = useState<string>('')
-	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialFromTokenProps)
-	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialToTokenProps)
+	const [amountIn, setAmountIn] = useState<string>('')
+	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseTokenProps)
+	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteTokenProps)
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
-	const [maxSlippage, setMaxSlippage] = useState<string>('0.05%')
+	const [maxSlippage, setMaxSlippage] = useState<number>(0.05)
 	const [timeLimit, setTimeLimit] = useState<string>('0')
 	const [isExpertMode, setIsExpertMode] = useState<boolean>(false)
 	const [isSettingDialogOpen, setIsSettingDialogOpen] = useState<boolean>(false)
 	const [isExpertModeDialogOpen, setIsExpertModeDialogOpen] = useState<boolean>(false)
 	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
 
-	const isBalanceNotEnough = Number(fromAmount) > fromTokenProps.balance
-	const isAmountPositive = REGEX.POSITIVE_NUMBER.test(fromAmount) && REGEX.POSITIVE_NUMBER.test(toAmount)
-	const isValid = !isBalanceNotEnough && isAmountPositive
+	const swapType = typeItem === 'from' ? 'BaseIn' : 'BaseOut'
+	const inputMint = fromTokenProps.address
+	const outputMint = toTokenProps.address
+	const decimals = swapType === 'BaseIn' ? fromTokenProps.decimals : fromTokenProps.decimals
+
+	const getSwapTransactionQuery = useGetSwapTransactionByMint({
+		swapType,
+		inputMint,
+		outputMint,
+		amount: amountIn,
+		decimals,
+		slippage: maxSlippage
+	})
+	const computeSwapResult = getSwapTransactionQuery.data?.data
+
+	const inputAmount =
+		computeSwapResult && fromTokenProps
+			? Number(computeSwapResult.inputAmount) / 10 ** fromTokenProps.decimals
+			: computeSwapResult?.inputAmount || ''
+	const outputAmount =
+		computeSwapResult && toTokenProps
+			? Number(computeSwapResult.outputAmount) / 10 ** toTokenProps.decimals
+			: computeSwapResult?.outputAmount || ''
+	const exchangeRate =
+		(computeSwapResult &&
+			`1 ${fromTokenProps.symbol} = ${Number(outputAmount) / Number(inputAmount)} ${toTokenProps.symbol}`) ||
+		'-'
+	const minimumReceived = computeSwapResult
+		? Number(outputAmount) - Number(outputAmount) * maxSlippage + ' ' + toTokenProps.symbol
+		: '-'
+	const priceImpact = computeSwapResult ? computeSwapResult.priceImpactPct * 100 + '%' : '-'
+
+	const getMintABalance = useGetUserBalanceByMint({ mintAddress: fromTokenProps.address })
+	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: toTokenProps.address })
+	const getMintATokenPrice = useGetTokenPrice({ mintAddress: fromTokenProps.address })
+	const getMintBTokenPrice = useGetTokenPrice({ mintAddress: toTokenProps.address })
+
+	const mintABalance = getMintABalance.data ? getMintABalance.data.balance : 0
+	const mintBBalance = getMintBBalance.data ? getMintBBalance.data.balance : 0
+	const mintAInitialPrice = getMintATokenPrice.data ? getMintATokenPrice.data.usdRate : 0
+	const mintBInitialPrice = getMintBTokenPrice.data ? getMintBTokenPrice.data.usdRate : 0
+
+	const baseTokenPrice = Number(inputAmount) > 0 ? Number(inputAmount) * mintAInitialPrice : 0
+	const quoteTokenPrice = Number(outputAmount) > 0 ? Number(outputAmount) * mintBInitialPrice : 0
+
+	const isBaseTokenBalanceNotEnough = Number(inputAmount) > mintABalance
+	const isAmountPositive =
+		REGEX.POSITIVE_NUMBER.test(String(inputAmount)) && REGEX.POSITIVE_NUMBER.test(String(inputAmount))
+	const isValid = !isBaseTokenBalanceNotEnough && isAmountPositive
 
 	const onSelectTokenFrom = () => {
 		setTypeItem('from')
@@ -77,9 +120,19 @@ export default function Swap() {
 		setIsTokenDialogOpen(true)
 	}
 
+	const handleInputChange = (val: string) => {
+		setTypeItem('from')
+		setAmountIn(val)
+	}
+
+	const handleOutputChange = (val: string) => {
+		setTypeItem('to')
+		setAmountIn(val)
+	}
+
 	const onReverseSwap = () => {
-		setFromAmount('')
-		setFromAmount('')
+		handleInputChange('')
+		handleOutputChange('')
 		setFromTokenProps(toTokenProps)
 		setToTokenProps(fromTokenProps)
 	}
@@ -106,16 +159,20 @@ export default function Swap() {
 							<SwapItem
 								type="from"
 								tokenProps={fromTokenProps}
+								balance={mintABalance}
+								price={baseTokenPrice}
 								setTokenProps={onSelectTokenFrom}
-								inputAmount={fromAmount}
-								setInputAmount={setFromAmount}
+								inputAmount={swapType === 'BaseIn' ? amountIn : inputAmount.toString()}
+								setInputAmount={handleInputChange}
 							/>
 							<SwapItem
 								type="to"
 								tokenProps={toTokenProps}
+								balance={mintBBalance}
+								price={quoteTokenPrice}
 								setTokenProps={onSelectTokenTo}
-								inputAmount={toAmount}
-								setInputAmount={setToAmount}
+								inputAmount={swapType === 'BaseIn' ? outputAmount.toString() : amountIn}
+								setInputAmount={handleOutputChange}
 							/>
 						</div>
 						<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
@@ -131,39 +188,40 @@ export default function Swap() {
 						</div>
 					</section>
 					<p className="text-xs text-dark-grey">
-						Max slippage: <span className="text-main-black">{maxSlippage}</span>
+						Max slippage: <span className="text-main-black">{maxSlippage}%</span>
 					</p>
 					<div className="flex flex-col space-y-2.5 border-2 border-dark-grey rounded-[10px] p-2.5">
 						<section className="flex text-xs justify-between">
 							<p className="text-dark-grey">Rate</p>
-							<p className="text-main-black">1 ETH = 1000.000 USDT</p>
+							<p className="text-main-black">{exchangeRate}</p>
 						</section>
 						<section className="flex text-xs justify-between">
 							<p className="text-dark-grey">Minimum Received</p>
-							<p className="text-main-black">1000.000 USDT</p>
+							<p className="text-main-black">{minimumReceived}</p>
 						</section>
 						<section className="flex text-xs justify-between">
 							<p className="text-dark-grey">Price Impact</p>
-							<p className="text-main-black">0.11%</p>
+							<p className="text-main-black">{priceImpact}</p>
 						</section>
 					</div>
 				</CardContent>
 				<CardFooter className="pt-[18px] !px-0 !pb-0">
 					<Button
-						disabled={!isValid}
+						disabled={!isValid || getSwapTransactionQuery.isLoading}
 						type="button"
 						className={cn(
 							'rounded-[48px] md:h-[55px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green',
 							!isValid && 'hover:cursor-not-allowed'
 						)}
 					>
-						Swap
+						{getSwapTransactionQuery.isLoading && <Loader2 className="animate-spin" />}
+						{getSwapTransactionQuery.isLoading ? 'Computing' : 'Swap'}
 					</Button>
 				</CardFooter>
 			</Card>
 			<TokenListDialog
-				data={tokenListData}
-				isDataLoading={getTokensQuery.isLoading}
+				data={swappableTokenListData}
+				isDataLoading={getSwappableTokensQuery.isLoading}
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
 				type={typeItem}

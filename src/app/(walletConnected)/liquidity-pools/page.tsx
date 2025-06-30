@@ -4,9 +4,28 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { PoolListColumns, type PoolListProps } from '@/features/liquidityPool/components/Columns'
 import CreatePoolForm from '@/features/liquidityPool/components/CreatePoolForm'
 import { DataTable as PoolListTable } from '@/features/liquidityPool/components/DataTable'
-import { PoolStaticData } from '@/staticData/poolList'
+import { useGetPools } from '@/features/liquidityPool/services'
+import { PoolData } from '@/features/liquidityPool/types'
+
+const liquidityPoolsListMapper = (data: PoolData[]): PoolListProps[] => {
+	return data.map((pool) => {
+		return {
+			id: pool.id,
+			programId: pool.programId,
+			swapFee: pool.feeRate,
+			mintA: pool.mintA,
+			mintB: pool.mintB,
+			liquidity: pool.tvl,
+			volume24h: pool.day.volume,
+			fees24h: pool.day.volumeFee,
+			apr24h: pool.day.feeApr
+		}
+	})
+}
 
 export default function LiquidityPools() {
+	const getPoolsQuery = useGetPools()
+	const allPoolsData = getPoolsQuery.data ? liquidityPoolsListMapper(getPoolsQuery.data.data) : []
 	return (
 		<div className="xl:px-48 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
 			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">Liquidity Pools</h1>
@@ -32,10 +51,10 @@ export default function LiquidityPools() {
 					</TabsTrigger>
 				</TabsList>
 				<TabsContent value="all-pools">
-					<PoolListTable columns={PoolListColumns} data={PoolStaticData} />
+					<PoolListTable columns={PoolListColumns} data={allPoolsData} />
 				</TabsContent>
 				<TabsContent value="my-pools">
-					<PoolListTable columns={PoolListColumns} data={PoolStaticData} />
+					<PoolListTable columns={PoolListColumns} data={[]} />
 				</TabsContent>
 				<TabsContent value="create-pool">
 					<CreatePoolForm />

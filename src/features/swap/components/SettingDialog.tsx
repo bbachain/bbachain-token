@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils'
 interface SettingDialogProps {
 	isOpen: boolean
 	setIsOpen: Dispatch<SetStateAction<boolean>>
-	maxSlippage: string
-	setMaxSlippage: Dispatch<SetStateAction<string>>
+	maxSlippage: number
+	setMaxSlippage: Dispatch<SetStateAction<number>>
 	timeLimit: string
 	setTimeLimit: Dispatch<SetStateAction<string>>
 	isExpertMode: boolean
@@ -23,7 +23,7 @@ interface SettingDialogProps {
 	setIsExpertModeOpen: Dispatch<SetStateAction<boolean>>
 }
 
-const slippageOptions = ['0.05%', '0.1%', '0.5%']
+const slippageOptions = [0.05, 0.1, 0.5]
 
 const settingDialogTip = {
 	maxSlippageTip: 'Find a token by searching for its name or symbol or by pasting its address below.',
@@ -51,15 +51,16 @@ export default function SettingDialog(props: SettingDialogProps) {
 
 	useEffect(() => {
 		if (!slippageOptions.includes(maxSlippage)) {
-			setCustomSlippageValue(maxSlippage.replace('%', ''))
+			setCustomSlippageValue(maxSlippage.toString())
 		}
 	}, [maxSlippage])
 
 	useEffect(() => {
-		if (isInvalidCustomSlippage) {
+		if (!isOpen && isInvalidCustomSlippage) {
 			setMaxSlippage(slippageOptions[0])
+			setCustomSlippageValue('')
 		}
-	}, [isInvalidCustomSlippage, setMaxSlippage])
+	}, [isInvalidCustomSlippage, isOpen, setMaxSlippage])
 
 	const onEnableExpertMode = () => {
 		if (!isExpertMode) return setIsExpertModeOpen(true)
@@ -100,7 +101,7 @@ export default function SettingDialog(props: SettingDialogProps) {
 										value === maxSlippage && 'border-2 border-main-green'
 									)}
 								>
-									{value}
+									{value}%
 								</Button>
 							))}
 							<div
@@ -121,7 +122,7 @@ export default function SettingDialog(props: SettingDialogProps) {
 											// fallback on empty input
 											setMaxSlippage(slippageOptions[0])
 										} else {
-											setMaxSlippage(raw + '%')
+											setMaxSlippage(Number(raw))
 										}
 									}}
 									onBlur={() => {

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { IoIosArrowDown } from 'react-icons/io'
@@ -7,27 +8,37 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-import { TSwapItem } from '../types'
+import { TTokenProps } from '../types'
 
-interface SwapItemProps extends TSwapItem {
-	noTitle?: boolean
+interface SwapItemProps {
+	type: 'from' | 'to'
+	tokenProps: TTokenProps
+	inputAmount: string
+	balance: number
+	price: number
 	setInputAmount: (inputAmount: string) => void
 	setTokenProps?: () => void
+	noTitle?: boolean
+	disable?: boolean
 }
 
 export default function SwapItem({
 	type,
 	noTitle = false,
+	disable = false,
 	tokenProps,
-	setTokenProps,
 	inputAmount,
+	balance,
+	price,
+	setTokenProps,
 	setInputAmount
 }: SwapItemProps) {
-	const isBalanceNotEnough = Number(inputAmount) > tokenProps.balance
+	const isBalanceNotEnough = type === 'from' && Number(inputAmount) > balance
 	const isAmountPositive = Number(inputAmount) >= 0
 	const isInValid = isBalanceNotEnough || !isAmountPositive
 
-	const onMaxClick = () => setInputAmount(tokenProps.balance.toString())
+	const onMaxClick = () => setInputAmount(balance.toString())
+
 	return (
 		<div className="bg-box rounded-[10px] p-2.5 flex flex-col space-y-1.5">
 			{!noTitle && <h5 className="text-xs text-main-black">{capitalCase(type)}</h5>}
@@ -36,17 +47,28 @@ export default function SwapItem({
 					<Button
 						type="button"
 						onClick={setTokenProps}
-						className="flex bg-box-2 px-1.5 py-2.5 rounded-[8px] w-full max-w-28 hover:bg-accent justify-between items-center"
+						className="flex bg-box-2 px-1.5 py-2.5 rounded-[8px] w-auto max-w-36 hover:bg-accent justify-between items-center"
 					>
-						{/* eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element */}
-						<img src={tokenProps.icon} width={21} height={21} alt={tokenProps.name + ' icon'} />
+						<img
+							className="rounded-full"
+							src={tokenProps.logoURI}
+							width={21}
+							height={21}
+							alt={tokenProps.name + ' icon'}
+						/>
 						<h4 className="text-main-black !text-xs">{tokenProps.symbol}</h4>
 						<IoIosArrowDown className="text-light-grey" />
 					</Button>
 				) : (
 					<div className="flex space-x-2.5 items-center">
 						{/* eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element */}
-						<img src={tokenProps.icon} width={21} height={21} alt={tokenProps.name + ' icon'} />
+						<img
+							className="rounded-full"
+							src={tokenProps.logoURI}
+							width={21}
+							height={21}
+							alt={tokenProps.name + ' icon'}
+						/>
 						<h4 className="text-main-black !text-xs">{tokenProps.symbol}</h4>
 					</div>
 				)}
@@ -58,6 +80,7 @@ export default function SwapItem({
 						)}
 						placeholder="0.00"
 						min={0}
+						disabled={disable}
 						type="number"
 						value={inputAmount}
 						onChange={(e) => setInputAmount(e.target.value)}
@@ -82,9 +105,15 @@ export default function SwapItem({
 			</section>
 			<section className="w-full flex justify-between">
 				<p className="text-xs text-main-black">
-					Balance: {tokenProps.balance} {tokenProps.symbol}
+					Balance: {balance} {tokenProps.symbol}
 				</p>
-				<p className="text-dark-grey text-xs">≈$ 0.00</p>
+				<p className="text-dark-grey text-xs">
+					≈${' '}
+					{price.toLocaleString(undefined, {
+						minimumFractionDigits: 2,
+						maximumFractionDigits: 12
+					})}
+				</p>
 			</section>
 		</div>
 	)

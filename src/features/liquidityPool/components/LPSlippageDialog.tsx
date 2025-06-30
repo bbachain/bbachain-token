@@ -7,22 +7,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-const slippageOptions = ['1%', '2.5%', '3.5%']
+const slippageOptions = [1, 2.5, 3.5]
 
 interface LPSlippageDialog {
 	isOpen: boolean
 	setIsOpen: Dispatch<SetStateAction<boolean>>
-	maxSlippage: string
-	setMaxSlippage: Dispatch<SetStateAction<string>>
+	maxSlippage: number
+	setMaxSlippage: Dispatch<SetStateAction<number>>
 }
 
 export default function LPSlippageDialog({ isOpen, setIsOpen, maxSlippage, setMaxSlippage }: LPSlippageDialog) {
-	const [slippageValue, setSlippageValue] = useState<string>(maxSlippage)
+	const [slippageValue, setSlippageValue] = useState<number>(maxSlippage)
 	const [customValue, setCustomValue] = useState<string>('')
 
 	useEffect(() => {
 		if (!slippageOptions.includes(maxSlippage)) {
-			setCustomValue(maxSlippage.replace('%', ''))
+			setCustomValue(maxSlippage.toString())
 		}
 		setSlippageValue(maxSlippage)
 	}, [maxSlippage])
@@ -70,7 +70,7 @@ export default function LPSlippageDialog({ isOpen, setIsOpen, maxSlippage, setMa
 							onChange={(e) => {
 								const raw = e.target.value
 								setCustomValue(raw)
-								setSlippageValue(raw !== '' ? raw + '%' : '')
+								setSlippageValue(Number(raw))
 							}}
 							onBlur={() => {
 								if (customValue.trim() === '') {

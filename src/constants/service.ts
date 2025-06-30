@@ -30,11 +30,26 @@ const NFT_SERVICE_KEY = {
 	VALIDATE_METADATA_OFFCHAIN: 'validate-metadata-offchain'
 } as const
 
+const SWAP_SERVICE_KEY = {
+	GET_SWAPPABLE_TOKEN: 'get-swappable-token',
+	GET_TOKEN_PRICE: 'get-token-price',
+	GET_USER_BALANCE_BY_MINT: 'get-user-balance-by-mint',
+	GET_SWAP_TRANSACTION: 'get-swap-transaction'
+} as const
+
+const POOL_SERVICE_KEY = {
+	GET_POOLS: 'get-pools',
+	GET_POOL_BY_ID: 'get-pool-by-id',
+	GET_POOL_BY_MINT: 'get-pool-by-mint'
+} as const
+
 const SERVICES_KEY = {
 	GLOBAL: GLOBAL_SERVICE_KEY,
 	WALLET: WALLET_SERVICE_KEY,
 	TOKEN: TOKEN_SERVICE_KEY,
-	NFT: NFT_SERVICE_KEY
+	NFT: NFT_SERVICE_KEY,
+	SWAP: SWAP_SERVICE_KEY,
+	POOL: POOL_SERVICE_KEY
 } as const
 
 export default SERVICES_KEY
