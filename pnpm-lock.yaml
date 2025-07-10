@@ -18,17 +18,17 @@ importers:
         specifier: ^0.1.2
         version: 0.1.2(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       '@bbachain/wallet-adapter-base':
-        specifier: 0.1.4
-        version: 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        specifier: 0.1.8
+        version: 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/wallet-adapter-react':
-        specifier: 0.1.4
-        version: 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
+        specifier: 0.1.8
+        version: 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
       '@bbachain/wallet-adapter-react-ui':
-        specifier: 0.1.4
-        version: 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 0.1.8
+        version: 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@bbachain/wallet-adapter-wallets':
-        specifier: ^0.1.7
-        version: 0.1.7(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        specifier: ^0.1.8
+        version: 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/web3.js':
         specifier: 1.1.3
         version: 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
@@ -427,48 +427,48 @@ packages:
       '@bbachain/web3.js': ^1.1.3
       rpc-websockets: 7.11.0
 
-  '@bbachain/wallet-adapter-base-ui@0.1.4':
-    resolution: {integrity: sha512-9b+A33ZjTntEuOYh+F3jqrS37DBuNARCy5G6UZ1/orP//suWHsU4Vf+gnlecAeW27P41UoztH1+QJWWg1Zwi2Q==}
+  '@bbachain/wallet-adapter-base-ui@0.1.8':
+    resolution: {integrity: sha512-OdAe/zqV97/FSM9VqzG0+o3TNkRnRtvrK89l16q2ItYfJ50se7eOSK/tcRsJpIkp3FanB42rUWfFD9JXKJZTaA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
       react: '*'
 
-  '@bbachain/wallet-adapter-base@0.1.4':
-    resolution: {integrity: sha512-l1PENu5U7j6qmkdj35VIGe++G2vCDSanJBBeUNowQz+9TpqNUv2I02mE793X1bfCU3xloBVN95hijnZ8rRrynw==}
+  '@bbachain/wallet-adapter-base@0.1.8':
+    resolution: {integrity: sha512-mz548+mq9sn37WA/3h8pVL4K2puk0+t5DHvYiCC3SqBL8UHpdIf2iiW54lrKvJNnkz1txHxVjdxmWZfsIn/UKQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
 
-  '@bbachain/wallet-adapter-bbawallet@0.1.7':
-    resolution: {integrity: sha512-Og+2f6DBOG5wEJqKd84AWzt1pyqb6tLjxorftfvKYFUWcf5NuE5Iglw/cWywSuKmEC2a4dSBkQrS/tBqkfgkgg==}
+  '@bbachain/wallet-adapter-bbawallet@0.1.8':
+    resolution: {integrity: sha512-Jmgbn21Ob+lOU3OU3nFO55FoD86wq9Fhlr6SYQ3BIM2Xy0vyds/9OxImbrBKpXOiTq4CYogI8zxcoyGkdR9c9g==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
 
-  '@bbachain/wallet-adapter-react-ui@0.1.4':
-    resolution: {integrity: sha512-sYa2G65iexsSU151zjvJzoHmB0/V/8u4+jxV+hDroxgtPUWU3WZpO9MJV6HGwmOTDUJZSS1fVK3Mq0PbsBygxQ==}
+  '@bbachain/wallet-adapter-react-ui@0.1.8':
+    resolution: {integrity: sha512-wMB61O0f2EtSEQe4uZ88T6JbKLtXVEJXUbw28K5hX9FcYMnPHydLanji8tvU65SoGI3vuU+Jv7ioiGK0j507bA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
       react: '*'
       react-dom: '*'
 
-  '@bbachain/wallet-adapter-react@0.1.4':
-    resolution: {integrity: sha512-CDb4zqPm8jCwGVpPomWXkKcYgID2P4imPEpxyWmDriyW74xp4w4rxTAWGDRQMvlS4a4Tcv7AdBWQUlEypLioPA==}
+  '@bbachain/wallet-adapter-react@0.1.8':
+    resolution: {integrity: sha512-NhxvMz+wbUaSjaOI503bg9Yss+RXhM3OL1BVKA4l65QH2QySIbHA16bWaCd/5ARW0M+MJcJxaamOdDDBXhA73A==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
       react: '*'
 
-  '@bbachain/wallet-adapter-unsafe-burner@0.1.4':
-    resolution: {integrity: sha512-dxPGBbpJ/g48H3Av+oZ5pXVDr2i8IKl8EBR90G6zHC88HpmyZ1Ykk/rmNcC/1BoiRIsZdJzaMf84uGpebqD2pg==}
+  '@bbachain/wallet-adapter-unsafe-burner@0.1.8':
+    resolution: {integrity: sha512-PGUYFEuhyyKejl4hrchtsptvNVplgxdUzpNyE2uogHWAwpqoC7khO5gLaCm6uzdkmv/ahM1JIWPFHcFTiSaSOw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
 
-  '@bbachain/wallet-adapter-wallets@0.1.7':
-    resolution: {integrity: sha512-doksEroJ3HDzvK2DyipDPGfFl4aB+Q978bt27jgcU/WJLVWCnRjD/4s0pwNLvqmbKnjG/AkDYjKWEpntRe8Wnw==}
+  '@bbachain/wallet-adapter-wallets@0.1.8':
+    resolution: {integrity: sha512-QSa/wXdMbl12QTDGMH/ZDDpGYHkt7wzTHugTzXyAVafzVuqXysrBLecYlbWqhVxNTDD1fRpCAle6sX1s9F6t2w==}
     engines: {node: '>=18'}
     peerDependencies:
       '@bbachain/web3.js': ^1.1.3
@@ -1791,16 +1791,8 @@ packages:
     resolution: {integrity: sha512-3CijvrO9utx598kjr45hTbbeeykQrQfKmSnxeWOgU25TOEpvcipD/bYDQWIqUv1Oc6KK4YStokSMu/FBNecGUQ==}
     engines: {node: '>=16'}
 
-  '@wallet-standard/base@1.0.1':
-    resolution: {integrity: sha512-1To3ekMfzhYxe0Yhkpri+Fedq0SYcfrOfJi3vbLjMwF2qiKPjTGLwZkf2C9ftdQmxES+hmxhBzTwF4KgcOwf8w==}
-    engines: {node: '>=16'}
-
   '@wallet-standard/base@1.1.0':
     resolution: {integrity: sha512-DJDQhjKmSNVLKWItoKThJS+CsJQjR9AOBOirBVT1F9YpRyC9oYHE+ZnSf8y8bxUphtKqdQMPVQ2mHohYdRvDVQ==}
-    engines: {node: '>=16'}
-
-  '@wallet-standard/features@1.0.3':
-    resolution: {integrity: sha512-m8475I6W5LTatTZuUz5JJNK42wFRgkJTB0I9tkruMwfqBF2UN2eomkYNVf9RbrsROelCRzSFmugqjKZBFaubsA==}
     engines: {node: '>=16'}
 
   '@wallet-standard/features@1.1.0':
@@ -4675,59 +4667,59 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@bbachain/wallet-adapter-base-ui@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)':
+  '@bbachain/wallet-adapter-base-ui@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)':
     dependencies:
-      '@bbachain/wallet-adapter-react': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
+      '@bbachain/wallet-adapter-react': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       react: 18.3.1
     transitivePeerDependencies:
       - bs58
 
-  '@bbachain/wallet-adapter-base@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@bbachain/wallet-adapter-base@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
       '@bbachain/wallet-standard-features': 0.1.2
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@wallet-standard/base': 1.0.1
-      '@wallet-standard/features': 1.0.3
+      '@wallet-standard/base': 1.1.0
+      '@wallet-standard/features': 1.1.0
       eventemitter3: 4.0.7
 
-  '@bbachain/wallet-adapter-bbawallet@0.1.7(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@bbachain/wallet-adapter-bbawallet@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
-      '@bbachain/wallet-adapter-base': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-base': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
 
-  '@bbachain/wallet-adapter-react-ui@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@bbachain/wallet-adapter-react-ui@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@bbachain/wallet-adapter-base': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@bbachain/wallet-adapter-base-ui': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
-      '@bbachain/wallet-adapter-react': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
+      '@bbachain/wallet-adapter-base': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-base-ui': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
+      '@bbachain/wallet-adapter-react': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     transitivePeerDependencies:
       - bs58
 
-  '@bbachain/wallet-adapter-react@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)':
+  '@bbachain/wallet-adapter-react@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)':
     dependencies:
-      '@bbachain/wallet-adapter-base': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@bbachain/wallet-standard-wallet-adapter-react': 0.1.2(@bbachain/wallet-adapter-base@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
+      '@bbachain/wallet-adapter-base': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-standard-wallet-adapter-react': 0.1.2(@bbachain/wallet-adapter-base@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       react: 18.3.1
     transitivePeerDependencies:
       - bs58
 
-  '@bbachain/wallet-adapter-unsafe-burner@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@bbachain/wallet-adapter-unsafe-burner@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
-      '@bbachain/wallet-adapter-base': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-base': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/wallet-standard-features': 0.1.2
       '@bbachain/wallet-standard-util': 0.1.2
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       '@noble/curves': 1.8.1
 
-  '@bbachain/wallet-adapter-wallets@0.1.7(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@bbachain/wallet-adapter-wallets@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
-      '@bbachain/wallet-adapter-bbawallet': 0.1.7(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@bbachain/wallet-adapter-unsafe-burner': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-bbawallet': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-unsafe-burner': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/web3.js': 1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
 
   '@bbachain/wallet-standard-chains@0.1.2':
@@ -4747,7 +4739,7 @@ snapshots:
 
   '@bbachain/wallet-standard-wallet-adapter-base@0.1.2(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)':
     dependencies:
-      '@bbachain/wallet-adapter-base': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-base': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/wallet-standard-chains': 0.1.2
       '@bbachain/wallet-standard-features': 0.1.2
       '@bbachain/wallet-standard-util': 0.1.2
@@ -4758,9 +4750,9 @@ snapshots:
       '@wallet-standard/wallet': 1.1.0
       bs58: 5.0.0
 
-  '@bbachain/wallet-standard-wallet-adapter-react@0.1.2(@bbachain/wallet-adapter-base@0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)':
+  '@bbachain/wallet-standard-wallet-adapter-react@0.1.2(@bbachain/wallet-adapter-base@0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@18.3.1)':
     dependencies:
-      '@bbachain/wallet-adapter-base': 0.1.4(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@bbachain/wallet-adapter-base': 0.1.8(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@bbachain/wallet-standard-wallet-adapter-base': 0.1.2(@bbachain/web3.js@1.1.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)
       '@wallet-standard/app': 1.1.0
       '@wallet-standard/base': 1.1.0
@@ -6134,13 +6126,7 @@ snapshots:
     dependencies:
       '@wallet-standard/base': 1.1.0
 
-  '@wallet-standard/base@1.0.1': {}
-
   '@wallet-standard/base@1.1.0': {}
-
-  '@wallet-standard/features@1.0.3':
-    dependencies:
-      '@wallet-standard/base': 1.0.1
 
   '@wallet-standard/features@1.1.0':
     dependencies:
@@ -6889,7 +6875,7 @@ snapshots:
       debug: 4.3.5
       enhanced-resolve: 5.17.0
       eslint: 8.57.0
-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0)
+      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
       eslint-plugin-import: 2.29.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
       fast-glob: 3.3.2
       get-tsconfig: 4.7.6
@@ -6901,7 +6887,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0):
+  eslint-module-utils@2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
@@ -6922,7 +6908,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.0
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import@2.29.1(eslint@8.57.0))(eslint@8.57.0))(eslint@8.57.0)
+      eslint-module-utils: 2.8.1(@typescript-eslint/parser@7.2.0(eslint@8.57.0)(typescript@5.5.4))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.1)(eslint@8.57.0)
       hasown: 2.0.2
       is-core-module: 2.15.0
       is-glob: 4.0.3
