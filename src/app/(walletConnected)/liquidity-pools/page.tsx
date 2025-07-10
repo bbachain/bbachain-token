@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { PoolListColumns, type PoolListProps } from '@/features/liquidityPool/components/Columns'
 import CreatePoolForm from '@/features/liquidityPool/components/CreatePoolForm'
@@ -26,6 +28,7 @@ const liquidityPoolsListMapper = (data: PoolData[]): PoolListProps[] => {
 export default function LiquidityPools() {
 	const getPoolsQuery = useGetPools()
 	const allPoolsData = getPoolsQuery.data ? liquidityPoolsListMapper(getPoolsQuery.data.data) : []
+
 	return (
 		<div className="xl:px-48 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
 			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">Liquidity Pools</h1>

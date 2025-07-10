@@ -10,9 +10,10 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@bbachain/buffer-layout": "^1.0.0",
     "@bbachain/spl-token": "0.1.5",
     "@bbachain/spl-token-metadata": "^0.1.2",
-    "@bbachain/spl-token-swap": "^0.1.0",
+    "@bbachain/spl-token-swap": "^0.1.1",
     "@bbachain/wallet-adapter-base": "0.1.4",
     "@bbachain/wallet-adapter-react": "0.1.4",
     "@bbachain/wallet-adapter-react-ui": "0.1.4",

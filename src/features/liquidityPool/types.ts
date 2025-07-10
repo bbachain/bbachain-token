@@ -49,15 +49,15 @@ export type PoolData = {
 }
 
 export type MintInfo = {
-	chainId: number
+	chainId?: number
 	address: string
-	programId: string
+	programId?: string
 	logoURI: string
 	symbol: string
 	name: string
 	decimals: number
-	tags: string[]
-	extensions: Record<string, unknown>
+	tags?: string[]
+	extensions?: Record<string, unknown>
 }
 
 export type TimeStats = {
@@ -84,6 +84,13 @@ export type TGetPoolsResponse = TSuccessMessage & {
 
 export type TGetPoolDetailResponse = TSuccessMessage & {
 	data: PoolData
+}
+
+export type TCreatePoolResponse = {
+	tokenSwap: string
+	poolMint: string
+	feeAccount: string
+	lpTokenAccount: string
 }
 
 export type TCreatePoolPayload = z.infer<typeof createPoolValidation>

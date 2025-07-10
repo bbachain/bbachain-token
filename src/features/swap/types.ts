@@ -46,8 +46,6 @@ export type TGetSwapTransactionPayload = {
 	slippage: number
 }
 
-
-
 export type TGetSwappableTokensResponse = TSuccessMessage & {
 	data: TTokenProps[]
 }

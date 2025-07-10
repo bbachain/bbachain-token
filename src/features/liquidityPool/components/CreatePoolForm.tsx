@@ -2,9 +2,11 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ChevronDown } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
 import { FaPlus } from 'react-icons/fa6'
 import { PiPencilLight } from 'react-icons/pi'
 
@@ -21,7 +23,9 @@ import { useGetSwappableTokens, useGetTokenPrice, useGetUserBalanceByMint } from
 import { TTokenProps } from '@/features/swap/types'
 import FormProgressLine from '@/features/tokens/components/form/FormProgressLine'
 import { cn } from '@/lib/utils'
+import StaticTokens from '@/staticData/tokens'
 
+import { useCreatePool } from '../services'
 import { TCreatePoolPayload } from '../types'
 import { createPoolValidation } from '../validation'
 
@@ -65,6 +69,7 @@ const tokenStaticData = [
 
 export default function CreatePoolForm() {
 	const getSwappableTokensQuery = useGetSwappableTokens()
+	const createPoolMutation = useCreatePool()
 	const swappableTokenData = getSwappableTokensQuery.data ? getSwappableTokensQuery.data.data : []
 
 	const form = useForm<TCreatePoolPayload>({
@@ -133,7 +138,9 @@ export default function CreatePoolForm() {
 		}
 	}
 
-	const onSubmit = (payload: TCreatePoolPayload) => console.log(payload)
+	const onSubmit = (payload: TCreatePoolPayload) => {
+		createPoolMutation.mutate(payload)
+	}
 
 	const onOpenBaseTokenList = () => {
 		setTypeItem('from')
@@ -496,10 +503,11 @@ export default function CreatePoolForm() {
 							</CardContent>
 							<CardFooter className="pt-[18px] !px-0 !pb-0">
 								<Button
-									disabled={!form.formState.isValid}
 									type="submit"
+									disabled={createPoolMutation.isPending}
 									className="rounded-[48px] md:h-[55px]  h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green"
 								>
+									{createPoolMutation.isPending && <Loader2 className="animate-spin" />}
 									Submit
 								</Button>
 							</CardFooter>
@@ -507,7 +515,7 @@ export default function CreatePoolForm() {
 					</div>
 				)}
 				<TokenListDialog
-					data={swappableTokenData}
+					data={StaticTokens}
 					isDataLoading={getSwappableTokensQuery.isLoading}
 					isOpen={isTokenDialogOpen}
 					setIsOpen={setIsTokenDialogOpen}

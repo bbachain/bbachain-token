@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { IoMdSettings } from 'react-icons/io'
 
 import { Button } from '@/components/ui/button'
@@ -14,23 +14,22 @@ import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import {
 	useGetSwappableTokens,
+	useGetSwappableTokens2,
+	useGetSwappableTokens3,
 	useGetSwapTransactionByMint,
 	useGetTokenPrice,
 	useGetUserBalanceByMint
 } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
 import { cn } from '@/lib/utils'
+import StaticTokens from '@/staticData/tokens'
 
 const initialBaseTokenProps: TTokenProps = {
-	chainId: 101,
 	address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-	programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
 	logoURI: 'https://img-v1.raydium.io/icon/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB.png',
 	symbol: 'USDT',
 	name: 'USDT',
-	decimals: 6,
-	tags: ['hasFreeze'],
-	extensions: {}
+	decimals: 6
 }
 
 const initialQuoteTokenProps: TTokenProps = {
@@ -46,9 +45,6 @@ const initialQuoteTokenProps: TTokenProps = {
 }
 
 export default function Swap() {
-	const getSwappableTokensQuery = useGetSwappableTokens()
-	const swappableTokenListData = getSwappableTokensQuery.data ? getSwappableTokensQuery.data.data : []
-
 	const [amountIn, setAmountIn] = useState<string>('')
 	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseTokenProps)
 	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteTokenProps)
@@ -109,6 +105,10 @@ export default function Swap() {
 	const isAmountPositive =
 		REGEX.POSITIVE_NUMBER.test(String(inputAmount)) && REGEX.POSITIVE_NUMBER.test(String(inputAmount))
 	const isValid = !isBaseTokenBalanceNotEnough && isAmountPositive
+
+	useEffect(() => {
+		console.log('mint a balance ', mintABalance)
+	}, [mintABalance])
 
 	const onSelectTokenFrom = () => {
 		setTypeItem('from')
@@ -220,8 +220,8 @@ export default function Swap() {
 				</CardFooter>
 			</Card>
 			<TokenListDialog
-				data={swappableTokenListData}
-				isDataLoading={getSwappableTokensQuery.isLoading}
+				data={StaticTokens}
+				isDataLoading={false}
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
 				type={typeItem}
