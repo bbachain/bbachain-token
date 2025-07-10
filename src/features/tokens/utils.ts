@@ -67,7 +67,7 @@ export const getTokenData = async (
 	const supply = Number(mintAccountInfo.supply) / Math.pow(10, decimals)
 
 	if (decimals === 0 && supply === 1) {
-		console.log('This is not FT')
+		// This is not a Fungible Token (it's an NFT) - skip it
 		return null
 	} // this is hack to return only Fungible Tokens, cause this condition is NFT state
 

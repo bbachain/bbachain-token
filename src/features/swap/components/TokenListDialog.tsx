@@ -67,9 +67,9 @@ export default function TokenListDialog({
 
 		const filtered = data.filter(
 			(token) =>
-				token.name.toLowerCase().includes(query) ||
-				token.symbol.toLowerCase().includes(query) ||
-				token.address.toLowerCase().includes(query)
+				token.name?.toLowerCase()?.includes(query) ||
+				token.symbol?.toLowerCase()?.includes(query) ||
+				token.address?.toLowerCase()?.includes(query)
 		)
 
 		setFilteredData(filtered)
