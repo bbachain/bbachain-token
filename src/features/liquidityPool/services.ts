@@ -19,13 +19,15 @@ import BN from 'bn.js'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
 
+import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
 import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolDetailResponse, TGetPoolsResponse } from './types'
 
 const TOKEN_SWAP_PROGRAM_ID = new PublicKey('SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
 
-export const useGetPools = () =>
+// Legacy API-based pool fetching (deprecated)
+export const useGetPoolsFromAPI = () =>
 	useQuery<TGetPoolsResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOLS],
+		queryKey: [SERVICES_KEY.POOL.GET_POOLS + '_api'],
 		queryFn: async () => {
 			const res = await axios.get(ENDPOINTS.RAYDIUM.GET_POOLS_LIST, {
 				params: {
@@ -38,8 +40,29 @@ export const useGetPools = () =>
 			})
 			const poolsData = res.data.data.data as PoolData[]
 			return { message: 'Successfully get pools data', data: poolsData }
-		}
+		},
+		enabled: false // Disabled by default
 	})
+
+// New onchain-based pool fetching
+export const useGetPools = () => {
+	const { connection } = useConnection()
+
+	return useQuery<{ message: string; data: OnchainPoolData[] }>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint],
+		queryFn: async () => {
+			const pools = await getAllPoolsFromOnchain(connection)
+			return {
+				message: `Successfully fetched ${pools.length} pools from onchain`,
+				data: pools
+			}
+		},
+		staleTime: 60000, // 1 minute
+		refetchInterval: 300000, // Refetch every 5 minutes
+		retry: 3,
+		retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
+	})
+}
 
 // export const useGetPools2 = () => {
 // 	const { connection } = useConnection()
