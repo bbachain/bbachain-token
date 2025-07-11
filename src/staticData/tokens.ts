@@ -2,25 +2,28 @@ import { MintInfo } from '@/features/liquidityPool/types'
 
 const StaticTokens: MintInfo[] = [
 	{
-		name: 'BBAChain',
+		name: 'BBA Coin',
 		symbol: 'BBA',
 		address: 'BBA1111111111111111111111111111111111111111',
-		logoURI: './bba_logo.svg',
-		decimals: 9
+		logoURI: '/bba_logo.svg',
+		decimals: 9,
+		tags: ['native']
 	},
 	{
-		name: 'Tether',
+		name: 'Tether USD',
 		symbol: 'USDT',
-		address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
+		address: 'GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR',
 		logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
-		decimals: 6
+		decimals: 6,
+		tags: ['stablecoin']
 	},
 	{
-		name: 'Monkey',
-		symbol: 'MNK',
-		address: 'HBKVxLv7RqcBqxCy3ei6no3Ctz9WGanYfh9K5kfrPDoi',
-		logoURI: '',
-		decimals: 0
+		name: 'Shiba Inu',
+		symbol: 'SHIB',
+		address: 'LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq',
+		logoURI: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+		decimals: 9,
+		tags: ['meme']
 	}
 ]
 

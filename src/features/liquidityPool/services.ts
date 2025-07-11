@@ -111,15 +111,34 @@ export const useCreatePool = () => {
 	return useMutation<TCreatePoolResponse, Error, TCreatePoolPayload>({
 		mutationKey: [SERVICES_KEY.POOL.CREATE_POOL, ownerAddress?.toBase58()],
 		mutationFn: async (payload) => {
-			if (!ownerAddress) throw new Error('Wallet not connected')
+			if (!ownerAddress) {
+				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
+			}
+
+			if (!signTransaction) {
+				throw new Error('Wallet does not support transaction signing.')
+			}
+
+			console.log('🚀 Starting pool creation process...')
+			console.log('📊 Pool Configuration:', {
+				baseToken: `${payload.baseToken.symbol} (${payload.baseToken.address})`,
+				quoteToken: `${payload.quoteToken.symbol} (${payload.quoteToken.address})`,
+				feeTier: payload.feeTier,
+				initialPrice: payload.initialPrice,
+				baseAmount: payload.baseTokenAmount,
+				quoteAmount: payload.quoteTokenAmount
+			})
+
 			try {
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
-				const latestBlockhash = await connection.getLatestBlockhash()
+				const latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const baseMint = new PublicKey(payload.baseToken.address)
 				const quoteMint = new PublicKey(payload.quoteToken.address)
 
-				console.log('baseMint ', baseMint.toBase58())
-				console.log('quoteMint ', quoteMint.toBase58())
+				console.log('🔑 Token mint addresses:', {
+					baseMint: baseMint.toBase58(),
+					quoteMint: quoteMint.toBase58()
+				})
 
 				const tokenSwap = Keypair.generate()
 				const [authority] = PublicKey.findProgramAddressSync([tokenSwap.publicKey.toBuffer()], TOKEN_SWAP_PROGRAM_ID)
@@ -189,14 +208,25 @@ export const useCreatePool = () => {
 				const poolSig = await connection.sendRawTransaction(signedTx.serialize())
 				await connection.confirmTransaction({ signature: poolSig, ...latestBlockhash }, 'confirmed')
 
-				// === Fee setup ===
-				const feeMap: Record<string, { numerator: number; denominator: number }> = {
-					'0.1%': { numerator: 1, denominator: 1000 },
-					'0.3%': { numerator: 3, denominator: 1000 },
-					'1%': { numerator: 1, denominator: 100 }
+				// === Enhanced Fee Configuration ===
+				const feeTierMap: Record<string, { numerator: number; denominator: number }> = {
+					'0.01': { numerator: 1, denominator: 10000 },    // 0.01%
+					'0.05': { numerator: 5, denominator: 10000 },    // 0.05%
+					'0.1': { numerator: 1, denominator: 1000 },      // 0.1%
+					'0.25': { numerator: 25, denominator: 10000 },   // 0.25%
+					'0.3': { numerator: 3, denominator: 1000 },      // 0.3%
+					'1': { numerator: 1, denominator: 100 }          // 1%
 				}
-				const fee = feeMap[payload.feeTier]
-				if (!fee) throw new Error('Invalid fee tier')
+				const feeConfig = feeTierMap[payload.feeTier]
+				if (!feeConfig) {
+					throw new Error(`Invalid fee tier: ${payload.feeTier}%. Supported tiers: ${Object.keys(feeTierMap).join(', ')}%`)
+				}
+				
+				console.log('💰 Pool fee configuration:', {
+					tier: `${payload.feeTier}%`,
+					numerator: feeConfig.numerator,
+					denominator: feeConfig.denominator
+				})
 
 				console.log('token swap ', tokenSwap.publicKey.toBase58())
 				console.log('authority ', authority.toBase58())
@@ -228,8 +258,8 @@ export const useCreatePool = () => {
 				}
 
 				const fees = {
-					tradeFeeNumerator: new BN(fee.numerator),
-					tradeFeeDenominator: new BN(fee.denominator),
+					tradeFeeNumerator: new BN(feeConfig.numerator),
+					tradeFeeDenominator: new BN(feeConfig.denominator),
 					ownerTradeFeeNumerator: new BN(0),
 					ownerTradeFeeDenominator: new BN(0),
 					ownerWithdrawFeeNumerator: new BN(0),
@@ -268,14 +298,30 @@ export const useCreatePool = () => {
 					feeAccount: feeAccount.toBase58(),
 					lpTokenAccount: poolTokenAccount.toBase58()
 				}
-			} catch (e) {
-				console.error(e)
-				return {
-					tokenSwap: '',
-					poolMint: '',
-					feeAccount: '',
-					lpTokenAccount: ''
+			} catch (error) {
+				console.error('❌ Pool creation failed:', error)
+				
+				// Enhanced error handling with specific error messages
+				if (error instanceof Error) {
+					if (error.message.includes('insufficient funds')) {
+						throw new Error('Insufficient funds to create pool. Please ensure you have enough BBA for transaction fees.')
+					}
+					if (error.message.includes('TokenAccountNotFound')) {
+						throw new Error('Token account not found. Please ensure the selected tokens are valid.')
+					}
+					if (error.message.includes('InvalidOwner')) {
+						throw new Error('Invalid token owner. Please check your wallet permissions.')
+					}
+					if (error.message.includes('TokenMintToFailed')) {
+						throw new Error('Failed to mint pool tokens. Please try again.')
+					}
+					if (error.message.includes('SimulateTransactionError')) {
+						throw new Error('Transaction simulation failed. Please check your inputs and try again.')
+					}
+					throw error
 				}
+				
+				throw new Error('Pool creation failed due to an unexpected error. Please try again.')
 			}
 		}
 	})

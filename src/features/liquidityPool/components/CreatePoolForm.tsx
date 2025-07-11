@@ -29,7 +29,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
-import { useGetSwappableTokens2, useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
+import { useGetTokensFromAPI, useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
 import { cn } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
@@ -337,39 +337,13 @@ function TokenSelectionCard({
 
 export default function CreatePoolForm() {
 	// Hooks
-	const getOnchainTokensQuery = useGetSwappableTokens2()
+	const getTokensQuery = useGetTokensFromAPI()
 	const createPoolMutation = useCreatePool()
 	const getBalanceQuery = useGetBalance()
 	const { openErrorDialog } = useErrorDialog()
 
-	// Token data - prefer onchain tokens, fallback to static
-	const tokenData = getOnchainTokensQuery.data?.data
-		? getOnchainTokensQuery.data.data.map(
-				(tokenResponse): MintInfo => ({
-					chainId: 1,
-					address: tokenResponse.mintAddress,
-					programId: '',
-					logoURI: tokenResponse.metadata?.metadataOffChain?.data?.image || '/icon-placeholder.svg',
-					symbol: tokenResponse.metadata?.symbol || tokenResponse.metadata?.metadataOffChain?.data?.symbol || 'UNKNOWN',
-					name: tokenResponse.metadata?.name || tokenResponse.metadata?.metadataOffChain?.data?.name || 'Unknown Token',
-					decimals: tokenResponse.decimals,
-					tags: [],
-					extensions: {}
-				})
-			)
-		: StaticTokens.map(
-				(token): MintInfo => ({
-					chainId: token.chainId || 1,
-					address: token.address,
-					programId: token.programId || '',
-					logoURI: token.logoURI || '/icon-placeholder.svg',
-					symbol: token.symbol,
-					name: token.name,
-					decimals: token.decimals,
-					tags: token.tags || [],
-					extensions: token.extensions || {}
-				})
-			)
+	// Token data from API with fallback to static data
+	const tokenData = getTokensQuery.data?.data || StaticTokens
 
 	// Form setup
 	const form = useForm<TCreatePoolPayload>({
@@ -435,8 +409,8 @@ export default function CreatePoolForm() {
 			: 'Token per Token'
 
 	// Loading states
-	const isLoadingTokens = getOnchainTokensQuery.isPending
-	const isTokensError = getOnchainTokensQuery.isError
+	const isLoadingTokens = getTokensQuery.isPending
+	const isTokensError = getTokensQuery.isError
 
 	// Effects
 	useEffect(() => {
@@ -522,6 +496,8 @@ export default function CreatePoolForm() {
 	}, [])
 
 	// Auto-calculate quote amount based on price ratio
+	// Initial Price format: "X BaseToken per QuoteToken" 
+	// Example: "1000 SHIB per USDT" means 1 USDT = 1000 SHIB, so 1 SHIB = 1/1000 USDT
 	const handleBaseAmountChange = useCallback(
 		(value: string) => {
 			form.setValue('baseTokenAmount', value, { shouldValidate: true })
@@ -530,7 +506,8 @@ export default function CreatePoolForm() {
 			const initialPrice = parseFloat(form.getValues('initialPrice'))
 			if (initialPrice && value && selectedBaseToken && selectedQuoteToken) {
 				const baseAmount = parseFloat(value)
-				const quoteAmount = baseAmount * initialPrice
+				// If price is "X BaseToken per QuoteToken", then QuoteAmount = BaseAmount / X
+				const quoteAmount = baseAmount / initialPrice
 				form.setValue('quoteTokenAmount', quoteAmount.toString(), { shouldValidate: true })
 			}
 		},
@@ -545,7 +522,8 @@ export default function CreatePoolForm() {
 			const initialPrice = parseFloat(form.getValues('initialPrice'))
 			if (initialPrice && value && selectedBaseToken && selectedQuoteToken) {
 				const quoteAmount = parseFloat(value)
-				const baseAmount = quoteAmount / initialPrice
+				// If price is "X BaseToken per QuoteToken", then BaseAmount = QuoteAmount * X
+				const baseAmount = quoteAmount * initialPrice
 				form.setValue('baseTokenAmount', baseAmount.toString(), { shouldValidate: true })
 			}
 		},
@@ -565,7 +543,8 @@ export default function CreatePoolForm() {
 					<div className="flex items-center justify-center py-12">
 						<div className="text-center space-y-4">
 							<Loader2 className="w-8 h-8 animate-spin mx-auto text-main-green" />
-							<p className="text-gray-600 dark:text-gray-400">Loading onchain tokens...</p>
+							<p className="text-gray-600 dark:text-gray-400">Loading available tokens...</p>
+							<p className="text-sm text-gray-500 dark:text-gray-500">Fetching token list from BBAChain registry</p>
 						</div>
 					</div>
 				</div>
@@ -1177,7 +1156,7 @@ export default function CreatePoolForm() {
 				<div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
 					<div className="flex items-center space-x-3">
 						<Loader2 className="w-4 h-4 animate-spin text-main-green" />
-						<span className="text-sm text-gray-600 dark:text-gray-400">Loading tokens...</span>
+						<span className="text-sm text-gray-600 dark:text-gray-400">Loading tokens from API...</span>
 					</div>
 				</div>
 			)}
@@ -1187,7 +1166,7 @@ export default function CreatePoolForm() {
 				<div className="fixed bottom-4 right-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg shadow-lg p-4 border border-yellow-200 dark:border-yellow-800">
 					<div className="flex items-center space-x-3">
 						<AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-						<span className="text-sm text-yellow-700 dark:text-yellow-300">Using fallback token data</span>
+						<span className="text-sm text-yellow-700 dark:text-yellow-300">API unavailable, using static tokens</span>
 					</div>
 				</div>
 			)}

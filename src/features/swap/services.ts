@@ -8,6 +8,7 @@ import { PublicKey } from '@bbachain/web3.js'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 
+import { TGetTokensResponse } from '@/app/api/tokens/route'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
 import { getTokenAccounts2 } from '@/lib/tokenAccount'
@@ -91,6 +92,31 @@ export const useGetSwappableTokens = () =>
 			const swappableTokensData = res.data.data.mintList as TTokenProps[]
 			return { message: 'Successfully get swappable tokens data', data: swappableTokensData }
 		}
+	})
+
+/**
+ * Hook to fetch tokens from internal API endpoint
+ * This replaces the onchain token fetching for better performance and reliability
+ */
+export const useGetTokensFromAPI = (searchQuery?: string) =>
+	useQuery<TGetTokensResponse>({
+		queryKey: [SERVICES_KEY.SWAP.GET_SWAPPABLE_TOKEN + '_api', searchQuery],
+		queryFn: async () => {
+			const params = new URLSearchParams()
+			if (searchQuery) {
+				params.append('search', searchQuery)
+				params.append('includeAddress', 'true')
+			}
+			
+			const url = searchQuery 
+				? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}`
+				: ENDPOINTS.API.GET_TOKENS
+				
+			const res = await axios.get(url)
+			return res.data as TGetTokensResponse
+		},
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		retry: 3
 	})
 
 export const useGetSwappableTokens2 = () => {
