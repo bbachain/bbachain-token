@@ -1,5 +1,5 @@
-import { struct, u8, blob, Layout } from '@bbachain/buffer-layout'
-import { getAccount, getMint, TOKEN_PROGRAM_ID } from '@bbachain/spl-token'
+import { struct, u8, blob } from '@bbachain/buffer-layout'
+import { getAccount, getMint } from '@bbachain/spl-token'
 import { Connection, PublicKey } from '@bbachain/web3.js'
 
 import { MintInfo } from './types'
