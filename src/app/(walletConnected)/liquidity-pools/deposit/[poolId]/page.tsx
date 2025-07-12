@@ -15,7 +15,7 @@ import LPSlippageDialog from '@/features/liquidityPool/components/LPSlippageDial
 import SelectTokenFarm from '@/features/liquidityPool/components/SelectTokenFarm'
 import TokenFarmItem from '@/features/liquidityPool/components/TokenFarmItem'
 import { useGetPoolById } from '@/features/liquidityPool/services'
-import { TTokenFarmProps } from '@/features/liquidityPool/types'
+import { TTokenFarmProps, PoolData } from '@/features/liquidityPool/types'
 import SwapItem from '@/features/swap/components/SwapItem'
 import { useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
@@ -117,6 +117,11 @@ const tokenFarmData: TTokenFarmProps[] = [
 ]
 
 const farmAmountOptions = [25, 50, 75, 100] as const
+
+// Helper function to check if data is PoolData type
+const isPoolData = (data: any): data is PoolData => {
+	return data && typeof data === 'object' && 'week' in data
+}
 
 export default function LiquidityPoolDeposit({ params }: { params: { poolId: string } }) {
 	const poolId = params.poolId
@@ -310,15 +315,29 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						<CardContent className="p-0 flex flex-col space-y-[18px]">
 							<div className="flex justify-between items-center">
 								<h4 className="text-sm text-dark-grey">Total APR 7D</h4>
-								<p className="text-lg font-bold text-main-black">{poolDetailData?.week.apr.toFixed(2)}%</p>
+								<p className="text-lg font-bold text-main-black">
+									{poolDetailData
+										? isPoolData(poolDetailData)
+											? `${poolDetailData.week.apr.toFixed(2)}%`
+											: `${poolDetailData.apr24h.toFixed(2)}%`
+										: '0.00%'}
+								</p>
 							</div>
 							<div className="flex flex-col space-y-3">
 								<div className="flex justify-between items-center text-sm text-dark-grey">
 									<h4>Fees</h4>
-									<p>{poolDetailData?.week.feeApr}%</p>
+									<p>
+										{poolDetailData
+											? isPoolData(poolDetailData)
+												? `${poolDetailData.week.feeApr}%`
+												: `${(poolDetailData.feeRate * 100).toFixed(2)}%`
+											: '0.00%'}
+									</p>
 								</div>
-								{poolDetailData?.week &&
-									poolDetailData?.week.rewardApr.length > 0 &&
+								{poolDetailData &&
+									isPoolData(poolDetailData) &&
+									poolDetailData.week &&
+									poolDetailData.week.rewardApr.length > 0 &&
 									poolDetailData.week.rewardApr.map((value, index) => (
 										<div key={index} className="flex justify-between items-center text-sm text-dark-grey">
 											<section className="flex items-center space-x-[3px]">
@@ -351,7 +370,15 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 											alt={`${poolDetailData?.mintA.symbol} - icon`}
 										/>
 									</section>
-									<p>{poolDetailData?.mintAmountA.toLocaleString()}</p>
+									<p>
+										{poolDetailData
+											? isPoolData(poolDetailData)
+												? poolDetailData.mintAmountA.toLocaleString()
+												: (
+														Number(poolDetailData.reserveA) / Math.pow(10, poolDetailData.mintA.decimals)
+													).toLocaleString()
+											: '0'}
+									</p>
 								</div>
 								<div className="flex justify-between items-center text-sm text-dark-grey">
 									<section className="flex items-center space-x-[3px]">
@@ -364,7 +391,15 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 											alt={`${poolDetailData?.mintB.symbol} - icon`}
 										/>
 									</section>
-									<p>{poolDetailData?.mintAmountB.toLocaleString()}</p>
+									<p>
+										{poolDetailData
+											? isPoolData(poolDetailData)
+												? poolDetailData.mintAmountB.toLocaleString()
+												: (
+														Number(poolDetailData.reserveB) / Math.pow(10, poolDetailData.mintB.decimals)
+													).toLocaleString()
+											: '0'}
+									</p>
 								</div>
 							</div>
 						</CardContent>
