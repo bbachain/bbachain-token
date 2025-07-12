@@ -1,4 +1,3 @@
-
 import * as BufferLayout from '@bbachain/buffer-layout'
 import { getAssociatedTokenAddress } from '@bbachain/spl-token'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
@@ -105,11 +104,9 @@ export const useGetTokensFromAPI = (searchQuery?: string) =>
 				params.append('search', searchQuery)
 				params.append('includeAddress', 'true')
 			}
-			
-			const url = searchQuery 
-				? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}`
-				: ENDPOINTS.API.GET_TOKENS
-				
+
+			const url = searchQuery ? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}` : ENDPOINTS.API.GET_TOKENS
+
 			const res = await axios.get(url)
 			return res.data as TGetTokensResponse
 		},

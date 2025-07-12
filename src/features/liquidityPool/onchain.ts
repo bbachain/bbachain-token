@@ -2,6 +2,8 @@ import { struct, u8, blob } from '@bbachain/buffer-layout'
 import { getAccount, getMint } from '@bbachain/spl-token'
 import { Connection, PublicKey } from '@bbachain/web3.js'
 
+import { getTokenByAddress, generateTokenDisplayName } from '@/staticData/tokens'
+
 import { MintInfo } from './types'
 
 // Token Swap Program ID for BBAChain
@@ -121,25 +123,41 @@ export function parsePoolData(pubkey: PublicKey, accountData: Buffer): RawTokenS
  */
 export async function getTokenMintInfo(connection: Connection, mintAddress: PublicKey): Promise<MintInfo> {
 	try {
+		const addressStr = mintAddress.toBase58()
+
+		// First, try to get token info from our registry
+		const knownToken = getTokenByAddress(addressStr)
+		if (knownToken) {
+			console.log(`✅ Found known token: ${knownToken.symbol} (${knownToken.name})`)
+			return knownToken
+		}
+
+		// If not in registry, get mint info from onchain
 		const mint = await getMint(connection, mintAddress)
 
-		// Create basic MintInfo structure
-		// Note: logoURI and name will need to be resolved separately
+		// Generate a user-friendly display name for unknown tokens
+		const displayInfo = generateTokenDisplayName(addressStr)
+
+		console.log(`⚠️ Unknown token ${addressStr}, using fallback: ${displayInfo.symbol}`)
+
 		return {
-			address: mintAddress.toBase58(),
-			symbol: mintAddress.toBase58().slice(0, 8), // Fallback symbol
-			name: mintAddress.toBase58().slice(0, 8), // Fallback name
+			address: addressStr,
+			symbol: displayInfo.symbol,
+			name: displayInfo.name,
 			decimals: mint.decimals,
-			logoURI: '/icon-placeholder.svg' // Default placeholder
+			logoURI: '/icon-placeholder.svg'
 		}
 	} catch (error) {
 		console.error(`Error fetching mint info for ${mintAddress.toBase58()}:`, error)
 
 		// Return fallback data
+		const addressStr = mintAddress.toBase58()
+		const displayInfo = generateTokenDisplayName(addressStr)
+
 		return {
-			address: mintAddress.toBase58(),
-			symbol: mintAddress.toBase58().slice(0, 8),
-			name: 'Unknown Token',
+			address: addressStr,
+			symbol: displayInfo.symbol,
+			name: displayInfo.name,
 			decimals: 6,
 			logoURI: '/icon-placeholder.svg'
 		}

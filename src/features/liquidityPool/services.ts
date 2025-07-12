@@ -9,7 +9,7 @@ import {
 import { CurveType, createInitializeInstruction } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import BN from 'bn.js'
 
@@ -20,6 +20,26 @@ import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
 import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolDetailResponse, TGetPoolsResponse } from './types'
 
 const TOKEN_SWAP_PROGRAM_ID = new PublicKey('SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
+
+// Enhanced retry configuration
+const RETRY_CONFIG = {
+	attempts: 3,
+	delay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+	retryCondition: (error: any) => {
+		// Retry on network errors, timeouts, and 5xx errors
+		return !error.response || error.response.status >= 500 || error.code === 'NETWORK_ERROR'
+	}
+}
+
+// Cache configuration
+const CACHE_CONFIG = {
+	staleTime: 60000, // 1 minute - data is considered fresh
+	gcTime: 300000, // 5 minutes - data stays in cache (renamed from cacheTime)
+	refetchInterval: 300000, // Auto-refetch every 5 minutes
+	refetchOnWindowFocus: true,
+	refetchOnMount: true,
+	refetchOnReconnect: true
+}
 
 // Legacy API-based pool fetching (deprecated)
 export const useGetPoolsFromAPI = () =>
@@ -41,69 +61,200 @@ export const useGetPoolsFromAPI = () =>
 		enabled: false // Disabled by default
 	})
 
-// New onchain-based pool fetching
+// Enhanced onchain-based pool fetching
 export const useGetPools = () => {
 	const { connection } = useConnection()
+	const queryClient = useQueryClient()
 
 	return useQuery<{ message: string; data: OnchainPoolData[] }>({
 		queryKey: [SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint],
 		queryFn: async () => {
-			const pools = await getAllPoolsFromOnchain(connection)
-			return {
-				message: `Successfully fetched ${pools.length} pools from onchain`,
-				data: pools
+			try {
+				console.log('🔄 Fetching pools from onchain...')
+				const startTime = Date.now()
+
+				const pools = await getAllPoolsFromOnchain(connection)
+
+				const endTime = Date.now()
+				const duration = endTime - startTime
+
+				console.log(`✅ Successfully fetched ${pools.length} pools in ${duration}ms`)
+
+				return {
+					message: `Successfully fetched ${pools.length} pools from onchain`,
+					data: pools,
+					meta: {
+						fetchTime: new Date().toISOString(),
+						duration,
+						poolCount: pools.length,
+						rpcEndpoint: connection.rpcEndpoint
+					}
+				}
+			} catch (error) {
+				console.error('❌ Error fetching pools:', error)
+
+				// Try to return cached data if available
+				const cachedData = queryClient.getQueryData([SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint])
+				if (cachedData) {
+					console.log('📋 Returning cached data due to fetch error')
+					return cachedData as { message: string; data: OnchainPoolData[] }
+				}
+
+				throw error
 			}
 		},
-		staleTime: 60000, // 1 minute
-		refetchInterval: 300000, // Refetch every 5 minutes
-		retry: 3,
-		retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
+		...CACHE_CONFIG,
+		retry: RETRY_CONFIG.attempts,
+		retryDelay: RETRY_CONFIG.delay
 	})
 }
 
-// export const useGetPools2 = () => {
-// 	const { connection } = useConnection()
-// 	return useQuery({
-// 		queryKey: ['get-pools-2'],
-// 		queryFn: async () => {
-// 			const poolAccounts = await connection.getProgramAccounts(
-// 				new PublicKey('SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
-// 			)
-// 			console.log('pool account ', poolAccounts)
-// 			return poolAccounts.map(({ pubkey, account }) => {
-// 				const data = new Uint8Array(account.data.buffer, account.data.byteOffset, account.data.byteLength)
-// 				const info = SWAP_LAYOUT.decode(data)
-// 				console.log('this is the info ', info)
-// 				return {
-// 					poolAddress: pubkey.toBase58(),
-// 					tokenAccountA: new PublicKey(info.tokenAccountA).toBase58(),
-// 					tokenAccountB: new PublicKey(info.tokenAccountB).toBase58(),
-// 					mintA: new PublicKey(info.mintA).toBase58(),
-// 					mintB: new PublicKey(info.mintB).toBase58(),
-// 					poolMint: new PublicKey(info.poolMint).toBase58()
-// 				}
-// 			})
-// 		}
-// 	})
-// }
+// Enhanced pool statistics hook
+export const useGetPoolStats = () => {
+	const { data: poolsData } = useGetPools()
 
-export const useGetPoolById = ({ poolId }: { poolId: string }) =>
-	useQuery<TGetPoolDetailResponse>({
+	return useQuery({
+		queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS],
+		queryFn: () => {
+			if (!poolsData?.data) return null
+
+			const pools = poolsData.data
+			const totalLiquidity = pools.reduce((sum, pool) => sum + pool.tvl, 0)
+			const totalVolume = pools.reduce((sum, pool) => sum + pool.volume24h, 0)
+			const totalFees = pools.reduce((sum, pool) => sum + pool.fees24h, 0)
+			const averageAPR = pools.length > 0 ? pools.reduce((sum, pool) => sum + pool.apr24h, 0) / pools.length : 0
+
+			const topPoolsByLiquidity = [...pools].sort((a, b) => b.tvl - a.tvl).slice(0, 10)
+
+			const topPoolsByVolume = [...pools].sort((a, b) => b.volume24h - a.volume24h).slice(0, 10)
+
+			const topPoolsByAPR = [...pools].sort((a, b) => b.apr24h - a.apr24h).slice(0, 10)
+
+			return {
+				totalPools: pools.length,
+				totalLiquidity,
+				totalVolume,
+				totalFees,
+				averageAPR,
+				topPoolsByLiquidity,
+				topPoolsByVolume,
+				topPoolsByAPR,
+				lastUpdated: new Date().toISOString()
+			}
+		},
+		enabled: !!poolsData?.data,
+		staleTime: 60000, // 1 minute
+		gcTime: 300000 // 5 minutes
+	})
+}
+
+// Enhanced individual pool fetching
+export const useGetPoolById = ({ poolId }: { poolId: string }) => {
+	const { connection } = useConnection()
+
+	return useQuery({
 		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId],
 		queryFn: async () => {
-			const res = await axios.get(ENDPOINTS.RAYDIUM.GET_POOL_BY_ID, {
-				params: {
-					ids: poolId
+			try {
+				// First try to get from onchain data
+				const poolsQuery = await getAllPoolsFromOnchain(connection)
+				const pool = poolsQuery.find((p) => p.address === poolId)
+
+				if (pool) {
+					return {
+						message: `Successfully got pool data for ${poolId}`,
+						data: pool
+					}
 				}
+
+				// Fallback to API if needed
+				const res = await axios.get(ENDPOINTS.RAYDIUM.GET_POOL_BY_ID, {
+					params: { ids: poolId }
+				})
+				const poolData = res.data.data[0] as PoolData
+				return {
+					message: `Successfully got pool data for ${poolId}`,
+					data: poolData
+				}
+			} catch (error) {
+				console.error(`Error fetching pool ${poolId}:`, error)
+				throw error
+			}
+		},
+		enabled: !!poolId,
+		staleTime: 30000, // 30 seconds
+		retry: 2,
+		retryDelay: 1000
+	})
+}
+
+// Pool refresh mutation
+export const useRefreshPools = () => {
+	const queryClient = useQueryClient()
+	const { connection } = useConnection()
+
+	return useMutation({
+		mutationFn: async () => {
+			console.log('🔄 Manually refreshing pools...')
+			const pools = await getAllPoolsFromOnchain(connection)
+			return pools
+		},
+		onSuccess: (pools) => {
+			// Update the main pools cache
+			queryClient.setQueryData([SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint], {
+				message: `Successfully refreshed ${pools.length} pools`,
+				data: pools
 			})
-			const poolData = res.data.data[0] as PoolData
-			return { message: `Successfully get pool data with id ${poolId}`, data: poolData }
+
+			// Invalidate related queries
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
+
+			console.log(`✅ Manually refreshed ${pools.length} pools`)
+		},
+		onError: (error) => {
+			console.error('❌ Manual refresh failed:', error)
 		}
 	})
+}
 
+// Background sync for real-time updates
+export const usePoolsBackgroundSync = () => {
+	const { connection } = useConnection()
+	const queryClient = useQueryClient()
+
+	return useQuery({
+		queryKey: ['pools-background-sync', connection.rpcEndpoint],
+		queryFn: async () => {
+			try {
+				// This runs in the background to keep data fresh
+				const pools = await getAllPoolsFromOnchain(connection)
+
+				// Update cache silently
+				queryClient.setQueryData([SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint], {
+					message: `Background sync: ${pools.length} pools`,
+					data: pools
+				})
+
+				return pools
+			} catch (error) {
+				console.warn('Background sync failed:', error)
+				throw error
+			}
+		},
+		refetchInterval: 60000, // Every minute
+		refetchOnWindowFocus: false,
+		enabled: true,
+		staleTime: Infinity, // Never mark as stale since this is just for background sync
+		retry: 1,
+		retryDelay: 5000
+	})
+}
+
+// Create pool mutation remains the same but with better error handling
 export const useCreatePool = () => {
 	const { connection } = useConnection()
 	const { publicKey: ownerAddress, sendTransaction, signTransaction } = useWallet()
+	const queryClient = useQueryClient()
 
 	return useMutation<TCreatePoolResponse, Error, TCreatePoolPayload>({
 		mutationKey: [SERVICES_KEY.POOL.CREATE_POOL, ownerAddress?.toBase58()],
@@ -537,87 +688,71 @@ export const useCreatePool = () => {
 				})
 
 				console.log('📋 Transaction Instructions:', {
-					instruction1: 'SystemProgram.createAccount',
-					instruction2: 'TokenSwap.initialize',
-					tokenSwapAccount: tokenSwap.publicKey.toBase58(),
-					expectedSize: tokenSwapAccountSize,
-					owner: TOKEN_SWAP_PROGRAM_ID.toBase58()
+					createAccount: 'Create TokenSwap account',
+					initialize: 'Initialize TokenSwap',
+					totalInstructions: 2
 				})
 
-				// === Create single transaction like working test ===
-				const initTx = new Transaction().add(createSwapAccountIx, swapIx)
+				// === Single Transaction Approach (Matching Working Test) ===
+				console.log('🏗️ Creating single transaction with create + initialize...')
+				const finalTx = new Transaction().add(createSwapAccountIx, swapIx)
 
-				console.log('📝 Sending pool initialization transaction...')
-				try {
-					const sig = await sendTransaction(initTx, connection, {
-						signers: [tokenSwap], // Include tokenSwap as signer for account creation
-						skipPreflight: false,
-						preflightCommitment: 'confirmed'
-					})
-					console.log('⏳ Pool initialization transaction sent:', sig)
+				// Set recent blockhash and fee payer
+				finalTx.recentBlockhash = latestBlockhash.blockhash
+				finalTx.feePayer = ownerAddress
 
-					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
+				console.log('📋 Final Transaction Analysis:', {
+					instructionCount: finalTx.instructions.length,
+					estimatedFee: 'Will be calculated by wallet',
+					signers: [ownerAddress.toBase58(), tokenSwap.publicKey.toBase58()],
+					recentBlockhash: latestBlockhash.blockhash.slice(0, 8) + '...'
+				})
 
-					console.log('🎉 BBAChain Liquidity Pool created successfully!')
-					console.log('📄 Final transaction signature:', sig)
-					console.log('🏊‍♂️ Pool is now live and ready for trading!')
+				// === IMPORTANT: Use sendTransaction with additional signers ===
+				console.log('📝 Sending final transaction with BBA wallet...')
+				const finalSig = await sendTransaction(finalTx, connection, {
+					signers: [tokenSwap], // Additional signer required
+					skipPreflight: false,
+					preflightCommitment: 'confirmed'
+				})
 
-					return {
-						tokenSwap: tokenSwap.publicKey.toBase58(),
-						poolMint: poolMint.publicKey.toBase58(),
-						feeAccount: feeAccount.toBase58(),
-						lpTokenAccount: poolTokenAccount.toBase58()
-					}
-				} catch (txError) {
-					console.error('❌ Transaction failed:', txError)
+				console.log('⏳ Final transaction sent:', finalSig)
 
-					// Try to get more detailed error information
-					if (txError instanceof Error) {
-						if (txError.message.includes('Transaction cancelled by user')) {
-							throw new Error(
-								'Pool initialization cancelled. This may be due to BBA wallet compatibility issues with complex transactions.'
-							)
-						}
-						if (txError.message.includes('InvalidAccountData')) {
-							throw new Error(
-								'Invalid account data. Please verify all token accounts are properly set up and have sufficient balances.'
-							)
-						}
-						if (txError.message.includes('insufficient funds')) {
-							throw new Error(
-								'Insufficient funds for transaction fees. Please ensure you have enough BBA for gas fees.'
-							)
-						}
-					}
-					throw txError
+				// Wait for confirmation
+				const confirmation = await connection.confirmTransaction(
+					{ signature: finalSig, ...latestBlockhash },
+					'confirmed'
+				)
+
+				if (confirmation.value.err) {
+					throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
+				}
+
+				console.log('✅ TokenSwap created and initialized successfully!')
+				console.log('🎉 Pool creation completed successfully!')
+
+				// Return data in the expected format
+				return {
+					tokenSwap: tokenSwap.publicKey.toBase58(),
+					poolMint: poolMint.publicKey.toBase58(),
+					feeAccount: feeAccount.toBase58(),
+					lpTokenAccount: poolTokenAccount.toBase58(),
+					signature: finalSig,
+					message: 'Pool created successfully!'
 				}
 			} catch (error) {
 				console.error('❌ Pool creation failed:', error)
-
-				// Enhanced error handling with specific error messages
-				if (error instanceof Error) {
-					if (error.message.includes('insufficient funds')) {
-						throw new Error(
-							'Insufficient funds to create pool. Please ensure you have enough BBA for transaction fees.'
-						)
-					}
-					if (error.message.includes('TokenAccountNotFound')) {
-						throw new Error('Token account not found. Please ensure the selected tokens are valid.')
-					}
-					if (error.message.includes('InvalidOwner')) {
-						throw new Error('Invalid token owner. Please check your wallet permissions.')
-					}
-					if (error.message.includes('TokenMintToFailed')) {
-						throw new Error('Failed to mint pool tokens. Please try again.')
-					}
-					if (error.message.includes('SimulateTransactionError')) {
-						throw new Error('Transaction simulation failed. Please check your inputs and try again.')
-					}
-					throw error
-				}
-
-				throw new Error('Pool creation failed due to an unexpected error. Please try again.')
+				throw error
 			}
+		},
+		onSuccess: (result) => {
+			console.log('✅ Pool creation successful')
+			// Invalidate pools cache to refresh the list
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
+		},
+		onError: (error) => {
+			console.error('❌ Pool creation failed:', error)
 		}
 	})
 }

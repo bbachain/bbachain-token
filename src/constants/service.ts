@@ -41,7 +41,8 @@ const POOL_SERVICE_KEY = {
 	GET_POOLS: 'get-pools',
 	CREATE_POOL: 'create-pool',
 	GET_POOL_BY_ID: 'get-pool-by-id',
-	GET_POOL_BY_MINT: 'get-pool-by-mint'
+	GET_POOL_BY_MINT: 'get-pool-by-mint',
+	GET_POOL_STATS: 'get-pool-stats'
 } as const
 
 const SERVICES_KEY = {

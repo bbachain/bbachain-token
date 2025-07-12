@@ -7,7 +7,6 @@ import Moment from 'react-moment'
 
 import { Skeleton } from '@/components/ui/skeleton'
 
-
 export interface NftCardProps {
 	address: string
 	image: string

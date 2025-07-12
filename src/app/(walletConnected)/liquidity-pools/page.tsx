@@ -120,6 +120,14 @@ export default function LiquidityPools() {
 							data={allPoolsData}
 							isLoading={getPoolsQuery.isLoading}
 							onRefresh={() => getPoolsQuery.refetch()}
+							enableColumnFilters={true}
+							enableGlobalFilter={true}
+							enablePagination={true}
+							enableSorting={true}
+							enableExport={true}
+							enableColumnVisibility={true}
+							pageSize={10}
+							pageSizeOptions={[5, 10, 20, 50, 100]}
 						/>
 					)}
 				</TabsContent>

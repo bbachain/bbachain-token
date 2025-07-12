@@ -3,7 +3,7 @@ const INVALID_VALIDATION_MESSAGE = {
 	FILE_TYPE: 'Only .jpg, .jpeg, and .png files are accepted',
 	FORMAT_NUMBER: 'Only non-negative whole numbers are allowed (no commas or decimals).',
 	DECIMALS_RANGE: 'Decimals must be a number between 0 and 12',
-	METADATA_URI: 'Invalid metadata url',
+	METADATA_URI: 'Invalid metadata url'
 } as const
 
 const VALIDATION_MESSAGE = {

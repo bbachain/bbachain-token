@@ -29,5 +29,4 @@ const ENDPOINTS = {
 } as const
 
 export default ENDPOINTS
-
 ;('https://api-v3.raydium.io/pools/info/mint')
