@@ -28,13 +28,13 @@ export default function TokenFarmItem({ selectedTokenFarm, inputAmount, setInput
 					<section className="flex w-full space-x-2.5 items-center">
 						<section className="flex space-x-0 relative items-center">
 							<Image
-								src={selectedTokenFarm.fromToken.icon}
+								src={selectedTokenFarm.fromToken.logoURI || '/icon-placeholder.svg'}
 								width={21}
 								height={21}
 								alt={`${selectedTokenFarm.fromToken.name} - from icon`}
 							/>
 							<Image
-								src={selectedTokenFarm.toToken.icon}
+								src={selectedTokenFarm.toToken.logoURI || '/icon-placeholder.svg'}
 								width={21}
 								height={21}
 								alt={`${selectedTokenFarm.toToken.name} - to icon`}

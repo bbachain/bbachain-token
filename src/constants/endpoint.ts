@@ -1,14 +1,32 @@
 const PINATA_API_BASE_ENDPOINT = 'https://api.pinata.cloud'
 const IPFS_BASE_ENDPOINT = 'https://ipfs.io/ipfs'
+const RAYDIUM_API_BASE_ENDPOINT = 'https://api-v3.raydium.io'
+const RAYDIUM_TRANSACTION_API_BASE_ENDPOINT = 'https://transaction-v1.raydium.io'
 
 const PINATA_ENDPOINTS = {
 	UPLOAD_FILE: PINATA_API_BASE_ENDPOINT + '/pinning/pinFileToIPFS',
 	UPLOAD_JSON: PINATA_API_BASE_ENDPOINT + '/pinning/pinJSONToIPFS'
 } as const
 
+const RAYDIUM_ENDPOINTS = {
+	GET_MINT_LIST: RAYDIUM_API_BASE_ENDPOINT + '/mint/list',
+	GET_POOLS_LIST: RAYDIUM_API_BASE_ENDPOINT + '/pools/info/list',
+	GET_POOL_BY_ID: RAYDIUM_API_BASE_ENDPOINT + '/pools/info/ids',
+	GET_POOL_BY_MINT: RAYDIUM_API_BASE_ENDPOINT + '/pools/info/mint',
+	GET_TOKEN_PRICE_BY_MINT: RAYDIUM_API_BASE_ENDPOINT + '/mint/price',
+	GET_SWAP_TRANSACTION_BY_MINT: RAYDIUM_TRANSACTION_API_BASE_ENDPOINT + '/compute'
+} as const
+
+const INTERNAL_API_ENDPOINTS = {
+	GET_TOKENS: '/api/tokens'
+} as const
+
 const ENDPOINTS = {
 	PINATA: PINATA_ENDPOINTS,
-	IPFS_BASE: IPFS_BASE_ENDPOINT
+	IPFS_BASE: IPFS_BASE_ENDPOINT,
+	RAYDIUM: RAYDIUM_ENDPOINTS,
+	API: INTERNAL_API_ENDPOINTS
 } as const
 
 export default ENDPOINTS
+;('https://api-v3.raydium.io/pools/info/mint')

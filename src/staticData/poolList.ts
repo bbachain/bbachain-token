@@ -1,130 +1,123 @@
-import { PoolListProps } from "@/features/liquidityPool/components/Columns";
+import { PoolListProps } from '@/features/liquidityPool/components/Columns'
 
-// this temporary static data
+/**
+ * @deprecated This is a temporary static data for the pool list.
+ * It will be replaced with the actual data from the API.
+ */
 export const PoolStaticData: PoolListProps[] = [
 	{
 		id: '1',
-		name: 'BNB-USDT',
-		swapFee: '0.01%',
-		fromToken: {
+		programId: 'program-1',
+		swapFee: 0.0001,
+		mintA: {
 			address: 'abcd',
 			name: 'Binance Coin',
 			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989,
-			currentPool: 6369541
+			logoURI: '/bnb-swap-icon.svg',
+			decimals: 18
 		},
-		toToken: {
+		mintB: {
 			address: 'efgh',
 			name: 'BBA Coin',
 			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899,
-			currentPool: 44369541
+			logoURI: '/bba-swap-icon.svg',
+			decimals: 18
 		},
-		liquidity: '$2,354,547',
-		volume24h: '$25,207,396',
-		fees24h: '$63,018',
-		apr24h: '75%'
+		liquidity: 2354547,
+		volume24h: 25207396,
+		fees24h: 63018,
+		apr24h: 75
 	},
 	{
 		id: '2',
-		name: 'BBA-USDT',
-		swapFee: '0.01%',
-		fromToken: {
-			address: 'abcd',
-			name: 'Binance Coin',
-			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989,
-			currentPool: 6369541
-		},
-		toToken: {
-			address: 'efgh',
+		programId: 'program-2',
+		swapFee: 0.0001,
+		mintA: {
+			address: 'bba-address',
 			name: 'BBA Coin',
 			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899,
-			currentPool: 44369541
+			logoURI: '/bba-swap-icon.svg',
+			decimals: 18
 		},
-		liquidity: '$2,354,547',
-		volume24h: '$25,207,396',
-		fees24h: '$63,018',
-		apr24h: '75%'
+		mintB: {
+			address: 'usdt-address',
+			name: 'Tether USD',
+			symbol: 'USDT',
+			logoURI: '/icon-placeholder.svg',
+			decimals: 6
+		},
+		liquidity: 1854547,
+		volume24h: 18207396,
+		fees24h: 45018,
+		apr24h: 68
 	},
 	{
 		id: '3',
-		name: 'ETH-USDT',
-		swapFee: '0.01%',
-		fromToken: {
-			address: 'abcd',
-			name: 'Binance Coin',
-			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989,
-			currentPool: 6369541
+		programId: 'program-3',
+		swapFee: 0.0005,
+		mintA: {
+			address: 'eth-address',
+			name: 'Ethereum',
+			symbol: 'ETH',
+			logoURI: '/icon-placeholder.svg',
+			decimals: 18
 		},
-		toToken: {
-			address: 'efgh',
-			name: 'BBA Coin',
-			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899,
-			currentPool: 44369541
+		mintB: {
+			address: 'usdt-address',
+			name: 'Tether USD',
+			symbol: 'USDT',
+			logoURI: '/icon-placeholder.svg',
+			decimals: 6
 		},
-		liquidity: '$2,354,547',
-		volume24h: '$25,207,396',
-		fees24h: '$63,018',
-		apr24h: '75%'
+		liquidity: 5354547,
+		volume24h: 45207396,
+		fees24h: 126018,
+		apr24h: 92
 	},
 	{
 		id: '4',
-		name: 'SOL-USDT',
-		swapFee: '0.01%',
-		fromToken: {
-			address: 'abcd',
-			name: 'Binance Coin',
-			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989,
-			currentPool: 6369541
+		programId: 'program-4',
+		swapFee: 0.0003,
+		mintA: {
+			address: 'sol-address',
+			name: 'Solana',
+			symbol: 'SOL',
+			logoURI: '/icon-placeholder.svg',
+			decimals: 9
 		},
-		toToken: {
-			address: 'efgh',
-			name: 'BBA Coin',
-			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899,
-			currentPool: 44369541
+		mintB: {
+			address: 'usdt-address',
+			name: 'Tether USD',
+			symbol: 'USDT',
+			logoURI: '/icon-placeholder.svg',
+			decimals: 6
 		},
-		liquidity: '$2,354,547',
-		volume24h: '$25,207,396',
-		fees24h: '$63,018',
-		apr24h: '75%'
+		liquidity: 3254547,
+		volume24h: 32207396,
+		fees24h: 85018,
+		apr24h: 83
 	},
 	{
 		id: '5',
-		name: 'BNB-USDT',
-		swapFee: '0.01%',
-		fromToken: {
-			address: 'abcd',
+		programId: 'program-5',
+		swapFee: 0.0001,
+		mintA: {
+			address: 'bnb-address',
 			name: 'Binance Coin',
 			symbol: 'BNB',
-			icon: '/bnb-swap-icon.svg',
-			balance: 2.8989,
-			currentPool: 6369541
+			logoURI: '/bnb-swap-icon.svg',
+			decimals: 18
 		},
-		toToken: {
-			address: 'efgh',
-			name: 'BBA Coin',
-			symbol: 'BBA',
-			icon: '/bba-swap-icon.svg',
-			balance: 3.9899,
-			currentPool: 44369541
+		mintB: {
+			address: 'usdt-address',
+			name: 'Tether USD',
+			symbol: 'USDT',
+			logoURI: '/icon-placeholder.svg',
+			decimals: 6
 		},
-		liquidity: '$2,354,547',
-		volume24h: '$25,207,396',
-		fees24h: '$63,018',
-		apr24h: '75%'
+		liquidity: 2354547,
+		volume24h: 25207396,
+		fees24h: 63018,
+		apr24h: 75
 	}
 ]

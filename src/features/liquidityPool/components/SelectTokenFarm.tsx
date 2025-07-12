@@ -25,13 +25,13 @@ export default function SelectTokenFarm({ data, selectedTokenId, setSelectedToke
 							<section className="w-full pl-2.5 flex space-x-2.5 items-center">
 								<section className="flex space-x-0 relative items-center">
 									<Image
-										src={selectedTokenFarm.fromToken.icon}
+										src={selectedTokenFarm.fromToken.logoURI || '/icon-placeholder.svg'}
 										width={14}
 										height={14}
 										alt={`${selectedTokenFarm.fromToken.name} - from icon`}
 									/>
 									<Image
-										src={selectedTokenFarm.toToken.icon}
+										src={selectedTokenFarm.toToken.logoURI || '/icon-placeholder.svg'}
 										width={14}
 										height={14}
 										alt={`${selectedTokenFarm.toToken.name} - to icon`}
@@ -51,12 +51,17 @@ export default function SelectTokenFarm({ data, selectedTokenId, setSelectedToke
 							<section className="flex md:space-x-2.5 space-x-1 items-center">
 								<section className="flex space-x-0 relative items-center">
 									<Image
-										src={token.fromToken.icon}
+										src={token.fromToken.logoURI || '/icon-placeholder.svg'}
 										width={14}
 										height={14}
 										alt={`${token.fromToken.name} - from icon`}
 									/>
-									<Image src={token.toToken.icon} width={14} height={14} alt={`${token.toToken.name} - to icon`} />
+									<Image
+										src={token.toToken.logoURI || '/icon-placeholder.svg'}
+										width={14}
+										height={14}
+										alt={`${token.toToken.name} - to icon`}
+									/>
 								</section>
 								<h4 className="text-sm text-main-black">{`${token.fromToken.symbol}/${token.toToken.symbol}`}</h4>
 							</section>
