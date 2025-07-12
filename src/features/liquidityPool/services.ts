@@ -219,8 +219,8 @@ export const useCreatePool = () => {
 					programId: TOKEN_PROGRAM_ID
 				})
 
-				// Step 2: Initialize mint (requires authority)
-				const initMintIx = createInitializeMintInstruction(poolMint.publicKey, 2, authority, null)
+				// Step 2: Initialize mint with TEMPORARY authority (owner), will transfer later
+				const initMintIx = createInitializeMintInstruction(poolMint.publicKey, 2, ownerAddress, null)
 
 				// Step 3: Create user's LP token account
 				const poolTokenAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
@@ -232,7 +232,7 @@ export const useCreatePool = () => {
 				)
 
 				// Create transaction using sendTransaction with signers (BBA wallet compatible approach)
-				console.log('📝 Creating LP mint transaction with sendTransaction method...')
+				console.log('📝 Creating LP mint transaction with temporary authority...')
 				const createPoolTx = new Transaction().add(createMintIx, initMintIx, ataIx)
 
 				// Use sendTransaction which can handle additional signers
@@ -246,6 +246,22 @@ export const useCreatePool = () => {
 
 				await connection.confirmTransaction({ signature: poolSig, ...latestBlockhash }, 'confirmed')
 				console.log('✅ LP token mint created successfully')
+
+				// === CRITICAL: Transfer Pool Mint Authority to Swap Authority ===
+				console.log('🔄 Transferring pool mint authority to swap authority...')
+				const { createSetAuthorityInstruction, AuthorityType } = await import('@bbachain/spl-token')
+
+				const setAuthorityIx = createSetAuthorityInstruction(
+					poolMint.publicKey,
+					ownerAddress, // Current authority
+					AuthorityType.MintTokens,
+					authority // New authority (swap authority)
+				)
+
+				const transferAuthorityTx = new Transaction().add(setAuthorityIx)
+				const transferSig = await sendTransaction(transferAuthorityTx, connection)
+				await connection.confirmTransaction({ signature: transferSig, ...latestBlockhash }, 'confirmed')
+				console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
 
 				// === Enhanced Fee Configuration ===
 				const feeTierMap: Record<string, { numerator: number; denominator: number }> = {
@@ -276,10 +292,15 @@ export const useCreatePool = () => {
 				console.log('Pool mint ', poolMint.publicKey.toBase58())
 				console.log('Token program id ', TOKEN_PROGRAM_ID.toBase58())
 
-				const feeAccount = await getAssociatedTokenAddress(poolMint.publicKey, authority, true)
+				const feeAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
 				const feeInfo = await connection.getAccountInfo(feeAccount)
 				if (!feeInfo) {
-					const feeIx = createAssociatedTokenAccountInstruction(ownerAddress, feeAccount, authority, poolMint.publicKey)
+					const feeIx = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						feeAccount,
+						ownerAddress,
+						poolMint.publicKey
+					)
 					const tx = new Transaction().add(feeIx)
 					const sig = await sendTransaction(tx, connection)
 					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
@@ -308,11 +329,7 @@ export const useCreatePool = () => {
 				}
 
 				// === CRITICAL: Deposit Initial Liquidity ===
-				console.log('💰 Depositing initial liquidity to swap token accounts...')
-
-				// Get user's token accounts for transfer
-				const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
-				const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
+				console.log('💰 Adding initial liquidity to pool token accounts...')
 
 				// Convert amounts to proper decimals (assuming 6 decimals for both tokens)
 				// Calculate quote amount from initial price: baseAmount / initialPrice
@@ -329,11 +346,54 @@ export const useCreatePool = () => {
 					initialPrice: liquidityInitialPrice,
 					baseAmountLamports,
 					quoteAmountLamports,
-					userBaseAccount: userBaseTokenAccount.toBase58(),
-					userQuoteAccount: userQuoteTokenAccount.toBase58()
+					swapTokenAAccount: swapTokenAAccount.toBase58(),
+					swapTokenBAccount: swapTokenBAccount.toBase58()
 				})
 
-				// Create transfer instructions to fund the swap accounts
+				// === BETTER APPROACH: Mint directly to pool accounts (like working test) ===
+				const { mintTo } = await import('@bbachain/spl-token')
+
+				// First verify we have enough user balance
+				const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
+				const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
+
+				// Check user balances
+				const [userBaseInfo, userQuoteInfo] = await Promise.all([
+					connection.getAccountInfo(userBaseTokenAccount),
+					connection.getAccountInfo(userQuoteTokenAccount)
+				])
+
+				if (!userBaseInfo || !userQuoteInfo) {
+					throw new Error('User token accounts not found. Please ensure you have the required tokens.')
+				}
+
+				// Parse user balances
+				const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
+				const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
+
+				console.log('👤 User Token Balances:', {
+					baseBalance: userBaseBalance.toString(),
+					quoteBalance: userQuoteBalance.toString(),
+					baseBalanceFormatted: userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
+					quoteBalanceFormatted: userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
+					requiredBase: baseAmountLamports,
+					requiredQuote: quoteAmountLamports
+				})
+
+				// Verify sufficient balance
+				if (userBaseBalance.lt(new BN(baseAmountLamports))) {
+					throw new Error(
+						`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
+					)
+				}
+
+				if (userQuoteBalance.lt(new BN(quoteAmountLamports))) {
+					throw new Error(
+						`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
+					)
+				}
+
+				// Transfer from user to pool accounts
 				const { createTransferInstruction } = await import('@bbachain/spl-token')
 
 				const transferBaseIx = createTransferInstruction(
@@ -354,9 +414,7 @@ export const useCreatePool = () => {
 				const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
 				const liquiditySig = await sendTransaction(liquidityTx, connection)
 				await connection.confirmTransaction({ signature: liquiditySig, ...latestBlockhash }, 'confirmed')
-				console.log('✅ Initial liquidity deposited:', liquiditySig)
-
-				const destinationAccount = poolTokenAccount // Typically user’s pool LP token ATA
+				console.log('✅ Initial liquidity transferred to pool accounts:', liquiditySig)
 
 				// === Swap Initialization ===
 				const swapCurve = {
@@ -386,7 +444,7 @@ export const useCreatePool = () => {
 					tokenB: swapTokenBAccount.toBase58(),
 					poolMint: poolMint.publicKey.toBase58(),
 					feeAccount: feeAccount.toBase58(),
-					destination: destinationAccount.toBase58(),
+					destination: poolTokenAccount.toBase58(),
 					tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
 					// Also log the mint addresses for debugging
 					mintA: baseMint.toBase58(),
@@ -404,7 +462,7 @@ export const useCreatePool = () => {
 						tokenB: swapTokenBAccount,
 						poolMint: poolMint.publicKey,
 						feeAccount,
-						destination: destinationAccount,
+						destination: poolTokenAccount,
 						tokenProgram: TOKEN_PROGRAM_ID
 					},
 					{
@@ -446,7 +504,7 @@ export const useCreatePool = () => {
 					tokenB: swapTokenBAccount.toBase58(),
 					poolMint: poolMint.publicKey.toBase58(),
 					feeAccount: feeAccount.toBase58(),
-					destination: destinationAccount.toBase58(),
+					destination: poolTokenAccount.toBase58(),
 					curveType: 'ConstantProduct',
 					tradeFee: `${feeConfig.numerator}/${feeConfig.denominator}`
 				})
@@ -463,7 +521,7 @@ export const useCreatePool = () => {
 				)
 
 				// === Create TokenSwap Account + Initialize in Single Transaction ===
-				console.log('🏗️ Creating TokenSwap account and initializing in single transaction...')
+				console.log('🏗️ Creating TokenSwap account and initializing...')
 				// Import TokenSwapLayout to get exact span
 				const { TokenSwapLayout } = await import('./onchain')
 				const tokenSwapAccountSize = TokenSwapLayout.span // Use exact layout span instead of hardcoded 324
@@ -478,8 +536,7 @@ export const useCreatePool = () => {
 					programId: TOKEN_SWAP_PROGRAM_ID
 				})
 
-				console.log('🔧 Combining create account + initialize in single transaction...')
-				console.log('📋 Final Transaction Instructions:', {
+				console.log('📋 Transaction Instructions:', {
 					instruction1: 'SystemProgram.createAccount',
 					instruction2: 'TokenSwap.initialize',
 					tokenSwapAccount: tokenSwap.publicKey.toBase58(),
@@ -487,163 +544,52 @@ export const useCreatePool = () => {
 					owner: TOKEN_SWAP_PROGRAM_ID.toBase58()
 				})
 
-				// Combine create account + initialize in single transaction
-				const finalTx = new Transaction().add(createSwapAccountIx, swapIx)
-				finalTx.recentBlockhash = latestBlockhash.blockhash
-				finalTx.feePayer = ownerAddress
-
-				// Verify critical account properties BEFORE simulation
-				console.log('🔍 Pre-flight account verification...')
-
-				// Check LP mint authority
-				const poolMintInfo = await connection.getAccountInfo(poolMint.publicKey)
-				if (poolMintInfo) {
-					// Parse mint data to check authority
-					const mintData = poolMintInfo.data
-					console.log('🏦 Pool Mint Analysis:', {
-						exists: true,
-						owner: poolMintInfo.owner.toBase58(),
-						dataLength: mintData.length,
-						expectedOwner: TOKEN_PROGRAM_ID.toBase58(),
-						authorityBytes: mintData.slice(4, 36), // authority is at offset 4-36
-						authorityPubkey: new PublicKey(mintData.slice(4, 36)).toBase58(),
-						expectedAuthority: authority.toBase58(),
-						authorityMatch: new PublicKey(mintData.slice(4, 36)).equals(authority)
-					})
-				}
-
-				// Check token account ownership
-				const [tokenAInfo, tokenBInfo] = await Promise.all([
-					connection.getAccountInfo(swapTokenAAccount),
-					connection.getAccountInfo(swapTokenBAccount)
-				])
-
-				console.log('🔍 Token Account Ownership Verification:', {
-					tokenAExists: !!tokenAInfo,
-					tokenBExists: !!tokenBInfo,
-					tokenAOwner: tokenAInfo?.owner.toBase58(),
-					tokenBOwner: tokenBInfo?.owner.toBase58(),
-					expectedTokenOwner: TOKEN_PROGRAM_ID.toBase58(),
-					tokenAOwnerCorrect: tokenAInfo?.owner.equals(TOKEN_PROGRAM_ID),
-					tokenBOwnerCorrect: tokenBInfo?.owner.equals(TOKEN_PROGRAM_ID)
-				})
-
-				// Parse token account data to check authority AND balances
-				if (tokenAInfo && tokenBInfo) {
-					const tokenAAuthority = new PublicKey(tokenAInfo.data.slice(32, 64))
-					const tokenBAuthority = new PublicKey(tokenBInfo.data.slice(32, 64))
-
-					// Parse token account balances (amount is at offset 64-72, 8 bytes little endian)
-					const tokenABalance = new BN(tokenAInfo.data.slice(64, 72), 'le')
-					const tokenBBalance = new BN(tokenBInfo.data.slice(64, 72), 'le')
-
-					console.log('🔍 Token Account Authority Check:', {
-						tokenAAuthority: tokenAAuthority.toBase58(),
-						tokenBAuthority: tokenBAuthority.toBase58(),
-						expectedAuthority: authority.toBase58(),
-						tokenAAuthorityCorrect: tokenAAuthority.equals(authority),
-						tokenBAuthorityCorrect: tokenBAuthority.equals(authority)
-					})
-
-					console.log('💰 Token Account Balance Verification:', {
-						tokenABalance: tokenABalance.toString(),
-						tokenBBalance: tokenBBalance.toString(),
-						tokenABalanceFormatted: tokenABalance.div(new BN(1000000)).toString() + ' tokens',
-						tokenBBalanceFormatted: tokenBBalance.div(new BN(1000000)).toString() + ' tokens',
-						bothHaveBalance: tokenABalance.gt(new BN(0)) && tokenBBalance.gt(new BN(0)),
-						minimumBalanceCheck: tokenABalance.gte(new BN(1000000)) && tokenBBalance.gte(new BN(1000000)) // At least 1 token each
-					})
-
-					// Verify balances are sufficient
-					if (tokenABalance.isZero() || tokenBBalance.isZero()) {
-						throw new Error('Token swap accounts must have non-zero balances before initialization')
-					}
-				}
-
-				// Simulate transaction first to catch any errors
-				try {
-					console.log('🧪 Simulating transaction...')
-					const simulation = await connection.simulateTransaction(finalTx)
-
-					console.log('📊 Simulation Result:', {
-						success: !simulation.value.err,
-						error: simulation.value.err,
-						unitsConsumed: simulation.value.unitsConsumed,
-						returnData: simulation.value.returnData,
-						logs: simulation.value.logs // All logs for debugging
-					})
-
-					// Enhanced error analysis specifically for InvalidAccountData
-					if (simulation.value.err && JSON.stringify(simulation.value.err).includes('InvalidAccountData')) {
-						console.log('🔍 Enhanced InvalidAccountData Analysis:', {
-							errorDetail: simulation.value.err,
-							instructionIndex: JSON.stringify(simulation.value.err).includes('[1,') ? 1 : 0,
-							accountsInInstruction: swapIx.keys.length,
-							programLogs: simulation.value.logs?.filter((log) => log.includes('Program SwapD4')),
-							allLogs: simulation.value.logs,
-							accountMeta: swapIx.keys.map((key, i) => ({
-								index: i,
-								pubkey: key.pubkey.toBase58(),
-								writable: key.isWritable,
-								signer: key.isSigner
-							}))
-						})
-					}
-
-					// Enhanced error analysis for InvalidAccountData
-					if (simulation.value.err) {
-						const errorStr = JSON.stringify(simulation.value.err)
-						console.error('🔍 Detailed simulation error analysis:', {
-							errorType: typeof simulation.value.err,
-							errorString: errorStr,
-							isInvalidAccountData: errorStr.includes('InvalidAccountData'),
-							programLogs: simulation.value.logs?.filter((log) =>
-								log.includes('Program SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
-							)
-						})
-
-						// Check if any of the accounts failed validation
-						const failedAccountLogs =
-							simulation.value.logs?.filter(
-								(log) =>
-									log.includes('invalid') || log.includes('Invalid') || log.includes('fail') || log.includes('error')
-							) || []
-
-						if (failedAccountLogs.length > 0) {
-							console.error('🚨 Failed account validation logs:', failedAccountLogs)
-						}
-
-						throw new Error(`Transaction simulation failed: ${errorStr}`)
-					}
-				} catch (simError) {
-					console.error('❌ Simulation failed:', simError)
-					console.log(
-						'⚠️ Simulation failed, but attempting actual transaction (sometimes simulation is overly strict)...'
-					)
-
-					// Don't throw here - try actual transaction as simulation can be overly restrictive
-				}
+				// === Create single transaction like working test ===
+				const initTx = new Transaction().add(createSwapAccountIx, swapIx)
 
 				console.log('📝 Sending pool initialization transaction...')
-				// Send transaction with tokenSwap as signer (BBA wallet compatible)
-				const sig = await sendTransaction(finalTx, connection, {
-					signers: [tokenSwap], // Include tokenSwap as signer for account creation
-					skipPreflight: true, // Skip preflight since we already simulated
-					preflightCommitment: 'confirmed'
-				})
-				console.log('⏳ Pool initialization transaction sent:', sig)
+				try {
+					const sig = await sendTransaction(initTx, connection, {
+						signers: [tokenSwap], // Include tokenSwap as signer for account creation
+						skipPreflight: false,
+						preflightCommitment: 'confirmed'
+					})
+					console.log('⏳ Pool initialization transaction sent:', sig)
 
-				await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
+					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
 
-				console.log('🎉 BBAChain Liquidity Pool created successfully!')
-				console.log('📄 Final transaction signature:', sig)
-				console.log('🏊‍♂️ Pool is now live and ready for trading!')
+					console.log('🎉 BBAChain Liquidity Pool created successfully!')
+					console.log('📄 Final transaction signature:', sig)
+					console.log('🏊‍♂️ Pool is now live and ready for trading!')
 
-				return {
-					tokenSwap: tokenSwap.publicKey.toBase58(),
-					poolMint: poolMint.publicKey.toBase58(),
-					feeAccount: feeAccount.toBase58(),
-					lpTokenAccount: poolTokenAccount.toBase58()
+					return {
+						tokenSwap: tokenSwap.publicKey.toBase58(),
+						poolMint: poolMint.publicKey.toBase58(),
+						feeAccount: feeAccount.toBase58(),
+						lpTokenAccount: poolTokenAccount.toBase58()
+					}
+				} catch (txError) {
+					console.error('❌ Transaction failed:', txError)
+
+					// Try to get more detailed error information
+					if (txError instanceof Error) {
+						if (txError.message.includes('Transaction cancelled by user')) {
+							throw new Error(
+								'Pool initialization cancelled. This may be due to BBA wallet compatibility issues with complex transactions.'
+							)
+						}
+						if (txError.message.includes('InvalidAccountData')) {
+							throw new Error(
+								'Invalid account data. Please verify all token accounts are properly set up and have sufficient balances.'
+							)
+						}
+						if (txError.message.includes('insufficient funds')) {
+							throw new Error(
+								'Insufficient funds for transaction fees. Please ensure you have enough BBA for gas fees.'
+							)
+						}
+					}
+					throw txError
 				}
 			} catch (error) {
 				console.error('❌ Pool creation failed:', error)

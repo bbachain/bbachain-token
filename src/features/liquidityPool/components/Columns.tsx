@@ -61,7 +61,7 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 						<section className="flex space-x-0 relative items-center">
 							<div className="relative">
 								<Image
-									src={mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'}
+									src={mintA.logoURI && mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'}
 									width={38}
 									height={38}
 									className="rounded-full border-2 border-white dark:border-gray-800 shadow-sm"
@@ -73,7 +73,7 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 							</div>
 							<div className="relative -translate-x-2">
 								<Image
-									src={mintB.logoURI !== '' ? mintB.logoURI : '/icon-placeholder.svg'}
+									src={mintB.logoURI && mintB.logoURI !== '' ? mintB.logoURI : '/icon-placeholder.svg'}
 									width={38}
 									height={38}
 									className="rounded-full border-2 border-white dark:border-gray-800 shadow-sm"

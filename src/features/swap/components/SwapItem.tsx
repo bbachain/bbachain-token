@@ -51,7 +51,7 @@ export default function SwapItem({
 					>
 						<img
 							className="rounded-full"
-							src={tokenProps.logoURI}
+							src={tokenProps.logoURI || '/icon-placeholder.svg'}
 							width={21}
 							height={21}
 							alt={tokenProps.name + ' icon'}
@@ -64,7 +64,7 @@ export default function SwapItem({
 						{/* eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element */}
 						<img
 							className="rounded-full"
-							src={tokenProps.logoURI}
+							src={tokenProps.logoURI || '/icon-placeholder.svg'}
 							width={21}
 							height={21}
 							alt={tokenProps.name + ' icon'}

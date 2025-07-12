@@ -52,7 +52,7 @@ export type MintInfo = {
 	chainId?: number
 	address: string
 	programId?: string
-	logoURI: string
+	logoURI?: string
 	symbol: string
 	name: string
 	decimals: number

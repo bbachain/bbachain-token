@@ -122,7 +122,7 @@ export default function TokenListDialog({
 									>
 										<div className="flex space-x-2 items-center">
 											{/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-											<img src={token.logoURI} width={24} height={24} />
+											<img src={token.logoURI || '/icon-placeholder.svg'} width={24} height={24} />
 											<section className="flex flex-col space-y-1">
 												<h5 className="text-sm text-start text-main-black">{token.symbol}</h5>
 												<p className="text-[10px] text-start text-light-grey">{token.name}</p>

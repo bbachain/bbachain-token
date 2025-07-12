@@ -287,7 +287,7 @@ function TokenSelectionCard({
 	error
 }: {
 	label: string
-	token?: TTokenProps
+	token?: MintInfo
 	onSelect: () => void
 	error?: string
 }) {
@@ -477,14 +477,14 @@ export default function CreatePoolForm() {
 	)
 
 	const onSelectBaseToken = useCallback(
-		(token: TTokenProps) => {
+		(token: MintInfo) => {
 			form.setValue('baseToken', token, { shouldValidate: true })
 		},
 		[form]
 	)
 
 	const onSelectQuoteToken = useCallback(
-		(token: TTokenProps) => {
+		(token: MintInfo) => {
 			form.setValue('quoteToken', token, { shouldValidate: true })
 		},
 		[form]
