@@ -17,12 +17,17 @@ const RAYDIUM_ENDPOINTS = {
 	GET_SWAP_TRANSACTION_BY_MINT: RAYDIUM_TRANSACTION_API_BASE_ENDPOINT + '/compute'
 } as const
 
+const INTERNAL_API_ENDPOINTS = {
+	GET_TOKENS: '/api/tokens'
+} as const
+
 const ENDPOINTS = {
 	PINATA: PINATA_ENDPOINTS,
 	IPFS_BASE: IPFS_BASE_ENDPOINT,
-	RAYDIUM: RAYDIUM_ENDPOINTS
+	RAYDIUM: RAYDIUM_ENDPOINTS,
+	API: INTERNAL_API_ENDPOINTS
 } as const
 
 export default ENDPOINTS
 
-'https://api-v3.raydium.io/pools/info/mint'	
+;('https://api-v3.raydium.io/pools/info/mint')
