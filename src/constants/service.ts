@@ -42,7 +42,12 @@ const POOL_SERVICE_KEY = {
 	CREATE_POOL: 'create-pool',
 	GET_POOL_BY_ID: 'get-pool-by-id',
 	GET_POOL_BY_MINT: 'get-pool-by-mint',
-	GET_POOL_STATS: 'get-pool-stats'
+	GET_POOL_STATS: 'get-pool-stats',
+	// Enhanced services
+	CREATE_ENHANCED_POOL: 'create-enhanced-pool',
+	GET_ENHANCED_BBA_BALANCE: 'get-enhanced-bba-balance',
+	GET_ENHANCED_POOL_AVAILABILITY: 'get-enhanced-pool-availability',
+	GET_ENHANCED_TRADING_PAIRS: 'get-enhanced-trading-pairs'
 } as const
 
 const SERVICES_KEY = {
