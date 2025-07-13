@@ -31,7 +31,7 @@ import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import { useGetTokensFromAPI, useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
-import { cn } from '@/lib/utils'
+import { cn, formatTokenBalance } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
 import StaticTokens from '@/staticData/tokens'
 import { useErrorDialog } from '@/stores/errorDialog'
@@ -395,6 +395,10 @@ export default function CreatePoolForm() {
 	const mintAInitialPrice = getMintATokenPrice.data?.usdRate || 0
 	const mintBInitialPrice = getMintBTokenPrice.data?.usdRate || 0
 
+	// Format balances with proper decimals for display
+	const formattedMintABalance = selectedBaseToken ? formatTokenBalance(mintABalance, selectedBaseToken.decimals) : 0
+	const formattedMintBBalance = selectedQuoteToken ? formatTokenBalance(mintBBalance, selectedQuoteToken.decimals) : 0
+
 	// Calculated values
 	const baseTokenAmount = form.watch('baseTokenAmount')
 	const quoteTokenAmount = form.watch('quoteTokenAmount')
@@ -414,12 +418,12 @@ export default function CreatePoolForm() {
 
 	// Effects
 	useEffect(() => {
-		form.setValue('baseTokenBalance', mintABalance)
-	}, [form, mintABalance])
+		form.setValue('baseTokenBalance', formattedMintABalance)
+	}, [form, formattedMintABalance])
 
 	useEffect(() => {
-		form.setValue('quoteTokenBalance', mintBBalance)
-	}, [form, mintBBalance])
+		form.setValue('quoteTokenBalance', formattedMintBBalance)
+	}, [form, formattedMintBBalance])
 
 	// Handle successful pool creation
 	useEffect(() => {
@@ -488,6 +492,58 @@ export default function CreatePoolForm() {
 			form.setValue('quoteToken', token, { shouldValidate: true })
 		},
 		[form]
+	)
+
+	// Default token props for TokenListDialog fallback
+	const defaultTokenProps: TTokenProps = {
+		address: '',
+		logoURI: '',
+		symbol: '',
+		name: '',
+		decimals: 0,
+		tags: []
+	}
+
+	// Type conversion functions for TokenListDialog compatibility
+	const convertTTokenPropsToMintInfo = (token: TTokenProps): MintInfo => ({
+		chainId: token.chainId,
+		address: token.address,
+		programId: token.programId,
+		logoURI: token.logoURI,
+		symbol: token.symbol,
+		name: token.name,
+		decimals: token.decimals,
+		tags: token.tags,
+		extensions: token.extensions
+	})
+
+	const convertMintInfoToTTokenProps = (token: MintInfo): TTokenProps => ({
+		chainId: token.chainId,
+		address: token.address,
+		programId: token.programId,
+		logoURI: token.logoURI,
+		symbol: token.symbol,
+		name: token.name,
+		decimals: token.decimals,
+		tags: token.tags,
+		extensions: token.extensions
+	})
+
+	// Wrapper functions for TokenListDialog compatibility
+	const onSelectBaseTokenWrapper = useCallback(
+		(token: TTokenProps) => {
+			const mintInfo = convertTTokenPropsToMintInfo(token)
+			onSelectBaseToken(mintInfo)
+		},
+		[onSelectBaseToken]
+	)
+
+	const onSelectQuoteTokenWrapper = useCallback(
+		(token: TTokenProps) => {
+			const mintInfo = convertTTokenPropsToMintInfo(token)
+			onSelectQuoteToken(mintInfo)
+		},
+		[onSelectQuoteToken]
 	)
 
 	const onOpenTokenDialog = useCallback((type: 'from' | 'to') => {
@@ -808,7 +864,7 @@ export default function CreatePoolForm() {
 												type="from"
 												tokenProps={selectedBaseToken}
 												price={baseTokenPrice}
-												balance={mintABalance}
+												balance={formattedMintABalance}
 												inputAmount={baseTokenAmount}
 												setInputAmount={handleBaseAmountChange}
 											/>
@@ -819,7 +875,7 @@ export default function CreatePoolForm() {
 												type="to"
 												tokenProps={selectedQuoteToken}
 												price={quoteTokenPrice}
-												balance={mintBBalance}
+												balance={formattedMintBBalance}
 												inputAmount={quoteTokenAmount}
 												setInputAmount={handleQuoteAmountChange}
 											/>
@@ -1124,15 +1180,13 @@ export default function CreatePoolForm() {
 
 			{/* Token Selection Dialog */}
 			<TokenListDialog
-				data={tokenData}
-				isDataLoading={isLoadingTokens}
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
 				type={typeItem}
-				selectedFrom={selectedBaseToken}
-				setSelectedFrom={onSelectBaseToken}
-				selectedTo={selectedQuoteToken}
-				setSelectedTo={onSelectQuoteToken}
+				selectedFrom={selectedBaseToken ? convertMintInfoToTTokenProps(selectedBaseToken) : defaultTokenProps}
+				setSelectedFrom={onSelectBaseTokenWrapper}
+				selectedTo={selectedQuoteToken ? convertMintInfoToTTokenProps(selectedQuoteToken) : defaultTokenProps}
+				setSelectedTo={onSelectQuoteTokenWrapper}
 			/>
 
 			{/* Success Dialog */}

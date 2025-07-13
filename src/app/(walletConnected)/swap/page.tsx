@@ -72,27 +72,27 @@ export default function Swap() {
 	// Get all tokens from API for lookup
 	const { data: allTokens } = useGetTokensFromAPI('')
 
-	// Function to find token by address from API
-	const findTokenByAddress = (address: string): TTokenProps | null => {
-		if (!allTokens?.data) return null
-
-		const token = allTokens.data.find((token) => token.address === address)
-		if (!token) return null
-
-		return {
-			address: token.address,
-			logoURI: token.logoURI,
-			symbol: token.symbol,
-			name: token.name,
-			decimals: token.decimals,
-			tags: token.tags || []
-		}
-	}
-
 	// Handle URL parameters for token initialization
 	useEffect(() => {
 		const fromParam = searchParams.get('from')
 		const toParam = searchParams.get('to')
+
+		// Function to find token by address from API
+		const findTokenByAddress = (address: string): TTokenProps | null => {
+			if (!allTokens?.data) return null
+
+			const token = allTokens.data.find((token) => token.address === address)
+			if (!token) return null
+
+			return {
+				address: token.address,
+				logoURI: token.logoURI,
+				symbol: token.symbol,
+				name: token.name,
+				decimals: token.decimals,
+				tags: token.tags || []
+			}
+		}
 
 		if (fromParam && allTokens?.data) {
 			const fromToken = findTokenByAddress(fromParam)
