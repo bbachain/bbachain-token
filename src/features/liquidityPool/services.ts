@@ -6,7 +6,7 @@ import {
 	MINT_SIZE,
 	createInitializeMintInstruction
 } from '@bbachain/spl-token'
-import { CurveType, createInitializeInstruction } from '@bbachain/spl-token-swap'
+import { CurveType, createInitializeInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -15,11 +15,10 @@ import BN from 'bn.js'
 
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
+import { formatTokenToDaltons } from '@/lib/utils'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
-import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolDetailResponse, TGetPoolsResponse } from './types'
-
-const TOKEN_SWAP_PROGRAM_ID = new PublicKey('SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
+import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolsResponse } from './types'
 
 // Enhanced retry configuration
 const RETRY_CONFIG = {
@@ -488,15 +487,15 @@ export const useCreatePool = () => {
 				const liquidityInitialPrice = parseFloat(payload.initialPrice) // SHIB per USDT
 				const liquidityQuoteAmount = liquidityBaseAmount / liquidityInitialPrice // USDT amount
 
-				const baseAmountLamports = Math.floor(liquidityBaseAmount * Math.pow(10, 6))
-				const quoteAmountLamports = Math.floor(liquidityQuoteAmount * Math.pow(10, 6))
+				const baseAmountDaltons = formatTokenToDaltons(liquidityBaseAmount, 6)
+				const quoteAmountDaltons = formatTokenToDaltons(liquidityQuoteAmount, 6)
 
 				console.log('💰 Initial Liquidity Amounts:', {
 					baseAmount: payload.baseTokenAmount,
 					calculatedQuoteAmount: liquidityQuoteAmount,
 					initialPrice: liquidityInitialPrice,
-					baseAmountLamports,
-					quoteAmountLamports,
+					baseAmountDaltons,
+					quoteAmountDaltons,
 					swapTokenAAccount: swapTokenAAccount.toBase58(),
 					swapTokenBAccount: swapTokenBAccount.toBase58()
 				})
@@ -527,18 +526,18 @@ export const useCreatePool = () => {
 					quoteBalance: userQuoteBalance.toString(),
 					baseBalanceFormatted: userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
 					quoteBalanceFormatted: userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
-					requiredBase: baseAmountLamports,
-					requiredQuote: quoteAmountLamports
+					requiredBase: baseAmountDaltons,
+					requiredQuote: quoteAmountDaltons
 				})
 
 				// Verify sufficient balance
-				if (userBaseBalance.lt(new BN(baseAmountLamports))) {
+				if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
 					throw new Error(
 						`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
 					)
 				}
 
-				if (userQuoteBalance.lt(new BN(quoteAmountLamports))) {
+				if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
 					throw new Error(
 						`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
 					)
@@ -551,14 +550,14 @@ export const useCreatePool = () => {
 					userBaseTokenAccount,
 					swapTokenAAccount,
 					ownerAddress,
-					baseAmountLamports
+					baseAmountDaltons
 				)
 
 				const transferQuoteIx = createTransferInstruction(
 					userQuoteTokenAccount,
 					swapTokenBAccount,
 					ownerAddress,
-					quoteAmountLamports
+					quoteAmountDaltons
 				)
 
 				// Send initial liquidity transfer

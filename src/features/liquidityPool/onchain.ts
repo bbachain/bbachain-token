@@ -1,13 +1,11 @@
 import { struct, u8, blob } from '@bbachain/buffer-layout'
 import { getAccount, getMint } from '@bbachain/spl-token'
+import { PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { Connection, PublicKey } from '@bbachain/web3.js'
 
 import { getTokenByAddress, generateTokenDisplayName } from '@/staticData/tokens'
 
 import { MintInfo } from './types'
-
-// Token Swap Program ID for BBAChain
-export const TOKEN_SWAP_PROGRAM_ID = new PublicKey('SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
 
 // Layout for parsing TokenSwap account data
 const publicKey = (property: string = 'publicKey') => {
@@ -182,7 +180,21 @@ export async function getTokenAccountBalance(connection: Connection, tokenAccoun
  */
 export function calculateFeeRate(numerator: bigint, denominator: bigint): number {
 	if (denominator === BigInt(0)) return 0
-	return Number(numerator) / Number(denominator)
+
+	const feeRate = Number(numerator) / Number(denominator)
+
+	// Cap fee rate at 5% (0.05) to prevent unrealistic fees
+	// Most DEX fees are between 0.1% and 1%
+	if (feeRate > 0.05) {
+		console.warn('⚠️ Fee rate capped at 5%:', {
+			originalFeeRate: feeRate,
+			numerator: numerator.toString(),
+			denominator: denominator.toString()
+		})
+		return 0.01 // Default to 1% if fee rate is unrealistic
+	}
+
+	return feeRate
 }
 
 /**
