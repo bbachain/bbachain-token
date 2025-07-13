@@ -6,8 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format token balance from lamports to human-readable format
- * @param balance - Balance in lamports (smallest unit)
+ * Format token balance from daltons to human-readable format
+ * @param balance - Balance in daltons (smallest unit)
  * @param decimals - Number of decimals for the token
  * @returns Formatted balance as number
  */
@@ -17,19 +17,19 @@ export function formatTokenBalance(balance: number, decimals: number): number {
 }
 
 /**
- * Format token amount to lamports
+ * Format token amount to daltons
  * @param amount - Amount in human-readable format
  * @param decimals - Number of decimals for the token
- * @returns Amount in lamports
+ * @returns Amount in daltons
  */
-export function formatTokenToLamports(amount: number, decimals: number): number {
+export function formatTokenToDaltons(amount: number, decimals: number): number {
 	if (!amount || !decimals) return 0
 	return amount * Math.pow(10, decimals)
 }
 
 /**
  * Format balance for display with proper number formatting
- * @param balance - Balance in lamports
+ * @param balance - Balance in daltons
  * @param decimals - Number of decimals for the token
  * @param maxDecimals - Maximum decimals to show in display (default: 6)
  * @returns Formatted balance string

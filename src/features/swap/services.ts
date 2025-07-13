@@ -596,7 +596,7 @@ export const useExecuteSwap = () => {
 			const inputDecimals = isInputTokenA ? pool.mintA.decimals : pool.mintB.decimals
 			const outputDecimals = isInputTokenA ? pool.mintB.decimals : pool.mintA.decimals
 
-			const inputAmountLamports = Math.floor(inputAmountNumber * Math.pow(10, inputDecimals))
+			const inputAmountDaltons = Math.floor(inputAmountNumber * Math.pow(10, inputDecimals))
 
 			const inputReserve = isInputTokenA
 				? Number(pool.reserveA) / Math.pow(10, pool.mintA.decimals)
@@ -607,17 +607,17 @@ export const useExecuteSwap = () => {
 
 			const feeRateDecimal = pool.feeRate > 1 ? pool.feeRate / 100 : pool.feeRate
 			const expectedOutput = calculateOutputAmount(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal)
-			const expectedOutputLamports = Math.floor(expectedOutput * Math.pow(10, outputDecimals))
+			const expectedOutputDaltons = Math.floor(expectedOutput * Math.pow(10, outputDecimals))
 
 			const slippageMultiplier = 1 - slippage / 100
-			const minimumOutputLamports = Math.floor(expectedOutputLamports * slippageMultiplier)
+			const minimumOutputDaltons = Math.floor(expectedOutputDaltons * slippageMultiplier)
 
 			console.log('💰 All swap parameters ready:', {
 				inputAmount: inputAmountNumber,
-				inputAmountLamports,
+				inputAmountDaltons,
 				expectedOutput,
-				expectedOutputLamports,
-				minimumOutputLamports,
+				expectedOutputDaltons,
+				minimumOutputDaltons,
 				slippage: slippage + '%',
 				poolAddress,
 				isInputTokenA
@@ -654,8 +654,8 @@ export const useExecuteSwap = () => {
 
 			// Prepare instruction data
 			const instructionData = {
-				amountIn: inputAmountLamports,
-				minimumAmountOut: minimumOutputLamports
+				amountIn: inputAmountDaltons,
+				minimumAmountOut: minimumOutputDaltons
 			}
 
 			console.log('🔧 Creating swap instruction with accounts:', accounts)
