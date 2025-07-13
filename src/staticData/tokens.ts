@@ -22,7 +22,7 @@ const StaticTokens: MintInfo[] = [
 		symbol: 'USDC',
 		address: '3ifxm7UKBEFxVnGn3SiZh1QMW7RCJPbAeE4JYh8hiYUd',
 		logoURI: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
-		decimals: 6,
+		decimals: 9,
 		tags: ['stablecoin']
 	},
 	{
@@ -30,7 +30,7 @@ const StaticTokens: MintInfo[] = [
 		symbol: 'SHIB',
 		address: 'LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq',
 		logoURI: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
-		decimals: 9,
+		decimals: 6,
 		tags: ['meme']
 	}
 ]

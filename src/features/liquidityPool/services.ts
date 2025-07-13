@@ -6,7 +6,7 @@ import {
 	MINT_SIZE,
 	createInitializeMintInstruction
 } from '@bbachain/spl-token'
-import { CurveType, createInitializeInstruction } from '@bbachain/spl-token-swap'
+import { CurveType, createInitializeInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -18,8 +18,6 @@ import SERVICES_KEY from '@/constants/service'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
 import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolDetailResponse, TGetPoolsResponse } from './types'
-
-const TOKEN_SWAP_PROGRAM_ID = new PublicKey('SwapD4hpSrcB23e4RGdXPBdNzgXoFGaTEa1ZwoouotX')
 
 // Enhanced retry configuration
 const RETRY_CONFIG = {

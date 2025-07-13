@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { Loader2 } from 'lucide-react'
@@ -11,11 +12,10 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
+import { useGetAvailableTokens } from '../services'
 import { TTokenProps } from '../types'
 
 interface TokenListDialogProps {
-	data: TTokenProps[]
-	isDataLoading: boolean
 	type: 'from' | 'to'
 	isOpen: boolean
 	setIsOpen: Dispatch<SetStateAction<boolean>>
@@ -26,13 +26,13 @@ interface TokenListDialogProps {
 }
 
 const SelectTokenTips = {
-	titleTip: 'Find a token by searching for its name or symbol or by pasting its address below.',
-	notVerifiedTip: 'This token is not verified. Use caution'
+	titleTip:
+		'Find a token by searching for its name, symbol, or address. Results are filtered from our available token list.',
+	notVerifiedTip: 'This token is not verified. Use caution',
+	noPoolTip: 'No liquidity pool available for this token pair'
 } as const
 
 export default function TokenListDialog({
-	data,
-	isDataLoading,
 	type,
 	isOpen,
 	setIsOpen,
@@ -42,7 +42,21 @@ export default function TokenListDialog({
 	setSelectedTo
 }: TokenListDialogProps) {
 	const [search, setSearch] = useState<string>('')
-	const [filteredData, setFilteredData] = useState<TTokenProps[]>(data)
+	const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+
+	// Debounce search to avoid excessive API calls
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedSearch(search)
+		}, 300)
+
+		return () => clearTimeout(timer)
+	}, [search])
+
+	// Use the enhanced API hook with search
+	const { data: tokensResponse, isLoading, error } = useGetAvailableTokens(debouncedSearch.trim() || undefined)
+
+	const tokens = tokensResponse?.data || []
 
 	const selectedToken = () => {
 		switch (type) {
@@ -54,6 +68,14 @@ export default function TokenListDialog({
 	}
 
 	const onSelectToken = (token: TTokenProps) => {
+		// Prevent selecting the same token for both from and to
+		if (type === 'from' && selectedTo && token.address === selectedTo.address) {
+			return
+		}
+		if (type === 'to' && selectedFrom && token.address === selectedFrom.address) {
+			return
+		}
+
 		switch (type) {
 			case 'from':
 				return setSelectedFrom(token)
@@ -62,24 +84,29 @@ export default function TokenListDialog({
 		}
 	}
 
-	useEffect(() => {
-		const query = search.toLowerCase()
+	// Filter out already selected token from the opposite side
+	const filteredTokens = tokens.filter((token: TTokenProps) => {
+		if (type === 'from' && selectedTo) {
+			return token.address !== selectedTo.address
+		}
+		if (type === 'to' && selectedFrom) {
+			return token.address !== selectedFrom.address
+		}
+		return true
+	})
 
-		const filtered = data.filter(
-			(token) =>
-				token.name?.toLowerCase()?.includes(query) ||
-				token.symbol?.toLowerCase()?.includes(query) ||
-				token.address?.toLowerCase()?.includes(query)
-		)
-
-		setFilteredData(filtered)
-	}, [search, data])
+	const handleClearSearch = () => {
+		setSearch('')
+		setDebouncedSearch('')
+	}
 
 	return (
 		<Dialog open={isOpen} onOpenChange={setIsOpen}>
 			<DialogContent className="md:max-w-[436px] max-w-[300px] rounded-[12px] shadow-[0_6px_14.1px_6px_rgba(0,0,0,0.25)]">
 				<DialogHeader className="flex flex-row items-center space-x-0.5 w-full">
-					<DialogTitle className="font-normal text-lg text-main-black">Select Token</DialogTitle>
+					<DialogTitle className="font-normal text-lg text-main-black">
+						Select Token {type === 'from' ? 'From' : 'To'}
+					</DialogTitle>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button variant="ghost" size="icon" className="w-4 h-4 !mt-0">
@@ -87,7 +114,7 @@ export default function TokenListDialog({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							<p className="w-[198px]">{SelectTokenTips.titleTip}</p>
+							<p className="w-[240px]">{SelectTokenTips.titleTip}</p>
 						</TooltipContent>
 					</Tooltip>
 				</DialogHeader>
@@ -95,43 +122,126 @@ export default function TokenListDialog({
 					<section className="relative">
 						<IoSearchOutline className="absolute left-3 top-1/2 text-sm -translate-y-1/2 text-gray-500" />
 						<Input
-							placeholder="Search token name or paste address"
+							placeholder="Search by name, symbol, or address..."
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
-							className="!text-xs w-full rounded-[10px] pl-9 h-9 border-[1.4px] border-[#989898] dark:border-[#C6C6C6]"
+							className="!text-xs w-full rounded-[10px] pl-9 pr-8 h-9 border-[1.4px] border-[#989898] dark:border-[#C6C6C6]"
 						/>
+						{search && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={handleClearSearch}
+								className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+							>
+								×
+							</Button>
+						)}
 					</section>
-					<section className="flex flex-col h-full max-h-60 overflow-y-scroll pt-4 space-y-5 border-t-2 border-light-grey">
-						{isDataLoading && (
-							<div className="flex justify-center items-center h-full w-full">
-								<Loader2 className="animate-spin" />
+
+					{/* Token List */}
+					<section className="flex flex-col h-full max-h-60 overflow-y-auto pt-4 space-y-2 border-t-2 border-light-grey">
+						{isLoading && (
+							<div className="flex flex-col items-center justify-center h-24 w-full space-y-2">
+								<Loader2 className="animate-spin h-6 w-6 text-main-green" />
+								<p className="text-sm text-gray-500">Loading tokens...</p>
 							</div>
 						)}
-						{!isDataLoading && filteredData.length === 0 && <p className="text-center text-sm">No data found</p>}
-						{filteredData.length > 0 &&
-							filteredData.map((token) => (
-								<DialogClose key={token.address} asChild>
-									<Button
-										variant="ghost"
-										type="button"
-										onClick={() => onSelectToken(token)}
-										className={cn(
-											'w-full flex hover:bg-box !py-2.5 h-11 px-[7px] justify-between',
-											selectedToken() === token && 'bg-box'
-										)}
-									>
-										<div className="flex space-x-2 items-center">
-											{/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-											<img src={token.logoURI || '/icon-placeholder.svg'} width={24} height={24} />
-											<section className="flex flex-col space-y-1">
-												<h5 className="text-sm text-start text-main-black">{token.symbol}</h5>
-												<p className="text-[10px] text-start text-light-grey">{token.name}</p>
-											</section>
-										</div>
-									</Button>
-								</DialogClose>
-							))}
+
+						{error && (
+							<div className="flex flex-col items-center justify-center h-24 w-full space-y-2">
+								<p className="text-sm text-red-500">Failed to load tokens</p>
+								<p className="text-xs text-gray-500">Please try again</p>
+							</div>
+						)}
+
+						{!isLoading && !error && filteredTokens.length === 0 && (
+							<div className="flex flex-col items-center justify-center h-24 w-full space-y-2">
+								<p className="text-sm text-gray-500">No tokens found</p>
+								{search && <p className="text-xs text-gray-400">Try searching for a different term</p>}
+							</div>
+						)}
+
+						{!isLoading && !error && filteredTokens.length > 0 && (
+							<div className="space-y-1">
+								{filteredTokens.map((token: TTokenProps) => {
+									const isSelected = selectedToken()?.address === token.address
+									const isDisabled =
+										(type === 'from' && selectedTo?.address === token.address) ||
+										(type === 'to' && selectedFrom?.address === token.address)
+
+									return (
+										<DialogClose key={token.address} asChild>
+											<Button
+												variant="ghost"
+												type="button"
+												onClick={() => onSelectToken(token)}
+												disabled={isDisabled}
+												className={cn(
+													'w-full flex hover:bg-box !py-2.5 h-auto px-[7px] justify-between items-center rounded-lg transition-all',
+													isSelected && 'bg-main-green/10 border border-main-green/20',
+													isDisabled && 'opacity-50 cursor-not-allowed'
+												)}
+											>
+												<div className="flex space-x-3 items-center">
+													{/* Token Icon */}
+													<div className="relative">
+														<img
+															src={token.logoURI || '/icon-placeholder.svg'}
+															alt={`${token.symbol} icon`}
+															width={32}
+															height={32}
+															className="rounded-full"
+															onError={(e) => {
+																const target = e.target as HTMLImageElement
+																target.src = '/icon-placeholder.svg'
+															}}
+														/>
+														{token.tags?.includes('verified') && (
+															<div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white" />
+														)}
+													</div>
+
+													{/* Token Info */}
+													<div className="flex flex-col space-y-0.5 items-start">
+														<div className="flex items-center space-x-2">
+															<h5 className="text-sm font-medium text-start text-main-black">{token.symbol}</h5>
+															{token.tags?.includes('stablecoin') && (
+																<span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded">Stable</span>
+															)}
+															{token.tags?.includes('native') && (
+																<span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-800 rounded">
+																	Native
+																</span>
+															)}
+														</div>
+														<p className="text-[10px] text-start text-light-grey max-w-[200px] truncate">
+															{token.name}
+														</p>
+														{search && token.address.toLowerCase().includes(search.toLowerCase()) && (
+															<p className="text-[9px] text-start text-gray-400 font-mono max-w-[200px] truncate">
+																{token.address}
+															</p>
+														)}
+													</div>
+												</div>
+
+												{/* Selection Indicator */}
+												{isSelected && <div className="w-2 h-2 bg-main-green rounded-full" />}
+											</Button>
+										</DialogClose>
+									)
+								})}
+							</div>
+						)}
 					</section>
+
+					{/* Footer Info */}
+					<div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-200">
+						<p>
+							{filteredTokens.length} token{filteredTokens.length !== 1 ? 's' : ''} available
+						</p>
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>
