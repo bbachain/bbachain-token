@@ -94,13 +94,6 @@ const getLiquidityHealthColor = (liquidity: number): string => {
 }
 
 function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: MintInfo; swapFee: number }) {
-	// Debug logging to see what data we're receiving
-	console.log('🔍 TokenPairDisplay received:', {
-		mintA: { symbol: mintA.symbol, name: mintA.name, address: mintA.address },
-		mintB: { symbol: mintB.symbol, name: mintB.name, address: mintB.address },
-		swapFee
-	})
-
 	return (
 		<div className="flex items-center w-full min-w-0">
 			{/* Star icon for favorites (like Raydium) */}

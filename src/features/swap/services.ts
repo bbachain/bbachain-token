@@ -2,7 +2,8 @@ import * as BufferLayout from '@bbachain/buffer-layout'
 import {
 	getAssociatedTokenAddress,
 	createAssociatedTokenAccountInstruction,
-	TOKEN_PROGRAM_ID
+	TOKEN_PROGRAM_ID,
+	NATIVE_MINT
 } from '@bbachain/spl-token'
 import { createSwapInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
@@ -173,11 +174,21 @@ export const useGetUserBalanceByMint = ({ mintAddress }: { mintAddress: string }
 			if (!ownerAddress) throw new Error('No wallet connected')
 
 			try {
-				const mint = new PublicKey(mintAddress)
-				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
-				const balanceAmount = await connection.getTokenAccountBalance(ata)
+				// Check if this is native BBA (SOL)
+				const isNativeBBA = mintAddress === NATIVE_MINT.toBase58()
 
-				return { balance: Number(balanceAmount.value.amount) }
+				if (isNativeBBA) {
+					// For native BBA, get the wallet's SOL balance directly
+					const balance = await connection.getBalance(ownerAddress)
+					console.log(`🔄 Native BBA balance: ${balance / 1e9} BBA`)
+					return { balance }
+				} else {
+					// For SPL tokens, use token account balance
+					const mint = new PublicKey(mintAddress)
+					const ata = await getAssociatedTokenAddress(mint, ownerAddress)
+					const balanceAmount = await connection.getTokenAccountBalance(ata)
+					return { balance: Number(balanceAmount.value.amount) }
+				}
 			} catch (e) {
 				console.error('Balance fetch error:', e)
 				return { balance: 0 }
@@ -358,12 +369,7 @@ export const useGetSwapQuote = ({
 
 			try {
 				// Get all pools from onchain
-				console.log('📊 Fetching pools from onchain...')
 				const pools = await getAllPoolsFromOnchain(connection)
-				console.log('📊 Pools fetched:', {
-					totalPools: pools.length,
-					poolAddresses: pools.map((p) => p.address).slice(0, 5) // First 5 for debugging
-				})
 
 				// Find the best pool for this token pair
 				const bestPool = findBestPool(pools, inputMint, outputMint)

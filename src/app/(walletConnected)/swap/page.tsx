@@ -146,23 +146,6 @@ export default function Swap() {
 	// Swap execution
 	const executeSwapMutation = useExecuteSwap()
 
-	// Debug logging
-	useEffect(() => {
-		console.log('🔍 Swap Debug Info:', {
-			inputAmount: amountIn,
-			inputAmountNumber: Number(amountIn),
-			inputAmountValid: amountIn && Number(amountIn) > 0,
-			fromToken: fromTokenProps.symbol,
-			toToken: toTokenProps.symbol,
-			swapQuoteLoading: swapQuoteQuery.isLoading,
-			swapQuoteError: swapQuoteQuery.error,
-			swapQuoteData: swapQuoteQuery.data,
-			canSwap: canSwapQuery.data,
-			canSwapLoading: canSwapQuery.isLoading,
-			route: swapRouteQuery.data
-		})
-	}, [amountIn, fromTokenProps.symbol, toTokenProps.symbol, swapQuoteQuery, canSwapQuery, swapRouteQuery])
-
 	// Computed values
 	const swapQuote = swapQuoteQuery.data
 	const mintABalance = getMintABalance.data?.balance || 0

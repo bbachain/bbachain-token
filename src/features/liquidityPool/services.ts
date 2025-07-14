@@ -8,7 +8,7 @@ import {
 } from '@bbachain/spl-token'
 import { CurveType, createInitializeInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
+import { Keypair, PublicKey, SystemProgram, Transaction, Connection } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import BN from 'bn.js'
@@ -16,6 +16,7 @@ import BN from 'bn.js'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
 import { formatTokenToDaltons } from '@/lib/utils'
+import { isNativeBBA, isBBAToken, isNativeBBAPool } from '@/staticData/tokens'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
 import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolsResponse } from './types'
@@ -27,6 +28,237 @@ const RETRY_CONFIG = {
 	retryCondition: (error: any) => {
 		// Retry on network errors, timeouts, and 5xx errors
 		return !error.response || error.response.status >= 500 || error.code === 'NETWORK_ERROR'
+	}
+}
+
+// Enhanced error types for better error handling
+export enum PoolCreationErrorType {
+	WALLET_NOT_CONNECTED = 'WALLET_NOT_CONNECTED',
+	INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
+	INVALID_TOKENS = 'INVALID_TOKENS',
+	NETWORK_ERROR = 'NETWORK_ERROR',
+	TRANSACTION_FAILED = 'TRANSACTION_FAILED',
+	ACCOUNT_CREATION_FAILED = 'ACCOUNT_CREATION_FAILED',
+	AUTHORITY_TRANSFER_FAILED = 'AUTHORITY_TRANSFER_FAILED',
+	LIQUIDITY_TRANSFER_FAILED = 'LIQUIDITY_TRANSFER_FAILED',
+	POOL_INITIALIZATION_FAILED = 'POOL_INITIALIZATION_FAILED',
+	NATIVE_BBA_ERROR = 'NATIVE_BBA_ERROR',
+	UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+}
+
+export class PoolCreationError extends Error {
+	public readonly type: PoolCreationErrorType
+	public readonly originalError?: Error
+	public readonly context?: Record<string, any>
+	public readonly retryable: boolean
+
+	constructor(
+		type: PoolCreationErrorType,
+		message: string,
+		originalError?: Error,
+		context?: Record<string, any>,
+		retryable: boolean = false
+	) {
+		super(message)
+		this.name = 'PoolCreationError'
+		this.type = type
+		this.originalError = originalError
+		this.context = context
+		this.retryable = retryable
+	}
+}
+
+// Enhanced transaction execution with retry logic
+async function executeTransactionWithRetry(
+	connection: Connection,
+	transaction: Transaction,
+	sendTransaction: any,
+	description: string,
+	maxRetries: number = 3
+): Promise<string> {
+	let lastError: Error | null = null
+	
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			console.log(`📝 ${description} (Attempt ${attempt}/${maxRetries})...`)
+			
+			const signature = await sendTransaction(transaction, connection, {
+				skipPreflight: false,
+				preflightCommitment: 'confirmed'
+			})
+			
+			console.log(`⏳ Transaction sent: ${signature}`)
+			
+			// Get fresh blockhash for confirmation
+			const latestBlockhash = await connection.getLatestBlockhash('confirmed')
+			const confirmation = await connection.confirmTransaction(
+				{ signature, ...latestBlockhash },
+				'confirmed'
+			)
+			
+			if (confirmation.value.err) {
+				throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
+			}
+			
+			console.log(`✅ ${description} successful: ${signature}`)
+			return signature
+			
+		} catch (error) {
+			lastError = error as Error
+			console.error(`❌ ${description} failed (Attempt ${attempt}/${maxRetries}):`, error)
+			
+			// Don't retry on the last attempt
+			if (attempt === maxRetries) {
+				break
+			}
+			
+			// Check if error is retryable
+			const isRetryable = isTransactionRetryable(error as Error)
+			if (!isRetryable) {
+				console.log(`🚫 Error is not retryable, stopping attempts`)
+				break
+			}
+			
+			// Wait before retrying
+			const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000)
+			console.log(`⏱️ Waiting ${delay}ms before retry...`)
+			await new Promise(resolve => setTimeout(resolve, delay))
+		}
+	}
+	
+	throw new PoolCreationError(
+		PoolCreationErrorType.TRANSACTION_FAILED,
+		`${description} failed after ${maxRetries} attempts`,
+		lastError || undefined,
+		{ description, maxRetries },
+		false
+	)
+}
+
+// Check if an error is retryable
+function isTransactionRetryable(error: Error): boolean {
+	const errorMessage = error.message.toLowerCase()
+	
+	// Network-related errors that can be retried
+	const retryableErrors = [
+		'network error',
+		'timeout',
+		'connection refused',
+		'internal server error',
+		'rate limit',
+		'too many requests',
+		'insufficient funds for rent',
+		'blockhash not found'
+	]
+	
+	return retryableErrors.some(retryableError => errorMessage.includes(retryableError))
+}
+
+// Enhanced balance validation with detailed error messages
+async function validateUserBalances(
+	connection: Connection,
+	ownerAddress: PublicKey,
+	payload: TCreatePoolPayload,
+	baseAmountDaltons: number,
+	quoteAmountDaltons: number
+): Promise<void> {
+	const baseMint = new PublicKey(payload.baseToken.address)
+	const quoteMint = new PublicKey(payload.quoteToken.address)
+	
+	try {
+		// Handle native BBA balance check
+		if (isNativeBBA(payload.baseToken.address)) {
+			const nativeBalance = await connection.getBalance(ownerAddress)
+			if (nativeBalance < baseAmountDaltons) {
+				throw new PoolCreationError(
+					PoolCreationErrorType.INSUFFICIENT_BALANCE,
+					`Insufficient native BBA balance. Required: ${baseAmountDaltons / 1e9} BBA, Available: ${nativeBalance / 1e9} BBA`,
+					undefined,
+					{ required: baseAmountDaltons, available: nativeBalance, token: 'BBA' }
+				)
+			}
+		} else {
+			// Regular SPL token balance check
+			const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
+			const userBaseInfo = await connection.getAccountInfo(userBaseTokenAccount)
+			
+			if (!userBaseInfo) {
+				throw new PoolCreationError(
+					PoolCreationErrorType.INSUFFICIENT_BALANCE,
+					`${payload.baseToken.symbol} token account not found. Please ensure you have the required tokens.`,
+					undefined,
+					{ token: payload.baseToken.symbol, address: userBaseTokenAccount.toBase58() }
+				)
+			}
+			
+			const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
+			if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
+				throw new PoolCreationError(
+					PoolCreationErrorType.INSUFFICIENT_BALANCE,
+					`Insufficient ${payload.baseToken.symbol} balance. Required: ${baseAmountDaltons / Math.pow(10, payload.baseToken.decimals)}, Available: ${userBaseBalance.div(new BN(Math.pow(10, payload.baseToken.decimals))).toString()}`,
+					undefined,
+					{ 
+						required: baseAmountDaltons, 
+						available: userBaseBalance.toString(), 
+						token: payload.baseToken.symbol 
+					}
+				)
+			}
+		}
+		
+		// Handle quote token balance check
+		if (isNativeBBA(payload.quoteToken.address)) {
+			const nativeBalance = await connection.getBalance(ownerAddress)
+			if (nativeBalance < quoteAmountDaltons) {
+				throw new PoolCreationError(
+					PoolCreationErrorType.INSUFFICIENT_BALANCE,
+					`Insufficient native BBA balance. Required: ${quoteAmountDaltons / 1e9} BBA, Available: ${nativeBalance / 1e9} BBA`,
+					undefined,
+					{ required: quoteAmountDaltons, available: nativeBalance, token: 'BBA' }
+				)
+			}
+		} else {
+			// Regular SPL token balance check
+			const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
+			const userQuoteInfo = await connection.getAccountInfo(userQuoteTokenAccount)
+			
+			if (!userQuoteInfo) {
+				throw new PoolCreationError(
+					PoolCreationErrorType.INSUFFICIENT_BALANCE,
+					`${payload.quoteToken.symbol} token account not found. Please ensure you have the required tokens.`,
+					undefined,
+					{ token: payload.quoteToken.symbol, address: userQuoteTokenAccount.toBase58() }
+				)
+			}
+			
+			const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
+			if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
+				throw new PoolCreationError(
+					PoolCreationErrorType.INSUFFICIENT_BALANCE,
+					`Insufficient ${payload.quoteToken.symbol} balance. Required: ${quoteAmountDaltons / Math.pow(10, payload.quoteToken.decimals)}, Available: ${userQuoteBalance.div(new BN(Math.pow(10, payload.quoteToken.decimals))).toString()}`,
+					undefined,
+					{ 
+						required: quoteAmountDaltons, 
+						available: userQuoteBalance.toString(), 
+						token: payload.quoteToken.symbol 
+					}
+				)
+			}
+		}
+		
+		console.log('✅ User balance validation passed')
+		
+	} catch (error) {
+		if (error instanceof PoolCreationError) {
+			throw error
+		}
+		
+		throw new PoolCreationError(
+			PoolCreationErrorType.NETWORK_ERROR,
+			'Failed to validate user balances',
+			error as Error,
+			{ baseToken: payload.baseToken.symbol, quoteToken: payload.quoteToken.symbol }
+		)
 	}
 }
 
@@ -259,14 +491,29 @@ export const useCreatePool = () => {
 		mutationKey: [SERVICES_KEY.POOL.CREATE_POOL, ownerAddress?.toBase58()],
 		mutationFn: async (payload) => {
 			if (!ownerAddress) {
-				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
+				throw new PoolCreationError(
+					PoolCreationErrorType.WALLET_NOT_CONNECTED,
+					'Wallet not connected. Please connect your wallet to create a pool.',
+					undefined,
+					{ feature: 'pool_creation' }
+				)
 			}
 
 			if (!signTransaction) {
-				throw new Error('Wallet does not support transaction signing.')
+				throw new PoolCreationError(
+					PoolCreationErrorType.WALLET_NOT_CONNECTED,
+					'Wallet does not support transaction signing.',
+					undefined,
+					{ feature: 'transaction_signing' }
+				)
 			}
 
 			console.log('🚀 Starting BBAChain Liquidity Pool creation process...')
+			
+			// Check for native BBA involvement
+			const isNativeBBAPoolDetected = isNativeBBAPool(payload.baseToken.address, payload.quoteToken.address)
+			const hasNativeBBA = isNativeBBA(payload.baseToken.address) || isNativeBBA(payload.quoteToken.address)
+			
 			console.log('📊 Pool Configuration:', {
 				baseToken: `${payload.baseToken.symbol} (${payload.baseToken.address})`,
 				quoteToken: `${payload.quoteToken.symbol} (${payload.quoteToken.address})`,
@@ -274,30 +521,55 @@ export const useCreatePool = () => {
 				initialPrice: `${payload.initialPrice} ${payload.baseToken.symbol} per ${payload.quoteToken.symbol}`,
 				baseAmount: `${payload.baseTokenAmount} ${payload.baseToken.symbol}`,
 				quoteAmount: `${payload.quoteTokenAmount} ${payload.quoteToken.symbol}`,
-				programId: TOKEN_SWAP_PROGRAM_ID.toBase58()
+				programId: TOKEN_SWAP_PROGRAM_ID.toBase58(),
+				isNativeBBAPool: isNativeBBAPoolDetected,
+				hasNativeBBA: hasNativeBBA,
+				nativeBBAToken: hasNativeBBA ? (isNativeBBA(payload.baseToken.address) ? 'base' : 'quote') : 'none'
 			})
 
 			try {
 				// Validate pool creation requirements
 				console.log('🔍 Validating pool creation requirements...')
 
-				// Check if tokens are different
+				// Enhanced input validation
 				if (payload.baseToken.address === payload.quoteToken.address) {
-					throw new Error('Base and quote tokens must be different')
+					throw new PoolCreationError(
+						PoolCreationErrorType.INVALID_TOKENS,
+						'Base and quote tokens must be different',
+						undefined,
+						{ baseToken: payload.baseToken.address, quoteToken: payload.quoteToken.address }
+					)
 				}
 
-				// Check if amounts are valid
 				const baseAmount = parseFloat(payload.baseTokenAmount)
 				const quoteAmount = parseFloat(payload.quoteTokenAmount)
+				const initialPrice = parseFloat(payload.initialPrice)
 
-				if (baseAmount <= 0 || quoteAmount <= 0) {
-					throw new Error('Token amounts must be greater than zero')
+				if (isNaN(baseAmount) || baseAmount <= 0) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.INVALID_TOKENS,
+						'Base token amount must be a positive number',
+						undefined,
+						{ baseTokenAmount: payload.baseTokenAmount }
+					)
 				}
 
-				// Check if initial price is valid
-				const initialPrice = parseFloat(payload.initialPrice)
-				if (initialPrice <= 0) {
-					throw new Error('Initial price must be greater than zero')
+				if (isNaN(quoteAmount) || quoteAmount <= 0) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.INVALID_TOKENS,
+						'Quote token amount must be a positive number',
+						undefined,
+						{ quoteTokenAmount: payload.quoteTokenAmount }
+					)
+				}
+
+				if (isNaN(initialPrice) || initialPrice <= 0) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.INVALID_TOKENS,
+						'Initial price must be a positive number',
+						undefined,
+						{ initialPrice: payload.initialPrice }
+					)
 				}
 
 				console.log('✅ Pool validation passed')
@@ -385,17 +657,27 @@ export const useCreatePool = () => {
 				console.log('📝 Creating LP mint transaction with temporary authority...')
 				const createPoolTx = new Transaction().add(createMintIx, initMintIx, ataIx)
 
-				// Use sendTransaction which can handle additional signers
-				const poolSig = await sendTransaction(createPoolTx, connection, {
-					signers: [poolMint], // Pass poolMint as additional signer
-					skipPreflight: false,
-					preflightCommitment: 'confirmed'
-				})
-
-				console.log('⏳ LP mint transaction sent:', poolSig)
-
-				await connection.confirmTransaction({ signature: poolSig, ...latestBlockhash }, 'confirmed')
-				console.log('✅ LP token mint created successfully')
+				// Enhanced LP mint creation with retry logic
+				try {
+					const poolSig = await executeTransactionWithRetry(
+						connection,
+						createPoolTx,
+						(tx: Transaction, conn: Connection) => sendTransaction(tx, conn, {
+							signers: [poolMint],
+							skipPreflight: false,
+							preflightCommitment: 'confirmed'
+						}),
+						'LP mint creation'
+					)
+					console.log('✅ LP token mint created successfully:', poolSig)
+				} catch (error) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.ACCOUNT_CREATION_FAILED,
+						'Failed to create LP token mint',
+						error as Error,
+						{ poolMint: poolMint.publicKey.toBase58() }
+					)
+				}
 
 				// === CRITICAL: Transfer Pool Mint Authority to Swap Authority ===
 				console.log('🔄 Transferring pool mint authority to swap authority...')
@@ -408,10 +690,26 @@ export const useCreatePool = () => {
 					authority // New authority (swap authority)
 				)
 
-				const transferAuthorityTx = new Transaction().add(setAuthorityIx)
-				const transferSig = await sendTransaction(transferAuthorityTx, connection)
-				await connection.confirmTransaction({ signature: transferSig, ...latestBlockhash }, 'confirmed')
-				console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
+				// Enhanced authority transfer with retry logic
+				try {
+					const transferSig = await executeTransactionWithRetry(
+						connection,
+						new Transaction().add(setAuthorityIx),
+						sendTransaction,
+						'Pool mint authority transfer'
+					)
+					console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
+				} catch (error) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.AUTHORITY_TRANSFER_FAILED,
+						'Failed to transfer pool mint authority to swap authority',
+						error as Error,
+						{ 
+							poolMint: poolMint.publicKey.toBase58(),
+							swapAuthority: authority.toBase58()
+						}
+					)
+				}
 
 				// === Enhanced Fee Configuration ===
 				const feeTierMap: Record<string, { numerator: number; denominator: number }> = {
@@ -481,14 +779,13 @@ export const useCreatePool = () => {
 				// === CRITICAL: Deposit Initial Liquidity ===
 				console.log('💰 Adding initial liquidity to pool token accounts...')
 
-				// Convert amounts to proper decimals (assuming 6 decimals for both tokens)
-				// Calculate quote amount from initial price: baseAmount / initialPrice
+				// Convert amounts to proper decimals using actual token decimals
 				const liquidityBaseAmount = parseFloat(payload.baseTokenAmount)
-				const liquidityInitialPrice = parseFloat(payload.initialPrice) // SHIB per USDT
-				const liquidityQuoteAmount = liquidityBaseAmount / liquidityInitialPrice // USDT amount
+				const liquidityInitialPrice = parseFloat(payload.initialPrice)
+				const liquidityQuoteAmount = liquidityBaseAmount / liquidityInitialPrice
 
-				const baseAmountDaltons = formatTokenToDaltons(liquidityBaseAmount, 6)
-				const quoteAmountDaltons = formatTokenToDaltons(liquidityQuoteAmount, 6)
+				const baseAmountDaltons = formatTokenToDaltons(liquidityBaseAmount, payload.baseToken.decimals)
+				const quoteAmountDaltons = formatTokenToDaltons(liquidityQuoteAmount, payload.quoteToken.decimals)
 
 				console.log('💰 Initial Liquidity Amounts:', {
 					baseAmount: payload.baseTokenAmount,
@@ -496,75 +793,109 @@ export const useCreatePool = () => {
 					initialPrice: liquidityInitialPrice,
 					baseAmountDaltons,
 					quoteAmountDaltons,
+					baseDecimals: payload.baseToken.decimals,
+					quoteDecimals: payload.quoteToken.decimals,
 					swapTokenAAccount: swapTokenAAccount.toBase58(),
-					swapTokenBAccount: swapTokenBAccount.toBase58()
+					swapTokenBAccount: swapTokenBAccount.toBase58(),
+					isNativeBBAPool: isNativeBBAPoolDetected
 				})
 
-				// === BETTER APPROACH: Mint directly to pool accounts (like working test) ===
-				const { mintTo } = await import('@bbachain/spl-token')
-
-				// First verify we have enough user balance
-				const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
-				const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
-
-				// Check user balances
-				const [userBaseInfo, userQuoteInfo] = await Promise.all([
-					connection.getAccountInfo(userBaseTokenAccount),
-					connection.getAccountInfo(userQuoteTokenAccount)
-				])
-
-				if (!userBaseInfo || !userQuoteInfo) {
-					throw new Error('User token accounts not found. Please ensure you have the required tokens.')
-				}
-
-				// Parse user balances
-				const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
-				const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
-
-				console.log('👤 User Token Balances:', {
-					baseBalance: userBaseBalance.toString(),
-					quoteBalance: userQuoteBalance.toString(),
-					baseBalanceFormatted: userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
-					quoteBalanceFormatted: userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
-					requiredBase: baseAmountDaltons,
-					requiredQuote: quoteAmountDaltons
-				})
-
-				// Verify sufficient balance
-				if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
-					throw new Error(
-						`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
-					)
-				}
-
-				if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
-					throw new Error(
-						`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
-					)
-				}
-
-				// Transfer from user to pool accounts
-				const { createTransferInstruction } = await import('@bbachain/spl-token')
-
-				const transferBaseIx = createTransferInstruction(
-					userBaseTokenAccount,
-					swapTokenAAccount,
+				// Enhanced balance validation with native BBA support
+				await validateUserBalances(
+					connection,
 					ownerAddress,
-					baseAmountDaltons
-				)
-
-				const transferQuoteIx = createTransferInstruction(
-					userQuoteTokenAccount,
-					swapTokenBAccount,
-					ownerAddress,
+					payload,
+					baseAmountDaltons,
 					quoteAmountDaltons
 				)
 
-				// Send initial liquidity transfer
-				const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
-				const liquiditySig = await sendTransaction(liquidityTx, connection)
-				await connection.confirmTransaction({ signature: liquiditySig, ...latestBlockhash }, 'confirmed')
-				console.log('✅ Initial liquidity transferred to pool accounts:', liquiditySig)
+				// Get user token accounts for transfer operations
+				const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
+				const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
+
+				// Enhanced transfer with native BBA support
+				const { createTransferInstruction, createSyncNativeInstruction } = await import('@bbachain/spl-token')
+				const transferInstructions = []
+
+				// Handle base token transfer (could be native BBA)
+				if (isNativeBBA(payload.baseToken.address)) {
+					console.log('🔄 Handling native BBA for base token...')
+					
+					// For native BBA, transfer daltons directly to the WBBA account and sync
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: ownerAddress,
+						toPubkey: swapTokenAAccount,
+						daltons: baseAmountDaltons
+					})
+					
+					const syncBBAIx = createSyncNativeInstruction(swapTokenAAccount)
+					
+					transferInstructions.push(transferBBAIx, syncBBAIx)
+					console.log(`✅ Native BBA transfer prepared: ${liquidityBaseAmount} BBA`)
+				} else {
+					// Regular SPL token transfer
+					const transferBaseIx = createTransferInstruction(
+						userBaseTokenAccount,
+						swapTokenAAccount,
+						ownerAddress,
+						baseAmountDaltons
+					)
+					transferInstructions.push(transferBaseIx)
+					console.log(`✅ SPL token transfer prepared: ${liquidityBaseAmount} ${payload.baseToken.symbol}`)
+				}
+
+				// Handle quote token transfer (could be native BBA)
+				if (isNativeBBA(payload.quoteToken.address)) {
+					console.log('🔄 Handling native BBA for quote token...')
+					
+					// For native BBA, transfer daltons directly to the WBBA account and sync
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: ownerAddress,
+						toPubkey: swapTokenBAccount,
+						daltons: quoteAmountDaltons
+					})
+					
+					const syncBBAIx = createSyncNativeInstruction(swapTokenBAccount)
+					
+					transferInstructions.push(transferBBAIx, syncBBAIx)
+					console.log(`✅ Native BBA transfer prepared: ${liquidityQuoteAmount} BBA`)
+				} else {
+					// Regular SPL token transfer
+					const transferQuoteIx = createTransferInstruction(
+						userQuoteTokenAccount,
+						swapTokenBAccount,
+						ownerAddress,
+						quoteAmountDaltons
+					)
+					transferInstructions.push(transferQuoteIx)
+					console.log(`✅ SPL token transfer prepared: ${liquidityQuoteAmount} ${payload.quoteToken.symbol}`)
+				}
+
+				// Enhanced liquidity transfer with retry logic
+				try {
+					console.log(`📝 Sending liquidity transfer with ${transferInstructions.length} instructions...`)
+					const liquiditySig = await executeTransactionWithRetry(
+						connection,
+						new Transaction().add(...transferInstructions),
+						sendTransaction,
+						'Initial liquidity transfer'
+					)
+					console.log('✅ Enhanced initial liquidity transferred to pool accounts:', liquiditySig)
+				} catch (error) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.LIQUIDITY_TRANSFER_FAILED,
+						hasNativeBBA ? 
+							'Failed to transfer initial liquidity (including native BBA)' :
+							'Failed to transfer initial liquidity',
+						error as Error,
+						{ 
+							hasNativeBBA,
+							transferInstructions: transferInstructions.length,
+							baseAmount: liquidityBaseAmount,
+							quoteAmount: liquidityQuoteAmount
+						}
+					)
+				}
 
 				// === Swap Initialization ===
 				const swapCurve = {
@@ -707,41 +1038,77 @@ export const useCreatePool = () => {
 					recentBlockhash: latestBlockhash.blockhash.slice(0, 8) + '...'
 				})
 
-				// === IMPORTANT: Use sendTransaction with additional signers ===
-				console.log('📝 Sending final transaction with BBA wallet...')
-				const finalSig = await sendTransaction(finalTx, connection, {
-					signers: [tokenSwap], // Additional signer required
-					skipPreflight: false,
-					preflightCommitment: 'confirmed'
-				})
+				// Enhanced pool initialization with retry logic
+				try {
+					console.log('📝 Sending final pool initialization transaction...')
+					const finalSig = await executeTransactionWithRetry(
+						connection,
+						finalTx,
+						(tx: Transaction, conn: Connection) => sendTransaction(tx, conn, {
+							signers: [tokenSwap],
+							skipPreflight: false,
+							preflightCommitment: 'confirmed'
+						}),
+						'Pool initialization'
+					)
 
-				console.log('⏳ Final transaction sent:', finalSig)
-
-				// Wait for confirmation
-				const confirmation = await connection.confirmTransaction(
-					{ signature: finalSig, ...latestBlockhash },
-					'confirmed'
-				)
-
-				if (confirmation.value.err) {
-					throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
+					console.log('✅ TokenSwap created and initialized successfully!')
+					console.log('🎉 Pool creation completed successfully!')
+								} catch (error) {
+					throw new PoolCreationError(
+						PoolCreationErrorType.POOL_INITIALIZATION_FAILED,
+						'Failed to initialize liquidity pool',
+						error as Error,
+						{ 
+							tokenSwapAccount: tokenSwap.publicKey.toBase58(),
+							swapAuthority: authority.toBase58(),
+							hasNativeBBA,
+							isNativeBBAPool: isNativeBBAPoolDetected
+						}
+					)
 				}
 
-				console.log('✅ TokenSwap created and initialized successfully!')
-				console.log('🎉 Pool creation completed successfully!')
-
-				// Return data in the expected format
+				// Return data in the expected format with enhanced info
 				return {
 					tokenSwap: tokenSwap.publicKey.toBase58(),
 					poolMint: poolMint.publicKey.toBase58(),
 					feeAccount: feeAccount.toBase58(),
 					lpTokenAccount: poolTokenAccount.toBase58(),
-					signature: finalSig,
-					message: 'Pool created successfully!'
+					signature: 'Pool created successfully',
+					message: hasNativeBBA ? 
+						'Pool created successfully with native BBA support! 🔄' : 
+						'Pool created successfully!',
+					isNativeBBAPool: isNativeBBAPoolDetected,
+					hasNativeBBA: hasNativeBBA,
+					poolDetails: {
+						baseToken: `${payload.baseToken.symbol} (${isNativeBBA(payload.baseToken.address) ? 'Native BBA' : 'SPL Token'})`,
+						quoteToken: `${payload.quoteToken.symbol} (${isNativeBBA(payload.quoteToken.address) ? 'Native BBA' : 'SPL Token'})`,
+						feeTier: `${payload.feeTier}%`,
+						swapAuthority: authority.toBase58(),
+						tokenAVault: swapTokenAAccount.toBase58(),
+						tokenBVault: swapTokenBAccount.toBase58()
+					}
 				}
 			} catch (error) {
 				console.error('❌ Pool creation failed:', error)
-				throw error
+				
+				// Re-throw PoolCreationError as-is, wrap others
+				if (error instanceof PoolCreationError) {
+					throw error
+				}
+				
+				// Wrap unknown errors
+				throw new PoolCreationError(
+					PoolCreationErrorType.UNKNOWN_ERROR,
+					'An unexpected error occurred during pool creation',
+					error as Error,
+					{ 
+						baseToken: payload.baseToken.symbol,
+						quoteToken: payload.quoteToken.symbol,
+						hasNativeBBA,
+						isNativeBBAPool: isNativeBBAPoolDetected
+					}
+				)
 			}
 		},
 		onSuccess: (result) => {

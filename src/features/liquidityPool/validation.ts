@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import VALIDATION_MESSAGE from '@/constants/validation'
 
+import type { TCreatePoolPayload } from './types'
+
 const tokenPropsValidation = z.object({
 	chainId: z.number().optional(),
 	address: z.string().min(1, 'Token address is required'),
@@ -383,6 +385,136 @@ export function validatePoolCreationStep(step: number, data: any) {
 			return createPoolValidation.safeParse(data)
 		default:
 			return createPoolValidation.safeParse(data)
+	}
+}
+
+// Enhanced pool validation with native BBA support
+export function validateNativeBBAPoolCreation(payload: TCreatePoolPayload): {
+	isValid: boolean
+	isNativeBBAPool: boolean
+	hasNativeBBA: boolean
+	warnings: string[]
+	recommendations: string[]
+} {
+	const { isNativeBBA, isNativeBBAPool } = require('@/staticData/tokens')
+	
+	const isNativeBBAPoolDetected = isNativeBBAPool(payload.baseToken.address, payload.quoteToken.address)
+	const hasNativeBBA = isNativeBBA(payload.baseToken.address) || isNativeBBA(payload.quoteToken.address)
+	
+	const warnings: string[] = []
+	const recommendations: string[] = []
+	
+	// Native BBA specific validations
+	if (hasNativeBBA) {
+		// Recommend appropriate fee tiers for native BBA pools
+		const feeTier = parseFloat(payload.feeTier)
+		if (feeTier > 0.3) {
+			warnings.push(`High fee tier (${payload.feeTier}%) for native BBA pool. Consider lower fees for better liquidity.`)
+			recommendations.push('Use 0.05% or 0.1% fee tier for native BBA pools to attract more traders.')
+		}
+		
+		// Validate initial price for native BBA pairs
+		const initialPrice = parseFloat(payload.initialPrice)
+		if (initialPrice <= 0) {
+			return {
+				isValid: false,
+				isNativeBBAPool: isNativeBBAPoolDetected,
+				hasNativeBBA,
+				warnings: ['Initial price must be greater than 0'],
+				recommendations: []
+			}
+		}
+		
+		// Native BBA balance recommendations
+		const baseAmount = parseFloat(payload.baseTokenAmount)
+		const quoteAmount = parseFloat(payload.quoteTokenAmount)
+		
+		if (isNativeBBA(payload.baseToken.address) && baseAmount < 0.1) {
+			warnings.push('Very low BBA amount may result in poor liquidity depth.')
+			recommendations.push('Consider adding at least 0.1 BBA for meaningful liquidity.')
+		}
+		
+		if (isNativeBBA(payload.quoteToken.address) && quoteAmount < 0.1) {
+			warnings.push('Very low BBA amount may result in poor liquidity depth.')
+			recommendations.push('Consider adding at least 0.1 BBA for meaningful liquidity.')
+		}
+		
+		// Add native BBA specific recommendations
+		recommendations.push('Native BBA pools benefit from automatic wrapping - no manual WBBA management needed.')
+		recommendations.push('Monitor pool performance as native BBA liquidity tends to be more volatile.')
+	}
+	
+	return {
+		isValid: true,
+		isNativeBBAPool: isNativeBBAPoolDetected,
+		hasNativeBBA,
+		warnings,
+		recommendations
+	}
+}
+
+// Enhanced pool creation parameters validation
+export function validateEnhancedPoolParams(params: {
+	baseToken: any
+	quoteToken: any
+	baseTokenAmount: string
+	quoteTokenAmount: string
+	feeTier: string
+	initialPrice: string
+}): {
+	isValid: boolean
+	errors: string[]
+	recommendations: string[]
+} {
+	const errors: string[] = []
+	const recommendations: string[] = []
+	
+	// Basic validation
+	if (!params.baseToken || !params.quoteToken) {
+		errors.push('Both base and quote tokens must be selected')
+	}
+	
+	if (params.baseToken?.address === params.quoteToken?.address) {
+		errors.push('Base and quote tokens must be different')
+	}
+	
+	// Amount validation
+	const baseAmount = parseFloat(params.baseTokenAmount)
+	const quoteAmount = parseFloat(params.quoteTokenAmount)
+	const initialPrice = parseFloat(params.initialPrice)
+	const feeTier = parseFloat(params.feeTier)
+	
+	if (isNaN(baseAmount) || baseAmount <= 0) {
+		errors.push('Base token amount must be a positive number')
+	}
+	
+	if (isNaN(quoteAmount) || quoteAmount <= 0) {
+		errors.push('Quote token amount must be a positive number')
+	}
+	
+	if (isNaN(initialPrice) || initialPrice <= 0) {
+		errors.push('Initial price must be a positive number')
+	}
+	
+	if (isNaN(feeTier) || feeTier <= 0 || feeTier > 10) {
+		errors.push('Fee tier must be between 0.01% and 10%')
+	}
+	
+	// Liquidity depth recommendations
+	const totalValue = baseAmount * initialPrice + quoteAmount
+	if (totalValue < 100) {
+		recommendations.push('Consider adding more liquidity (>$100 equivalent) for better trading experience')
+	}
+	
+	// Fee tier recommendations
+	if (feeTier >= 1) {
+		recommendations.push('High fee tiers (≥1%) may discourage trading. Consider lower fees for mainstream tokens.')
+	}
+	
+	return {
+		isValid: errors.length === 0,
+		errors,
+		recommendations
 	}
 }
 

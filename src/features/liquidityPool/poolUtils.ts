@@ -33,7 +33,7 @@ import {
 } from '@bbachain/web3.js'
 import BN from 'bn.js'
 
-import { BBA_NATIVE_MINT, isNativeBBA } from '@/staticData/tokens'
+import { isNativeBBA } from '@/staticData/tokens'
 
 import { MintInfo } from './types'
 

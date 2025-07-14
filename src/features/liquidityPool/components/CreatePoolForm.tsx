@@ -7,25 +7,15 @@ import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { FaPlus } from 'react-icons/fa6'
-import { MdTrendingUp } from 'react-icons/md'
 
 import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter
-} from '@/components/ui/dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
@@ -38,7 +28,7 @@ import { useErrorDialog } from '@/stores/errorDialog'
 
 import { useCreatePool } from '../services'
 import { TCreatePoolPayload, MintInfo } from '../types'
-import { createPoolValidation } from '../validation'
+import { createPoolValidation, validateNativeBBAPoolCreation } from '../validation'
 
 // Enhanced step configuration
 const createPoolSteps = [
@@ -134,7 +124,15 @@ function EnhancedProgressLine({ currentStep, steps }: { currentStep: number; ste
 }
 
 // Success Dialog Component
-function SuccessDialog({ isOpen, onClose, poolData }: { isOpen: boolean; onClose: () => void; poolData: any }) {
+function SuccessDialog({
+	isOpen,
+	onClose,
+	poolData
+}: {
+	isOpen: boolean
+	onClose: () => void
+	poolData: any & { hasNativeBBA?: boolean; poolDetails?: any }
+}) {
 	const handleViewPool = () => {
 		// Navigate to the created pool
 		onClose()
@@ -167,6 +165,40 @@ function SuccessDialog({ isOpen, onClose, poolData }: { isOpen: boolean; onClose
 							<span className="text-lg mr-2">💰</span>
 							Pool Information
 						</h4>
+
+						{/* Native BBA Support Badge */}
+						{poolData?.hasNativeBBA && (
+							<div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-3">
+								<div className="flex items-center space-x-2">
+									<span className="text-xl">🔄</span>
+									<div>
+										<p className="font-medium text-blue-900 dark:text-blue-100">Native BBA Pool</p>
+										<p className="text-sm text-blue-700 dark:text-blue-300">
+											This pool includes native BBA with automatic wrapping support
+										</p>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Pool Configuration */}
+						{poolData?.poolDetails && (
+							<div className="bg-white dark:bg-gray-700 rounded-lg p-3 mb-3 space-y-2">
+								<div className="flex justify-between items-center text-sm">
+									<span className="text-gray-600 dark:text-gray-400">Base Token:</span>
+									<span className="font-medium">{poolData.poolDetails.baseToken}</span>
+								</div>
+								<div className="flex justify-between items-center text-sm">
+									<span className="text-gray-600 dark:text-gray-400">Quote Token:</span>
+									<span className="font-medium">{poolData.poolDetails.quoteToken}</span>
+								</div>
+								<div className="flex justify-between items-center text-sm">
+									<span className="text-gray-600 dark:text-gray-400">Fee Tier:</span>
+									<span className="font-medium">{poolData.poolDetails.feeTier}</span>
+								</div>
+							</div>
+						)}
+
 						<div className="space-y-3">
 							<div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
 								<span className="text-gray-600 dark:text-gray-400">Pool Address:</span>
@@ -370,6 +402,15 @@ export default function CreatePoolForm() {
 	const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState<boolean>(false)
 	const [poolCreationData, setPoolCreationData] = useState<any>(null)
 
+	// Enhanced validation states
+	const [nativeBBAValidation, setNativeBBAValidation] = useState<{
+		isValid: boolean
+		isNativeBBAPool: boolean
+		hasNativeBBA: boolean
+		warnings: string[]
+		recommendations: string[]
+	} | null>(null)
+
 	// Computed values
 	const selectedBaseToken = form.watch('baseToken')
 	const selectedQuoteToken = form.watch('quoteToken')
@@ -432,7 +473,14 @@ export default function CreatePoolForm() {
 			setIsSuccessDialogOpen(true)
 			form.reset()
 			setCurrentStep(0)
-			toast.success('Pool created successfully!')
+
+			// Enhanced success message based on pool type
+			const data = createPoolMutation.data as any
+			if (data.hasNativeBBA) {
+				toast.success('Pool created successfully with native BBA support! 🔄')
+			} else {
+				toast.success('Pool created successfully!')
+			}
 		}
 	}, [createPoolMutation.isSuccess, createPoolMutation.data, form])
 
@@ -446,6 +494,34 @@ export default function CreatePoolForm() {
 		}
 	}, [createPoolMutation.isError, createPoolMutation.error, openErrorDialog])
 
+	// Enhanced validation when form values change
+	useEffect(() => {
+		if (selectedBaseToken && selectedQuoteToken) {
+			const baseTokenAmount = form.getValues('baseTokenAmount')
+			const quoteTokenAmount = form.getValues('quoteTokenAmount')
+			const feeTier = form.getValues('feeTier')
+			const initialPrice = form.getValues('initialPrice')
+
+			if (baseTokenAmount && quoteTokenAmount && feeTier && initialPrice) {
+				const validation = validateNativeBBAPoolCreation({
+					baseToken: selectedBaseToken,
+					quoteToken: selectedQuoteToken,
+					baseTokenAmount,
+					quoteTokenAmount,
+					feeTier,
+					initialPrice,
+					// Add other required fields with defaults
+					baseTokenBalance: 0,
+					quoteTokenBalance: 0,
+					priceSetting: 'auto',
+					rangeType: 'full-range'
+				})
+
+				setNativeBBAValidation(validation)
+			}
+		}
+	}, [selectedBaseToken, selectedQuoteToken, form])
+
 	// Handle token loading errors
 	useEffect(() => {
 		if (isTokensError) {
@@ -456,9 +532,25 @@ export default function CreatePoolForm() {
 	// Handlers
 	const onNext = useCallback(async () => {
 		const fields = createPoolSteps[currentStep].fields
-		const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
+		console.log('🔍 Validating step:', currentStep, 'fields:', fields)
 
-		if (!isValid) return
+		// Get current form values for debugging
+		const currentValues = form.getValues()
+		console.log('📋 Current form values:', {
+			baseToken: currentValues.baseToken?.symbol || 'Not selected',
+			quoteToken: currentValues.quoteToken?.symbol || 'Not selected',
+			feeTier: currentValues.feeTier
+		})
+
+		const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
+		console.log('✅ Validation result:', isValid)
+
+		// If validation fails, log the errors
+		if (!isValid) {
+			const errors = form.formState.errors
+			console.log('❌ Validation errors:', errors)
+			return
+		}
 
 		if (currentStep < createPoolSteps.length - 1) {
 			setCurrentStep((step) => step + 1)
@@ -482,6 +574,7 @@ export default function CreatePoolForm() {
 
 	const onSelectBaseToken = useCallback(
 		(token: MintInfo) => {
+			console.log('🔄 Setting base token:', token.symbol, token.address)
 			form.setValue('baseToken', token, { shouldValidate: true })
 		},
 		[form]
@@ -489,6 +582,7 @@ export default function CreatePoolForm() {
 
 	const onSelectQuoteToken = useCallback(
 		(token: MintInfo) => {
+			console.log('🔄 Setting quote token:', token.symbol, token.address)
 			form.setValue('quoteToken', token, { shouldValidate: true })
 		},
 		[form]
@@ -532,7 +626,9 @@ export default function CreatePoolForm() {
 	// Wrapper functions for TokenListDialog compatibility
 	const onSelectBaseTokenWrapper = useCallback(
 		(token: TTokenProps) => {
+			console.log('📦 Base token wrapper called with:', token)
 			const mintInfo = convertTTokenPropsToMintInfo(token)
+			console.log('📦 Converted to MintInfo:', mintInfo)
 			onSelectBaseToken(mintInfo)
 		},
 		[onSelectBaseToken]
@@ -540,7 +636,9 @@ export default function CreatePoolForm() {
 
 	const onSelectQuoteTokenWrapper = useCallback(
 		(token: TTokenProps) => {
+			console.log('📦 Quote token wrapper called with:', token)
 			const mintInfo = convertTTokenPropsToMintInfo(token)
+			console.log('📦 Converted to MintInfo:', mintInfo)
 			onSelectQuoteToken(mintInfo)
 		},
 		[onSelectQuoteToken]
@@ -1121,6 +1219,73 @@ export default function CreatePoolForm() {
 							</CardContent>
 						</Card>
 					)}
+
+					{/* Native BBA Pool Validation & Recommendations */}
+					{nativeBBAValidation &&
+						(nativeBBAValidation.hasNativeBBA ||
+							nativeBBAValidation.warnings.length > 0 ||
+							nativeBBAValidation.recommendations.length > 0) && (
+							<Card className="border-l-4 border-l-blue-500">
+								<CardContent className="p-3 md:p-4">
+									{/* Native BBA Pool Badge */}
+									{nativeBBAValidation.hasNativeBBA && (
+										<div className="flex items-center space-x-2 mb-3">
+											<span className="text-lg">🔄</span>
+											<div>
+												<h4 className="text-sm md:text-base font-medium text-blue-900 dark:text-blue-100">
+													Native BBA Pool Detected
+												</h4>
+												<p className="text-xs md:text-sm text-blue-700 dark:text-blue-300">
+													This pool will automatically handle BBA wrapping/unwrapping
+												</p>
+											</div>
+										</div>
+									)}
+
+									{/* Warnings */}
+									{nativeBBAValidation.warnings.length > 0 && (
+										<div className="mb-3">
+											<h5 className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2 flex items-center">
+												<AlertCircle className="w-4 h-4 mr-1" />
+												Warnings
+											</h5>
+											<ul className="space-y-1">
+												{nativeBBAValidation.warnings.map((warning, index) => (
+													<li
+														key={index}
+														className="text-xs md:text-sm text-amber-700 dark:text-amber-300 flex items-start"
+													>
+														<span className="mr-1">•</span>
+														<span>{warning}</span>
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
+
+									{/* Recommendations */}
+									{nativeBBAValidation.recommendations.length > 0 && (
+										<div>
+											<h5 className="text-sm font-medium text-green-800 dark:text-green-200 mb-2 flex items-center">
+												<span className="mr-1">💡</span>
+												Recommendations
+											</h5>
+											<ul className="space-y-1">
+												{nativeBBAValidation.recommendations.map((recommendation, index) => (
+													<li
+														key={index}
+														className="text-xs md:text-sm text-green-700 dark:text-green-300 flex items-start"
+													>
+														<span className="mr-1">•</span>
+														<span>{recommendation}</span>
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
+								</CardContent>
+							</Card>
+						)}
 
 					{/* Navigation Buttons */}
 					<div className="flex justify-between items-center pt-4 md:pt-6">

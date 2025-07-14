@@ -1,16 +1,15 @@
-import { MintInfo } from '@/features/liquidityPool/types'
+import { NATIVE_MINT } from '@bbachain/spl-token'
+import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
 
-// BBA Native Token Constants
-export const BBA_NATIVE_MINT = 'So11111111111111111111111111111111111111112'
-export const BBA_DECIMALS = 9
+import { MintInfo } from '@/features/liquidityPool/types'
 
 const StaticTokens: MintInfo[] = [
 	{
 		name: 'BBA Coin',
 		symbol: 'BBA',
-		address: BBA_NATIVE_MINT,
+		address: NATIVE_MINT.toBase58(),
 		logoURI: '/bba_logo.svg',
-		decimals: BBA_DECIMALS,
+		decimals: 9, // Native BBA has 9 decimals (BBA_DALTON_UNIT is the conversion unit, not decimals)
 		tags: ['native']
 	},
 	{
@@ -70,7 +69,7 @@ export function isKnownToken(address: string): boolean {
  * Check if a token is native BBA
  */
 export function isNativeBBA(address: string): boolean {
-	return address === BBA_NATIVE_MINT
+	return address === NATIVE_MINT.toBase58()
 }
 
 /**
@@ -84,7 +83,7 @@ export function isBBAToken(address: string): boolean {
  * Get BBA token info
  */
 export function getBBATokenInfo(): MintInfo {
-	const bbaToken = getTokenByAddress(BBA_NATIVE_MINT)
+	const bbaToken = getTokenByAddress(NATIVE_MINT.toBase58())
 	if (!bbaToken) {
 		throw new Error('BBA token not found in registry')
 	}
@@ -150,7 +149,7 @@ const DEFAULT_TRADING_PAIRS_CONFIG: Array<{
 	description: string
 }> = [
 	{
-		base: BBA_NATIVE_MINT,
+		base: NATIVE_MINT.toBase58(),
 		quote: 'GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR', // USDT
 		priority: 1,
 		category: 'stablecoin',
@@ -158,7 +157,7 @@ const DEFAULT_TRADING_PAIRS_CONFIG: Array<{
 		description: 'Native BBA paired with USDT stablecoin'
 	},
 	{
-		base: BBA_NATIVE_MINT,
+		base: NATIVE_MINT.toBase58(),
 		quote: '3ifxm7UKBEFxVnGn3SiZh1QMW7RCJPbAeE4JYh8hiYUd', // USDC
 		priority: 2,
 		category: 'stablecoin',
@@ -166,7 +165,7 @@ const DEFAULT_TRADING_PAIRS_CONFIG: Array<{
 		description: 'Native BBA paired with USDC stablecoin'
 	},
 	{
-		base: BBA_NATIVE_MINT,
+		base: NATIVE_MINT.toBase58(),
 		quote: 'LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq', // SHIB
 		priority: 3,
 		category: 'meme',
