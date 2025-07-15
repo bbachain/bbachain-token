@@ -2,11 +2,18 @@ import * as BufferLayout from '@bbachain/buffer-layout'
 import {
 	getAssociatedTokenAddress,
 	createAssociatedTokenAccountInstruction,
-	TOKEN_PROGRAM_ID
+	TOKEN_PROGRAM_ID,
+	NATIVE_MINT,
+	createSyncNativeInstruction,
+	createTransferInstruction,
+	createCloseAccountInstruction,
+	createInitializeAccountInstruction,
+	createApproveInstruction,
+	getAccount
 } from '@bbachain/spl-token'
 import { createSwapInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { PublicKey, Transaction } from '@bbachain/web3.js'
+import { PublicKey, Transaction, SystemProgram, Keypair, Connection, TransactionInstruction } from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
@@ -549,7 +556,7 @@ export const useGetPoolsForToken = (tokenAddress: string) => {
 }
 
 /**
- * Enhanced swap execution using BBAChain liquidity pools
+ * Enhanced swap execution using BBAChain liquidity pools with BBA support
  */
 
 export interface SwapExecutionParams {
@@ -570,7 +577,123 @@ export interface SwapExecutionResult {
 }
 
 /**
- * Hook for executing swaps through BBAChain liquidity pools
+ * Helper function to check if a mint is native BBA
+ */
+function isNativeBBA(mintAddress: string): boolean {
+	return mintAddress === NATIVE_MINT.toBase58()
+}
+
+/**
+ * Helper function to create token account manually (BBAChain compatible)
+ */
+async function createTokenAccountManual(
+	connection: Connection,
+	payer: PublicKey,
+	mint: PublicKey,
+	owner: PublicKey
+): Promise<{ account: PublicKey; instructions: TransactionInstruction[]; keypair: Keypair }> {
+	console.log('🔄 Creating token account manually...')
+
+	const tokenAccount = Keypair.generate()
+	const instructions = []
+
+	// Get minimum balance for token account
+	const tokenAccountSpace = 165
+	const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(tokenAccountSpace)
+
+	// Create account instruction
+	const createAccountIx = SystemProgram.createAccount({
+		fromPubkey: payer,
+		newAccountPubkey: tokenAccount.publicKey,
+		daltons: rentExemptAmount,
+		space: tokenAccountSpace,
+		programId: TOKEN_PROGRAM_ID
+	})
+	instructions.push(createAccountIx)
+
+	// Initialize token account instruction
+	const initAccountIx = createInitializeAccountInstruction(tokenAccount.publicKey, mint, owner)
+	instructions.push(initAccountIx)
+
+	console.log(`✅ Token account prepared: ${tokenAccount.publicKey.toBase58()}`)
+
+	return {
+		account: tokenAccount.publicKey,
+		instructions,
+		keypair: tokenAccount
+	}
+}
+
+/**
+ * Helper function to wrap BBA to WBBA (following example pattern)
+ */
+async function wrapBBAtoWBBA(
+	connection: Connection,
+	payer: PublicKey,
+	amount: number
+): Promise<{ account: PublicKey; instructions: TransactionInstruction[]; keypair: Keypair }> {
+	console.log(`🔄 Wrapping ${amount / Math.pow(10, 9)} BBA to WBBA...`)
+
+	// Create WBBA token account manually
+	const result = await createTokenAccountManual(connection, payer, NATIVE_MINT, payer)
+
+	// Transfer BBA daltons to token account
+	const transferIx = SystemProgram.transfer({
+		fromPubkey: payer,
+		toPubkey: result.account,
+		daltons: amount
+	})
+	result.instructions.push(transferIx)
+
+	// Sync native instruction to wrap BBA
+	const syncIx = createSyncNativeInstruction(result.account)
+	result.instructions.push(syncIx)
+
+	console.log(`✅ WBBA wrap prepared: ${result.account.toBase58()}`)
+
+	return result
+}
+
+/**
+ * Helper function to prepare SPL token account
+ */
+async function prepareSPLTokenAccount(
+	connection: Connection,
+	userPublicKey: PublicKey,
+	mintPubkey: PublicKey
+): Promise<{ account: PublicKey; instructions: TransactionInstruction[] }> {
+	console.log('🔄 Preparing SPL token account...')
+
+	// Get associated token address
+	const associatedTokenAddress = await getAssociatedTokenAddress(mintPubkey, userPublicKey)
+
+	try {
+		// Check if account exists
+		await connection.getAccountInfo(associatedTokenAddress)
+		console.log('✅ Associated token account already exists')
+		return {
+			account: associatedTokenAddress,
+			instructions: []
+		}
+	} catch {
+		// Account doesn't exist, create it
+		console.log('🔄 Creating associated token account...')
+		const createATAInstruction = createAssociatedTokenAccountInstruction(
+			userPublicKey, // payer
+			associatedTokenAddress, // associatedToken
+			userPublicKey, // owner
+			mintPubkey // mint
+		)
+
+		return {
+			account: associatedTokenAddress,
+			instructions: [createATAInstruction]
+		}
+	}
+}
+
+/**
+ * Hook for executing swaps through BBAChain liquidity pools with BBA support
  */
 export const useExecuteSwap = () => {
 	const { connection } = useConnection()
@@ -595,13 +718,7 @@ export const useExecuteSwap = () => {
 				throw new Error('Pool not found')
 			}
 
-			// Debug: Check createSwapInstruction interface
-			console.log('🔍 Debug createSwapInstruction function:', {
-				name: createSwapInstruction.name,
-				length: createSwapInstruction.length
-			})
-
-			// Calculate all required values for debugging
+			// Calculate all required values
 			const isInputTokenA = pool.mintA.address === inputMint
 			const inputMintPubkey = new PublicKey(inputMint)
 			const outputMintPubkey = new PublicKey(outputMint)
@@ -612,6 +729,7 @@ export const useExecuteSwap = () => {
 
 			const inputAmountDaltons = Math.floor(inputAmountNumber * Math.pow(10, inputDecimals))
 
+			// Calculate expected output and minimum with slippage
 			const inputReserve = isInputTokenA
 				? Number(pool.reserveA) / Math.pow(10, pool.mintA.decimals)
 				: Number(pool.reserveB) / Math.pow(10, pool.mintB.decimals)
@@ -626,7 +744,7 @@ export const useExecuteSwap = () => {
 			const slippageMultiplier = 1 - slippage / 100
 			const minimumOutputDaltons = Math.floor(expectedOutputDaltons * slippageMultiplier)
 
-			console.log('💰 All swap parameters ready:', {
+			console.log('💰 Swap parameters:', {
 				inputAmount: inputAmountNumber,
 				inputAmountDaltons,
 				expectedOutput,
@@ -634,14 +752,57 @@ export const useExecuteSwap = () => {
 				minimumOutputDaltons,
 				slippage: slippage + '%',
 				poolAddress,
-				isInputTokenA
+				isInputTokenA,
+				inputMint,
+				outputMint,
+				isInputBBA: isNativeBBA(inputMint),
+				isOutputBBA: isNativeBBA(outputMint)
 			})
 
-			// Get user's token accounts
-			const userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
-			const userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+			// Prepare transaction instructions
+			const allInstructions = []
+			const additionalSigners = []
 
-			// Get pool info from BBA Chain
+			// === STEP 1: PREPARE INPUT TOKEN ACCOUNT ===
+			let userInputTokenAccount: PublicKey
+
+			if (isNativeBBA(inputMint)) {
+				console.log('🔄 Preparing BBA input token account...')
+				const result = await wrapBBAtoWBBA(connection, publicKey, inputAmountDaltons)
+				userInputTokenAccount = result.account
+				allInstructions.push(...result.instructions)
+				if (result.keypair) {
+					additionalSigners.push(result.keypair)
+				}
+			} else {
+				console.log('🔄 Preparing SPL input token account...')
+				const result = await prepareSPLTokenAccount(connection, publicKey, inputMintPubkey)
+				userInputTokenAccount = result.account
+				allInstructions.push(...result.instructions)
+			}
+
+			// === STEP 2: PREPARE OUTPUT TOKEN ACCOUNT ===
+			let userOutputTokenAccount: PublicKey
+			let outputCleanupKeypair: Keypair | null = null
+
+			if (isNativeBBA(outputMint)) {
+				console.log('🔄 Preparing BBA output token account...')
+				// For BBA output, we need a temporary token account to receive the wrapped tokens
+				const result = await createTokenAccountManual(connection, publicKey, NATIVE_MINT, publicKey) // 0 amount since this is for receiving
+				userOutputTokenAccount = result.account
+				allInstructions.push(...result.instructions)
+				if (result.keypair) {
+					additionalSigners.push(result.keypair)
+					outputCleanupKeypair = result.keypair
+				}
+			} else {
+				console.log('🔄 Preparing SPL output token account...')
+				const result = await prepareSPLTokenAccount(connection, publicKey, outputMintPubkey)
+				userOutputTokenAccount = result.account
+				allInstructions.push(...result.instructions)
+			}
+
+			// === STEP 3: CREATE SWAP INSTRUCTION ===
 			const poolInfo = pool.swapData
 
 			// Derive swap authority from pool account
@@ -652,7 +813,6 @@ export const useExecuteSwap = () => {
 
 			// Prepare accounts object for createSwapInstruction
 			const accounts = {
-				// Required accounts based on @bbachain/spl-token-swap
 				tokenSwap: new PublicKey(poolAddress),
 				authority: swapAuthority,
 				userTransferAuthority: publicKey,
@@ -675,15 +835,41 @@ export const useExecuteSwap = () => {
 			console.log('🔧 Creating swap instruction with accounts:', accounts)
 			console.log('📊 Instruction data:', instructionData)
 
-			// Create the swap instruction using the 2-parameter pattern
+			// === STEP 3.1: APPROVE TOKENS FOR SWAP (FOLLOWING EXAMPLE PATTERN) ===
+			console.log('🔄 Creating approve instruction for input tokens...')
+			const approveInstruction = createApproveInstruction(
+				userInputTokenAccount, // account
+				publicKey, // delegate (user wallet, following example pattern)
+				publicKey, // owner
+				inputAmountDaltons // amount
+			)
+			allInstructions.push(approveInstruction)
+
+			// Create the swap instruction
 			const swapInstruction = createSwapInstruction(accounts, instructionData)
+			allInstructions.push(swapInstruction)
 
-			// Create transaction
+			// Note: BBA output unwrap will be handled separately after swap completion
+			// Following example pattern: don't unwrap in same transaction to avoid conflicts
+
+			// === STEP 5: SEND TRANSACTION ===
+			console.log('📝 Creating complete swap transaction...')
+			console.log('📋 Transaction summary:', {
+				totalInstructions: allInstructions.length,
+				additionalSigners: additionalSigners.length,
+				signerAddresses: additionalSigners.map((s) => s.publicKey.toBase58())
+			})
+
+			// Create transaction with all instructions
 			const transaction = new Transaction()
-			transaction.add(swapInstruction)
+			allInstructions.forEach((ix) => transaction.add(ix))
 
-			// Send transaction
-			const signature = await sendTransaction(transaction, connection)
+			// Send transaction with additional signers
+			const signature = await sendTransaction(transaction, connection, {
+				signers: additionalSigners,
+				skipPreflight: false,
+				preflightCommitment: 'confirmed'
+			})
 
 			console.log('📤 Transaction sent with signature:', signature)
 
@@ -691,10 +877,70 @@ export const useExecuteSwap = () => {
 			const confirmation = await connection.confirmTransaction(signature, 'confirmed')
 
 			if (confirmation.value.err) {
-				throw new Error(`Transaction failed: ${confirmation.value.err}`)
+				throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
 			}
 
 			console.log('✅ Swap transaction confirmed!')
+
+			// === STEP 6: UNWRAP BBA OUTPUT (SEPARATE TRANSACTION) ===
+			if (isNativeBBA(outputMint) && outputCleanupKeypair) {
+				console.log('🔄 Unwrapping WBBA to BBA in separate transaction...')
+				console.log('🔧 WBBA account to unwrap:', outputCleanupKeypair.publicKey.toBase58())
+
+				try {
+					// Check account state before unwrap (following example pattern)
+					const accountInfo = await getAccount(connection, outputCleanupKeypair.publicKey)
+					const balance = Number(accountInfo.amount)
+
+					console.log(`💰 WBBA balance before unwrap: ${balance / Math.pow(10, 9)} BBA`)
+
+					if (balance === 0) {
+						console.log('✅ WBBA account is empty, unwrap not needed')
+						return {
+							signature,
+							inputAmount: inputAmountNumber,
+							outputAmount: expectedOutput,
+							actualOutputAmount: expectedOutput,
+							priceImpact: calculatePriceImpact(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal),
+							executionTime: Date.now() - startTime
+						} as SwapExecutionResult
+					}
+
+					// Create unwrap transaction (following BBAChain example pattern)
+					const closeAccountIx = createCloseAccountInstruction(
+						outputCleanupKeypair.publicKey, // Account to close
+						publicKey, // Destination for rent + any remaining native tokens
+						publicKey, // Owner authority
+						[], // multiSigners
+						TOKEN_PROGRAM_ID // programId
+					)
+
+					const unwrapTransaction = new Transaction().add(closeAccountIx)
+
+					// Send unwrap transaction
+					const unwrapSignature = await sendTransaction(unwrapTransaction, connection, {
+						signers: [outputCleanupKeypair],
+						skipPreflight: false,
+						preflightCommitment: 'confirmed'
+					})
+
+					console.log('📤 Unwrap transaction sent:', unwrapSignature)
+
+					// Wait for unwrap confirmation
+					const unwrapConfirmation = await connection.confirmTransaction(unwrapSignature, 'confirmed')
+
+					if (unwrapConfirmation.value.err) {
+						console.log('⚠️ Unwrap failed:', JSON.stringify(unwrapConfirmation.value.err))
+						console.log('💰 Swap successful, but unwrap failed. User has WBBA tokens.')
+					} else {
+						console.log('✅ Successfully unwrapped WBBA to native BBA!')
+						console.log(`✅ Unwrapped ${balance / Math.pow(10, 9)} BBA to user wallet`)
+					}
+				} catch (unwrapError) {
+					console.log('⚠️ Unwrap error:', unwrapError)
+					console.log('💰 Swap successful, but unwrap failed. User has WBBA tokens.')
+				}
+			}
 
 			// Return execution result
 			return {
