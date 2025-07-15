@@ -9,7 +9,7 @@ const StaticTokens: MintInfo[] = [
 		address: NATIVE_MINT.toBase58(),
 		logoURI: '/bba_logo.svg',
 		decimals: 9,
-		tags: ['native']
+		tags: ['native', 'wrapped', 'pool-compatible'] // BBA is both native and wrapped (NATIVE_MINT)
 	},
 	{
 		name: 'Tether USD',
@@ -81,14 +81,14 @@ export function generateTokenDisplayName(address: string): { symbol: string; nam
 }
 
 /**
- * Check if a token is the native BBA token
+ * Check if a token is BBA (NATIVE_MINT - both native and wrapped)
  */
 export function isNativeBBA(address: string): boolean {
 	return address === NATIVE_MINT.toBase58()
 }
 
 /**
- * Check if a token is a BBA token (native or wrapped)
+ * Check if a token is a BBA token (same as isNativeBBA since NATIVE_MINT handles both)
  */
 export function isBBAToken(address: string): boolean {
 	const token = getTokenByAddress(address)
@@ -96,10 +96,17 @@ export function isBBAToken(address: string): boolean {
 }
 
 /**
- * Get the native BBA token info
+ * Get the BBA token info (NATIVE_MINT handles both native and wrapped)
  */
 export function getNativeBBAToken(): MintInfo {
-	return StaticTokens[0] // First token is always BBA
+	return StaticTokens[0] // BBA token (NATIVE_MINT)
+}
+
+/**
+ * Get the BBA token for pool operations (same as native since NATIVE_MINT is pool-compatible)
+ */
+export function getPoolCompatibleBBAToken(): MintInfo {
+	return getNativeBBAToken() // NATIVE_MINT is already pool-compatible
 }
 
 export default StaticTokens
