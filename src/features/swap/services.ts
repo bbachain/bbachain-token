@@ -173,9 +173,23 @@ export const useGetUserBalanceByMint = ({ mintAddress }: { mintAddress: string }
 			if (!ownerAddress) throw new Error('No wallet connected')
 
 			try {
+				// Import the native BBA detection function
+				const { isNativeBBA } = await import('@/staticData/tokens')
+
+				// Handle native BBA token differently
+				if (isNativeBBA(mintAddress)) {
+					console.log('🪙 Fetching native BBA balance...')
+					const balance = await connection.getBalance(ownerAddress)
+					console.log('💰 Native BBA balance:', balance, 'daltons')
+					return { balance }
+				}
+
+				// Handle SPL tokens (existing logic)
+				console.log('🪙 Fetching SPL token balance for:', mintAddress)
 				const mint = new PublicKey(mintAddress)
 				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
 				const balanceAmount = await connection.getTokenAccountBalance(ata)
+				console.log('💰 SPL token balance:', balanceAmount.value.amount, 'base units')
 
 				return { balance: Number(balanceAmount.value.amount) }
 			} catch (e) {
