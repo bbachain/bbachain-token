@@ -1,9 +1,8 @@
 'use client'
 import { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown, TrendingUp, TrendingDown, Minus, Eye, Star } from 'lucide-react'
+import { ArrowUpDown, TrendingUp, TrendingDown, Minus, Star } from 'lucide-react'
 import Image from 'next/image'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -94,13 +93,6 @@ const getLiquidityHealthColor = (liquidity: number): string => {
 }
 
 function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: MintInfo; swapFee: number }) {
-	// Debug logging to see what data we're receiving
-	console.log('🔍 TokenPairDisplay received:', {
-		mintA: { symbol: mintA.symbol, name: mintA.name, address: mintA.address },
-		mintB: { symbol: mintB.symbol, name: mintB.name, address: mintB.address },
-		swapFee
-	})
-
 	return (
 		<div className="flex items-center w-full min-w-0">
 			{/* Star icon for favorites (like Raydium) */}

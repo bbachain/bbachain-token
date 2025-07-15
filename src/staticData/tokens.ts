@@ -1,10 +1,12 @@
+import { NATIVE_MINT } from '@bbachain/spl-token'
+
 import { MintInfo } from '@/features/liquidityPool/types'
 
 const StaticTokens: MintInfo[] = [
 	{
 		name: 'BBA Coin',
 		symbol: 'BBA',
-		address: 'BBA1111111111111111111111111111111111111111',
+		address: NATIVE_MINT.toBase58(),
 		logoURI: '/bba_logo.svg',
 		decimals: 9,
 		tags: ['native']
@@ -76,6 +78,28 @@ export function generateTokenDisplayName(address: string): { symbol: string; nam
 		symbol: cleanSymbol,
 		name: `Token ${cleanSymbol}`
 	}
+}
+
+/**
+ * Check if a token is the native BBA token
+ */
+export function isNativeBBA(address: string): boolean {
+	return address === NATIVE_MINT.toBase58()
+}
+
+/**
+ * Check if a token is a BBA token (native or wrapped)
+ */
+export function isBBAToken(address: string): boolean {
+	const token = getTokenByAddress(address)
+	return token?.symbol === 'BBA' || isNativeBBA(address)
+}
+
+/**
+ * Get the native BBA token info
+ */
+export function getNativeBBAToken(): MintInfo {
+	return StaticTokens[0] // First token is always BBA
 }
 
 export default StaticTokens
