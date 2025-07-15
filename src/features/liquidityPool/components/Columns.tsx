@@ -2,7 +2,9 @@
 import { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown, TrendingUp, TrendingDown, Minus, Star } from 'lucide-react'
 import Image from 'next/image'
+import { useState, useRef, useEffect } from 'react'
 
+import { CopyButton } from '@/components/layout/CopyButton'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -92,7 +94,43 @@ const getLiquidityHealthColor = (liquidity: number): string => {
 	return 'text-red-600 dark:text-red-400'
 }
 
-function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: MintInfo; swapFee: number }) {
+function TokenPairDisplay({
+	mintA,
+	mintB,
+	swapFee,
+	poolId
+}: {
+	mintA: MintInfo
+	mintB: MintInfo
+	swapFee: number
+	poolId: string
+}) {
+	const [tooltipOpen, setTooltipOpen] = useState(false)
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+	const handleMouseEnter = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current)
+			timeoutRef.current = null
+		}
+		setTooltipOpen(true)
+	}
+
+	const handleMouseLeave = () => {
+		timeoutRef.current = setTimeout(() => {
+			setTooltipOpen(false)
+		}, 200)
+	}
+
+	// Cleanup timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
+			}
+		}
+	}, [])
+
 	return (
 		<div className="flex items-center w-full min-w-0">
 			{/* Star icon for favorites (like Raydium) */}
@@ -112,10 +150,14 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 			</div>
 
 			{/* Token pair icons */}
-			<TooltipProvider>
-				<Tooltip>
+			<TooltipProvider delayDuration={300}>
+				<Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen}>
 					<TooltipTrigger asChild>
-						<div className="flex items-center flex-shrink-0 mr-3 relative">
+						<div
+							className="flex items-center flex-shrink-0 mr-3 relative cursor-pointer hover:scale-105 transition-transform"
+							onMouseEnter={handleMouseEnter}
+							onMouseLeave={handleMouseLeave}
+						>
 							<div className="relative">
 								<Image
 									src={mintA.logoURI && mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'}
@@ -142,20 +184,97 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 							</div>
 						</div>
 					</TooltipTrigger>
-					<TooltipContent side="right">
-						<div className="space-y-1">
-							<p className="font-semibold">
-								{mintA.name} ({mintA.symbol})
-							</p>
-							<p className="font-semibold">
-								{mintB.name} ({mintB.symbol})
-							</p>
-							<p className="text-xs text-gray-500 dark:text-gray-400">
-								{mintA.address.slice(0, 6)}...{mintA.address.slice(-4)}
-							</p>
-							<p className="text-xs text-gray-500 dark:text-gray-400">
-								{mintB.address.slice(0, 6)}...{mintB.address.slice(-4)}
-							</p>
+					<TooltipContent
+						side="right"
+						className="max-w-md p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg"
+						onMouseEnter={handleMouseEnter}
+						onMouseLeave={handleMouseLeave}
+					>
+						<div className="space-y-4">
+							{/* Header */}
+							<div className="text-center border-b border-gray-100 dark:border-gray-800 pb-3">
+								<h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Pool Information</h3>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+									Click any copy button to copy the address
+								</p>
+							</div>
+
+							{/* Token A */}
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-2">
+										<Image
+											src={mintA.logoURI && mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'}
+											width={20}
+											height={20}
+											className="rounded-full"
+											alt={`${mintA.name} icon`}
+											onError={(e) => {
+												e.currentTarget.src = '/icon-placeholder.svg'
+											}}
+										/>
+										<div>
+											<p className="text-sm font-medium text-gray-900 dark:text-gray-100">{mintA.symbol}</p>
+											<p className="text-xs text-gray-500 dark:text-gray-400">{mintA.name}</p>
+										</div>
+									</div>
+									<div className="flex items-center gap-2">
+										<code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+											{mintA.address.slice(0, 4)}...{mintA.address.slice(-4)}
+										</code>
+										<CopyButton secretValue={mintA.address} iconSize="sm" className="h-6 w-6" />
+									</div>
+								</div>
+							</div>
+
+							{/* Token B */}
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-2">
+										<Image
+											src={mintB.logoURI && mintB.logoURI !== '' ? mintB.logoURI : '/icon-placeholder.svg'}
+											width={20}
+											height={20}
+											className="rounded-full"
+											alt={`${mintB.name} icon`}
+											onError={(e) => {
+												e.currentTarget.src = '/icon-placeholder.svg'
+											}}
+										/>
+										<div>
+											<p className="text-sm font-medium text-gray-900 dark:text-gray-100">{mintB.symbol}</p>
+											<p className="text-xs text-gray-500 dark:text-gray-400">{mintB.name}</p>
+										</div>
+									</div>
+									<div className="flex items-center gap-2">
+										<code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+											{mintB.address.slice(0, 4)}...{mintB.address.slice(-4)}
+										</code>
+										<CopyButton secretValue={mintB.address} iconSize="sm" className="h-6 w-6" />
+									</div>
+								</div>
+							</div>
+
+							{/* Pool ID */}
+							<div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-2">
+										<div className="w-5 h-5 rounded bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+											<span className="text-white text-xs font-bold">P</span>
+										</div>
+										<div>
+											<p className="text-sm font-medium text-gray-900 dark:text-gray-100">Pool ID</p>
+											<p className="text-xs text-gray-500 dark:text-gray-400">Liquidity Pool Address</p>
+										</div>
+									</div>
+									<div className="flex items-center gap-2">
+										<code className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-mono">
+											{poolId.slice(0, 4)}...{poolId.slice(-4)}
+										</code>
+										<CopyButton secretValue={poolId} iconSize="sm" className="h-6 w-6" />
+									</div>
+								</div>
+							</div>
 						</div>
 					</TooltipContent>
 				</Tooltip>
@@ -331,7 +450,12 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="pl-6">
-				<TokenPairDisplay mintA={row.original.mintA} mintB={row.original.mintB} swapFee={row.original.swapFee} />
+				<TokenPairDisplay
+					mintA={row.original.mintA}
+					mintB={row.original.mintB}
+					swapFee={row.original.swapFee}
+					poolId={row.original.id}
+				/>
 			</div>
 		),
 		enableSorting: true,
