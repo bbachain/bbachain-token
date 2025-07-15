@@ -73,6 +73,12 @@ export default function LiquidityPools() {
 		}
 	}, [getBalanceQuery.isError, getBalanceQuery.error])
 
+	useEffect(() => {
+		if (getPoolsQuery.isSuccess) {
+			console.log('pools data ', allPoolsData)
+		}
+	}, [allPoolsData, getPoolsQuery.isSuccess])
+
 	// Show loading state while balance is loading
 	if (getBalanceQuery.isLoading) {
 		return (
