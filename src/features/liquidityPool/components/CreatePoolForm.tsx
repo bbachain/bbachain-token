@@ -29,7 +29,12 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
-import { useGetTokensFromAPI, useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
+import {
+	useGetTokensFromAPI,
+	useGetTokenPrice,
+	useGetUserBalanceByMint,
+	useGetCoinGeckoTokenPrice
+} from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
 import { cn, formatTokenBalance } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
@@ -383,17 +388,17 @@ export default function CreatePoolForm() {
 	const getMintBBalance = useGetUserBalanceByMint({
 		mintAddress: selectedQuoteToken?.address || ''
 	})
-	const getMintATokenPrice = useGetTokenPrice({
-		mintAddress: selectedBaseToken?.address || ''
+	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
+		symbol: selectedBaseToken?.symbol || ''
 	})
-	const getMintBTokenPrice = useGetTokenPrice({
-		mintAddress: selectedQuoteToken?.address || ''
+	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
+		symbol: selectedQuoteToken?.symbol || ''
 	})
 
 	const mintABalance = getMintABalance.data?.balance || 0
 	const mintBBalance = getMintBBalance.data?.balance || 0
-	const mintAInitialPrice = getMintATokenPrice.data?.usdRate || 0
-	const mintBInitialPrice = getMintBTokenPrice.data?.usdRate || 0
+	const mintAInitialPrice = getMintATokenPrice.data || 0
+	const mintBInitialPrice = getMintBTokenPrice.data || 0
 
 	// Format balances with proper decimals for display
 	const formattedMintABalance = selectedBaseToken ? formatTokenBalance(mintABalance, selectedBaseToken.decimals) : 0
