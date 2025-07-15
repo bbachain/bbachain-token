@@ -431,10 +431,7 @@ export const useCreatePool = () => {
 				}
 
 				// Check if amounts are valid
-				const baseAmount = parseFloat(payload.baseTokenAmount)
-				const quoteAmount = parseFloat(payload.quoteTokenAmount)
-
-				if (baseAmount <= 0 || quoteAmount <= 0) {
+				if (parseFloat(payload.baseTokenAmount) <= 0 || parseFloat(payload.quoteTokenAmount) <= 0) {
 					throw new Error('Token amounts must be greater than zero')
 				}
 
@@ -518,23 +515,17 @@ export const useCreatePool = () => {
 				console.log('📝 Creating LP mint transaction...')
 				const createPoolTx = new Transaction().add(createMintIx, initMintIx, ataIx)
 
-				// Use sendTransaction which can handle additional signers
-				const poolSig = await sendTransactionWithRetry(createPoolTx, connection, sendTransaction, {
-					signers: [poolMint], // Pass poolMint as additional signer
+				const poolSig = await sendTransaction(createPoolTx, connection, {
+					signers: [poolMint],
 					skipPreflight: false,
 					preflightCommitment: 'confirmed'
 				})
 
 				console.log('⏳ LP mint transaction sent:', poolSig)
-
-				await confirmTransactionWithTimeout(connection, poolSig, latestBlockhash)
+				await connection.confirmTransaction({ signature: poolSig, ...latestBlockhash }, 'confirmed')
 				console.log('✅ LP token mint created successfully')
 
-				// Add delay to prevent wallet extension race condition
-				console.log('⏳ Waiting 2 seconds before transferring authority...')
-				await new Promise((resolve) => setTimeout(resolve, 2000))
-
-				// === CRITICAL: Transfer Pool Mint Authority to Swap Authority ===
+				// === STEP 4: TRANSFER POOL MINT AUTHORITY TO SWAP AUTHORITY ===
 				console.log('🔄 Transferring pool mint authority to swap authority...')
 
 				const setAuthorityIx = createSetAuthorityInstruction(
@@ -549,10 +540,6 @@ export const useCreatePool = () => {
 				await confirmTransactionWithTimeout(connection, transferSig, latestBlockhash)
 				console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
 
-				// Add delay to prevent wallet extension race condition
-				console.log('⏳ Waiting 2 seconds before next transaction...')
-				await new Promise((resolve) => setTimeout(resolve, 2000))
-
 				// === STEP 5: CREATE POOL TOKEN ACCOUNTS (VAULTS) MANUALLY ===
 				console.log('🏦 Creating pool token accounts (vaults)...')
 
@@ -566,7 +553,6 @@ export const useCreatePool = () => {
 					programId: TOKEN_PROGRAM_ID
 				})
 				const initTokenAVaultIx = createInitializeAccountInstruction(tokenAVault.publicKey, baseMint, authority)
-
 				// Create token B vault (owned by swap authority)
 				const tokenBVault = Keypair.generate()
 				const createTokenBVaultIx = SystemProgram.createAccount({
@@ -578,7 +564,7 @@ export const useCreatePool = () => {
 				})
 				const initTokenBVaultIx = createInitializeAccountInstruction(tokenBVault.publicKey, quoteMint, authority)
 
-				// Send vault creation transaction
+				// Send vault creation transaction with retry
 				const createVaultsTx = new Transaction().add(
 					createTokenAVaultIx,
 					initTokenAVaultIx,
@@ -601,7 +587,6 @@ export const useCreatePool = () => {
 				// Add delay to prevent wallet extension race condition
 				console.log('⏳ Waiting 2 seconds before creating fee account...')
 				await new Promise((resolve) => setTimeout(resolve, 2000))
-
 				// === STEP 6: CREATE FEE ACCOUNT ===
 				const feeAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
 				const feeInfo = await connection.getAccountInfo(feeAccount)
@@ -625,6 +610,9 @@ export const useCreatePool = () => {
 				// === STEP 7: PREPARE USER TOKEN ACCOUNTS AND INITIAL LIQUIDITY ===
 				console.log('💰 Preparing initial liquidity...')
 
+				// Calculate amounts from payload
+				const baseAmount = parseFloat(payload.baseTokenAmount)
+				const quoteAmount = parseFloat(payload.quoteTokenAmount)
 				// Calculate amounts in daltons
 				const baseAmountDaltons = Math.floor(baseAmount * Math.pow(10, payload.baseToken.decimals))
 				const quoteAmountDaltons = Math.floor(quoteAmount * Math.pow(10, payload.quoteToken.decimals))
@@ -785,21 +773,10 @@ export const useCreatePool = () => {
 				// Create final transaction with create + initialize
 				const finalTx = new Transaction().add(createSwapAccountIx, swapIx)
 
-				// Set recent blockhash and fee payer
-				finalTx.recentBlockhash = latestBlockhash.blockhash
-				finalTx.feePayer = ownerAddress
-
-				console.log('📋 Final Transaction Analysis:', {
-					instructionCount: finalTx.instructions.length,
-					estimatedFee: 'Will be calculated by wallet',
-					signers: [ownerAddress.toBase58(), tokenSwap.publicKey.toBase58()],
-					recentBlockhash: latestBlockhash.blockhash.slice(0, 8) + '...'
-				})
-
-				// === IMPORTANT: Use sendTransaction with additional signers ===
-				console.log('📝 Sending final transaction with BBA wallet...')
+				// Send final transaction with retry mechanism
+				console.log('📝 Sending final transaction...')
 				const finalSig = await sendTransactionWithRetry(finalTx, connection, sendTransaction, {
-					signers: [tokenSwap], // Additional signer required
+					signers: [tokenSwap],
 					skipPreflight: false,
 					preflightCommitment: 'confirmed'
 				})
