@@ -3,6 +3,7 @@ import { TSuccessMessage } from '@/types'
 
 export type SwapType = 'BaseIn' | 'BaseOut'
 
+
 export type RoutePlanStep = {
 	poolId: string
 	inputMint: string
@@ -36,6 +37,8 @@ export type TGetUserBalanceData = {
 export type TGetTokenPriceData = {
 	usdRate: number
 }
+
+
 
 export type TGetSwapTransactionPayload = {
 	swapType: SwapType
