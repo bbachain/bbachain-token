@@ -46,7 +46,7 @@ const NavMenu: NavMenuProps[] = [
 		href: '/swap'
 	},
 	{
-		name: 'Liquidity Pool',
+		name: 'Liquidity',
 		href: '/liquidity-pools'
 	},
 	{
