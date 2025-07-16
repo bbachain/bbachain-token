@@ -2,18 +2,24 @@ import * as BufferLayout from '@bbachain/buffer-layout'
 import {
 	getAssociatedTokenAddress,
 	createAssociatedTokenAccountInstruction,
-	TOKEN_PROGRAM_ID
+	TOKEN_PROGRAM_ID,
+	NATIVE_MINT,
+	createApproveInstruction,
+	createSyncNativeInstruction,
+	createCloseAccountInstruction
 } from '@bbachain/spl-token'
 import { createSwapInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { PublicKey, Transaction } from '@bbachain/web3.js'
+import { PublicKey, Transaction, SystemProgram, Keypair } from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
 import { TGetTokensResponse } from '@/app/api/tokens/route'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
+import { wrapBBAtoWBBA, unwrapWBBAtoBBA, createTokenAccountManual, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
 import { getTokenAccounts2 } from '@/lib/tokenAccount'
+import { isNativeBBA, getWBBAMintAddress, isBBAPool, getBBAPositionInPool } from '@/staticData/tokens'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from '../liquidityPool/onchain'
 import { TGetTokenDataResponse, TGetTokenResponse } from '../tokens/types'
@@ -612,6 +618,11 @@ export const useExecuteSwap = () => {
 
 			const { inputMint, outputMint, inputAmount, slippage, poolAddress } = params
 
+			// === BBA Detection (must be early) ===
+			const isInputBBA = isNativeBBA(inputMint)
+			const isOutputBBA = isNativeBBA(outputMint)
+			const isBBASwap = isInputBBA || isOutputBBA
+
 			// Get pool data to access swap authority and token accounts
 			const pools = await getAllPoolsFromOnchain(connection)
 			const pool = pools.find((p) => p.address === poolAddress)
@@ -625,10 +636,24 @@ export const useExecuteSwap = () => {
 				length: createSwapInstruction.length
 			})
 
+			// === Handle BBA/WBBA Mint Mapping for Pool Matching ===
+			// For pool matching, we need to use WBBA address when BBA is involved
+			const effectiveInputMint = isInputBBA ? NATIVE_MINT.toBase58() : inputMint
+			const effectiveOutputMint = isOutputBBA ? NATIVE_MINT.toBase58() : outputMint
+
+			console.log('🔄 Effective mints for pool matching:', {
+				originalInputMint: inputMint,
+				originalOutputMint: outputMint,
+				effectiveInputMint,
+				effectiveOutputMint,
+				poolMintA: pool.mintA.address,
+				poolMintB: pool.mintB.address
+			})
+
 			// Calculate all required values for debugging
-			const isInputTokenA = pool.mintA.address === inputMint
-			const inputMintPubkey = new PublicKey(inputMint)
-			const outputMintPubkey = new PublicKey(outputMint)
+			const isInputTokenA = pool.mintA.address === effectiveInputMint
+			const inputMintPubkey = new PublicKey(effectiveInputMint)
+			const outputMintPubkey = new PublicKey(effectiveOutputMint)
 
 			const inputAmountNumber = Number(inputAmount)
 			const inputDecimals = isInputTokenA ? pool.mintA.decimals : pool.mintB.decimals
@@ -661,9 +686,102 @@ export const useExecuteSwap = () => {
 				isInputTokenA
 			})
 
-			// Get user's token accounts
-			const userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
-			const userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+			// === BBA-AWARE Token Account Preparation ===
+			console.log('🔍 Swap Analysis:', {
+				inputMint,
+				outputMint,
+				isInputBBA,
+				isOutputBBA,
+				isBBASwap,
+				requiresWrapping: isBBASwap
+			})
+
+			let userInputTokenAccount: PublicKey
+			let userOutputTokenAccount: PublicKey
+			let needsUnwrapping = false
+			let preTxInstructions: any[] = []
+			let postTxInstructions: any[] = []
+
+			if (isBBASwap) {
+				console.log('🪙 BBA swap detected - using WBBA for native BBA')
+
+				if (isInputBBA) {
+					// BBA → Token: Use WBBA account for input
+					console.log('💰 BBA → Token swap: Using WBBA account for input')
+
+					// Check BBA balance
+					const userBBABalance = await connection.getBalance(publicKey)
+					const requiredBBA = bbaTodaltons(inputAmountNumber)
+
+					if (userBBABalance < requiredBBA) {
+						throw new Error(
+							`Insufficient BBA balance. Required: ${inputAmountNumber} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+						)
+					}
+
+					// Use WBBA (NATIVE_MINT) associated token account
+					userInputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
+
+					// Create WBBA account if it doesn't exist and fund it
+					const wbbaAccountInfo = await connection.getAccountInfo(userInputTokenAccount)
+					if (!wbbaAccountInfo) {
+						console.log('📝 Creating WBBA account and funding with BBA...')
+						const createWBBAIx = createAssociatedTokenAccountInstruction(
+							publicKey,
+							userInputTokenAccount,
+							publicKey,
+							NATIVE_MINT
+						)
+						preTxInstructions.push(createWBBAIx)
+					}
+
+					// Add instructions to transfer BBA and sync
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: publicKey,
+						toPubkey: userInputTokenAccount,
+						daltons: requiredBBA
+					})
+					const syncBBAIx = createSyncNativeInstruction(userInputTokenAccount)
+					preTxInstructions.push(transferBBAIx, syncBBAIx)
+
+					// For output, use standard token account
+					userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+				} else if (isOutputBBA) {
+					// Token → BBA: Swap to WBBA then unwrap
+					console.log('💰 Token → BBA swap: Will receive WBBA and unwrap to BBA')
+
+					// For input, use standard token account
+					userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
+
+					// For output, use WBBA (NATIVE_MINT) associated token account
+					userOutputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
+
+					// Create WBBA account if it doesn't exist
+					const wbbaAccountInfo = await connection.getAccountInfo(userOutputTokenAccount)
+					if (!wbbaAccountInfo) {
+						console.log('📝 Creating WBBA account for output...')
+						const createWBBAIx = createAssociatedTokenAccountInstruction(
+							publicKey,
+							userOutputTokenAccount,
+							publicKey,
+							NATIVE_MINT
+						)
+						preTxInstructions.push(createWBBAIx)
+					}
+
+					// Add instruction to unwrap WBBA to BBA after swap
+					needsUnwrapping = true
+					const closeWBBAIx = createCloseAccountInstruction(userOutputTokenAccount, publicKey, publicKey)
+					postTxInstructions.push(closeWBBAIx)
+				} else {
+					throw new Error('Unexpected BBA swap state')
+				}
+			} else {
+				// Standard token/token swap
+				console.log('🔄 Standard token/token swap')
+				userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
+				userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+			}
 
 			// Get pool info from BBA Chain
 			const poolInfo = pool.swapData
@@ -702,9 +820,35 @@ export const useExecuteSwap = () => {
 			// Create the swap instruction using the 2-parameter pattern
 			const swapInstruction = createSwapInstruction(accounts, instructionData)
 
-			// Create transaction
+			// Create transaction with BBA wrapping/unwrapping support
 			const transaction = new Transaction()
+
+			// Add pre-swap instructions (BBA wrapping if needed)
+			if (preTxInstructions.length > 0) {
+				console.log(`📝 Adding ${preTxInstructions.length} pre-swap instructions (BBA wrapping)`)
+				preTxInstructions.forEach((ix) => transaction.add(ix))
+			}
+
+			// Add approve instruction for input token if needed
+			if (isBBASwap && isInputBBA) {
+				// For WBBA, need to approve the swap to spend tokens
+				const approveIx = createApproveInstruction(
+					userInputTokenAccount,
+					publicKey,
+					publicKey,
+					bbaTodaltons(inputAmountNumber)
+				)
+				transaction.add(approveIx)
+			}
+
+			// Add the main swap instruction
 			transaction.add(swapInstruction)
+
+			// Add post-swap instructions (BBA unwrapping if needed)
+			if (postTxInstructions.length > 0) {
+				console.log(`📝 Adding ${postTxInstructions.length} post-swap instructions (BBA unwrapping)`)
+				postTxInstructions.forEach((ix) => transaction.add(ix))
+			}
 
 			// Send transaction
 			const signature = await sendTransaction(transaction, connection)

@@ -109,4 +109,64 @@ export function getNativeBBAToken(): MintInfo {
 	return StaticTokens[0] // First token is always BBA
 }
 
+/**
+ * ========================================
+ * BBA LIQUIDITY POOL UTILITIES  
+ * ========================================
+ */
+
+/**
+ * Check if a pool pair involves the native BBA token
+ */
+export function isBBAPool(baseTokenAddress: string, quoteTokenAddress: string): boolean {
+	return isNativeBBA(baseTokenAddress) || isNativeBBA(quoteTokenAddress)
+}
+
+/**
+ * Get the BBA token position in a pool pair
+ * @returns 'base' if BBA is base token, 'quote' if BBA is quote token, null if no BBA
+ */
+export function getBBAPositionInPool(
+	baseTokenAddress: string, 
+	quoteTokenAddress: string
+): 'base' | 'quote' | null {
+	if (isNativeBBA(baseTokenAddress)) return 'base'
+	if (isNativeBBA(quoteTokenAddress)) return 'quote'
+	return null
+}
+
+/**
+ * Get the non-BBA token in a BBA pool pair
+ */
+export function getNonBBATokenFromPool(
+	baseTokenAddress: string, 
+	quoteTokenAddress: string
+): string | null {
+	if (isNativeBBA(baseTokenAddress)) return quoteTokenAddress
+	if (isNativeBBA(quoteTokenAddress)) return baseTokenAddress
+	return null
+}
+
+/**
+ * Check if pool creation requires BBA wrapping
+ */
+export function requiresBBAWrapping(baseTokenAddress: string, quoteTokenAddress: string): boolean {
+	return isBBAPool(baseTokenAddress, quoteTokenAddress)
+}
+
+/**
+ * Get the WBBA (Wrapped BBA) mint address for pool operations
+ * BBA uses NATIVE_MINT when wrapped
+ */
+export function getWBBAMintAddress(): string {
+	return NATIVE_MINT.toBase58()
+}
+
+/**
+ * Check if an address is the WBBA mint (same as NATIVE_MINT)
+ */
+export function isWBBAMint(address: string): boolean {
+	return address === NATIVE_MINT.toBase58()
+}
+
 export default StaticTokens

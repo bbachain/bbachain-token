@@ -38,7 +38,7 @@ import {
 import { TTokenProps } from '@/features/swap/types'
 import { cn, formatTokenBalance } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
-import StaticTokens from '@/staticData/tokens'
+import StaticTokens, { isBBAPool, getBBAPositionInPool, requiresBBAWrapping, isNativeBBA } from '@/staticData/tokens'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 import { useCreatePool } from '../services'
@@ -381,6 +381,20 @@ export default function CreatePoolForm() {
 	const priceSetting = form.watch('priceSetting')
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
+	// BBA Pool Detection
+	const isBBAPoolPair =
+		selectedBaseToken && selectedQuoteToken ? isBBAPool(selectedBaseToken.address, selectedQuoteToken.address) : false
+	const bbaPosition =
+		selectedBaseToken && selectedQuoteToken
+			? getBBAPositionInPool(selectedBaseToken.address, selectedQuoteToken.address)
+			: null
+	const requiresWrapping =
+		selectedBaseToken && selectedQuoteToken
+			? requiresBBAWrapping(selectedBaseToken.address, selectedQuoteToken.address)
+			: false
+	const bbaToken = bbaPosition === 'base' ? selectedBaseToken : bbaPosition === 'quote' ? selectedQuoteToken : null
+	const nonBBAToken = bbaPosition === 'base' ? selectedQuoteToken : bbaPosition === 'quote' ? selectedBaseToken : null
+
 	// Balance queries
 	const getMintABalance = useGetUserBalanceByMint({
 		mintAddress: selectedBaseToken?.address || ''
@@ -457,6 +471,14 @@ export default function CreatePoolForm() {
 			toast.error('Failed to load onchain tokens. Using fallback data.')
 		}
 	}, [isTokensError])
+
+	// Auto-adjust fee tier for BBA pools
+	useEffect(() => {
+		if (isBBAPoolPair && form.watch('feeTier') !== '0.3') {
+			form.setValue('feeTier', '0.3', { shouldValidate: true })
+			toast.success(`Fee tier automatically set to 0.3% for BBA/${nonBBAToken?.symbol} pool`)
+		}
+	}, [isBBAPoolPair, form, nonBBAToken?.symbol])
 
 	// Handlers
 	const onNext = useCallback(async () => {
@@ -690,6 +712,39 @@ export default function CreatePoolForm() {
 									)}
 								/>
 
+								{/* BBA Pool Warning/Info */}
+								{isBBAPoolPair && (
+									<div className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-orange-200 dark:border-orange-800">
+										<div className="flex items-start space-x-2 md:space-x-3">
+											<div className="flex-shrink-0 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+												!
+											</div>
+											<div className="flex-1">
+												<h4 className="text-sm md:text-base font-semibold text-orange-800 dark:text-orange-200 mb-1">
+													BBA Native Token Pool
+												</h4>
+												<p className="text-xs md:text-sm text-orange-700 dark:text-orange-300 mb-2">
+													You&apos;re creating a pool with BBA (native token). This requires special handling:
+												</p>
+												<ul className="text-xs md:text-sm text-orange-700 dark:text-orange-300 space-y-1">
+													<li className="flex items-center space-x-2">
+														<span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
+														<span>BBA will be automatically wrapped to WBBA for the pool</span>
+													</li>
+													<li className="flex items-center space-x-2">
+														<span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
+														<span>Recommended fee tier: 0.3% for BBA/{nonBBAToken?.symbol} pairs</span>
+													</li>
+													<li className="flex items-center space-x-2">
+														<span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
+														<span>Pool will use NATIVE_MINT for WBBA representation</span>
+													</li>
+												</ul>
+											</div>
+										</div>
+									</div>
+								)}
+
 								{/* Pool Preview */}
 								{selectedBaseToken && selectedQuoteToken && (
 									<div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg md:rounded-xl p-3 md:p-4">
@@ -713,8 +768,12 @@ export default function CreatePoolForm() {
 											<div>
 												<h3 className="text-sm md:text-base font-semibold text-main-black">
 													{selectedBaseToken.symbol}/{selectedQuoteToken.symbol}
+													{isBBAPoolPair && <span className="ml-1 text-orange-600 text-xs">(Native)</span>}
 												</h3>
-												<p className="text-xs md:text-sm text-gray-600">Fee: {form.watch('feeTier')}%</p>
+												<p className="text-xs md:text-sm text-gray-600">
+													Fee: {form.watch('feeTier')}%
+													{isBBAPoolPair && <span className="ml-1 text-orange-600">(BBA Pool)</span>}
+												</p>
 											</div>
 										</div>
 									</div>
