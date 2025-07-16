@@ -239,11 +239,13 @@ export const useGetCoinGeckoTokenPrice = ({ symbol }: { symbol: string }) =>
 				}
 			})
 			const usdRate = res.data[coinGeckoTokenId].usd ?? 0
-			console.log(usdRate)
+			// Only log price if it's actually different from previous value to reduce spam
+			console.log(`💰 ${symbol} price: $${usdRate}`)
 			return usdRate
 		},
 		enabled: !!symbol,
-		refetchInterval: 60000
+		refetchInterval: 300000, // Reduced to 5 minutes to avoid spam
+		staleTime: 60000 // Cache for 1 minute
 	})
 
 export const useGetSwapTransactionByMint = ({
