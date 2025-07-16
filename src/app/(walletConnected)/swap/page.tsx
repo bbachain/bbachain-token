@@ -21,7 +21,8 @@ import {
 	useExecuteSwap,
 	useCanSwap,
 	useGetSwapRoute,
-	useGetTokensFromAPI
+	useGetTokensFromAPI,
+	useGetCoinGeckoTokenPrice
 } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
 import { cn } from '@/lib/utils'
@@ -140,8 +141,8 @@ export default function Swap() {
 	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: toTokenProps.address })
 
 	// Get token prices (fallback to external API if needed)
-	const getMintATokenPrice = useGetTokenPrice({ mintAddress: fromTokenProps.address })
-	const getMintBTokenPrice = useGetTokenPrice({ mintAddress: toTokenProps.address })
+	const getMintATokenPrice = useGetCoinGeckoTokenPrice({ symbol: fromTokenProps.symbol })
+	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({ symbol: toTokenProps.symbol })
 
 	// Swap execution
 	const executeSwapMutation = useExecuteSwap()
@@ -167,8 +168,8 @@ export default function Swap() {
 	const swapQuote = swapQuoteQuery.data
 	const mintABalance = getMintABalance.data?.balance || 0
 	const mintBBalance = getMintBBalance.data?.balance || 0
-	const mintAInitialPrice = getMintATokenPrice.data?.usdRate || 0
-	const mintBInitialPrice = getMintBTokenPrice.data?.usdRate || 0
+	const mintAInitialPrice = getMintATokenPrice.data || 0
+	const mintBInitialPrice = getMintBTokenPrice.data || 0
 
 	// Calculate USD values
 	const inputAmount = swapQuote?.inputAmount || 0

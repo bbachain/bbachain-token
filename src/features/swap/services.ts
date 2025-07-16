@@ -34,6 +34,7 @@ import {
 	TTokenProps,
 	TGetSwapTransactionData
 } from './types'
+import { getCoinGeckoTokenId } from './utils'
 
 interface RawTokenSwap {
 	version: number
@@ -221,6 +222,27 @@ export const useGetTokenPrice = ({ mintAddress }: { mintAddress: string }) =>
 			return { usdRate }
 		},
 		enabled: !!mintAddress,
+		refetchInterval: 60000
+	})
+
+export const useGetCoinGeckoTokenPrice = ({ symbol }: { symbol: string }) =>
+	useQuery<number>({
+		queryKey: [SERVICES_KEY.SWAP.GET_COIN_GECKO_TOKEN_PRICE, symbol],
+		queryFn: async () => {
+			const coinGeckoTokenId = getCoinGeckoTokenId(symbol)
+
+			if (!coinGeckoTokenId) return 0
+			const res = await axios.get(ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE, {
+				params: {
+					ids: coinGeckoTokenId,
+					vs_currencies: 'usd'
+				}
+			})
+			const usdRate = res.data[coinGeckoTokenId].usd ?? 0
+			console.log(usdRate)
+			return usdRate
+		},
+		enabled: !!symbol,
 		refetchInterval: 60000
 	})
 

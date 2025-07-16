@@ -37,6 +37,13 @@ const StaticTokens: MintInfo[] = [
 	}
 ]
 
+export const CoinGeckoTokenIds: Record<string, string> = {
+	BBA: 'bbachain',
+	USDT: 'tether',
+	USDC: 'usd-coin',
+	SHIB: 'shiba-inu'
+}
+
 // Create a lookup map for faster access
 const TokenRegistry = new Map<string, MintInfo>()
 StaticTokens.forEach((token) => {

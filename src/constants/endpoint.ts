@@ -2,6 +2,7 @@ const PINATA_API_BASE_ENDPOINT = 'https://api.pinata.cloud'
 const IPFS_BASE_ENDPOINT = 'https://ipfs.io/ipfs'
 const RAYDIUM_API_BASE_ENDPOINT = 'https://api-v3.raydium.io'
 const RAYDIUM_TRANSACTION_API_BASE_ENDPOINT = 'https://transaction-v1.raydium.io'
+const COIN_GECKO_API_BASE_ENDPOINT = 'https://api.coingecko.com/api/v3'
 
 const PINATA_ENDPOINTS = {
 	UPLOAD_FILE: PINATA_API_BASE_ENDPOINT + '/pinning/pinFileToIPFS',
@@ -17,6 +18,10 @@ const RAYDIUM_ENDPOINTS = {
 	GET_SWAP_TRANSACTION_BY_MINT: RAYDIUM_TRANSACTION_API_BASE_ENDPOINT + '/compute'
 } as const
 
+const COIN_GECKO = {
+	GET_SIMPLE_PRICE: COIN_GECKO_API_BASE_ENDPOINT + '/simple/price'
+}
+
 const INTERNAL_API_ENDPOINTS = {
 	GET_TOKENS: '/api/tokens'
 } as const
@@ -25,8 +30,9 @@ const ENDPOINTS = {
 	PINATA: PINATA_ENDPOINTS,
 	IPFS_BASE: IPFS_BASE_ENDPOINT,
 	RAYDIUM: RAYDIUM_ENDPOINTS,
+	COIN_GECKO: COIN_GECKO,
 	API: INTERNAL_API_ENDPOINTS
 } as const
 
 export default ENDPOINTS
-;('https://api-v3.raydium.io/pools/info/mint')
+

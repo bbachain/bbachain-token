@@ -33,6 +33,7 @@ const NFT_SERVICE_KEY = {
 const SWAP_SERVICE_KEY = {
 	GET_SWAPPABLE_TOKEN: 'get-swappable-token',
 	GET_TOKEN_PRICE: 'get-token-price',
+	GET_COIN_GECKO_TOKEN_PRICE: 'get-coin-gecko-token-price',
 	GET_USER_BALANCE_BY_MINT: 'get-user-balance-by-mint',
 	GET_SWAP_TRANSACTION: 'get-swap-transaction'
 } as const

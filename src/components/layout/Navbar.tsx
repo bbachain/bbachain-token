@@ -9,6 +9,7 @@ import { IoSunnySharp, IoMoonSharp } from 'react-icons/io5'
 import { RxHamburgerMenu } from 'react-icons/rx'
 
 import { useIsMobile } from '@/hooks/isMobile'
+import { cn } from '@/lib/utils'
 import NavMenu from '@/staticData/navbar'
 
 import { useCluster } from '../providers/ClusterProvider'
@@ -174,7 +175,12 @@ export default function Navbar() {
 									<NavigationMenuTrigger className="text-sm w-full p-0 hover:!bg-transparent font-normal hover:!text-hover-green text-main-black">
 										{nav.name}
 									</NavigationMenuTrigger>
-									<NavigationMenuContent className="absolute top-full left-20 bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80">
+									<NavigationMenuContent
+										className={cn(
+											'absolute top-full bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80',
+											nav.name === 'NFT' ? 'left-24' : 'left-10'
+										)}
+									>
 										<ul className="flex flex-col w-[230px] p-3">
 											{nav.subMenu.map((subNav) => (
 												<Link
