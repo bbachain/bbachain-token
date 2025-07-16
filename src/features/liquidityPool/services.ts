@@ -8,7 +8,7 @@ import {
 } from '@bbachain/spl-token'
 import { CurveType, createInitializeInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import BN from 'bn.js'
@@ -28,6 +28,61 @@ const RETRY_CONFIG = {
 		// Retry on network errors, timeouts, and 5xx errors
 		return !error.response || error.response.status >= 500 || error.code === 'NETWORK_ERROR'
 	}
+}
+
+// Transaction helper with retry and delay
+const sendTransactionWithRetry = async (
+	transaction: Transaction,
+	connection: Connection,
+	sendTransaction: any,
+	options?: { signers?: any[]; skipPreflight?: boolean; preflightCommitment?: string }
+) => {
+	for (let attempt = 1; attempt <= RETRY_CONFIG.attempts; attempt++) {
+		try {
+			console.log(`📤 Sending transaction (attempt ${attempt}/${RETRY_CONFIG.attempts})...`)
+
+			const signature = await sendTransaction(transaction, connection, options)
+			console.log(`✅ Transaction sent successfully:`, signature)
+
+			return signature
+		} catch (error: any) {
+			console.error(`❌ Transaction attempt ${attempt} failed:`, error)
+
+			if (attempt === RETRY_CONFIG.attempts || !RETRY_CONFIG.retryCondition(error)) {
+				throw error
+			}
+
+			// Wait before retry
+			const delay = RETRY_CONFIG.delay(attempt - 1)
+			console.log(`⏳ Waiting ${delay}ms before retry...`)
+			await new Promise((resolve) => setTimeout(resolve, delay))
+		}
+	}
+}
+
+// Confirmation helper with timeout
+const confirmTransactionWithTimeout = async (
+	connection: Connection,
+	signature: string,
+	latestBlockhash: any,
+	timeoutMs = 30000
+) => {
+	console.log(`⏳ Confirming transaction: ${signature}`)
+
+	const timeoutPromise = new Promise((_, reject) => {
+		setTimeout(() => reject(new Error('Transaction confirmation timeout')), timeoutMs)
+	})
+
+	const confirmPromise = connection.confirmTransaction({ signature, ...latestBlockhash }, 'confirmed')
+
+	const confirmation: any = await Promise.race([confirmPromise, timeoutPromise])
+
+	if (confirmation.value?.err) {
+		throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
+	}
+
+	console.log(`✅ Transaction confirmed: ${signature}`)
+	return confirmation
 }
 
 // Cache configuration
@@ -336,9 +391,13 @@ export const useCreatePool = () => {
 					console.log('📝 Creating swap token A account...')
 					const ix = createAssociatedTokenAccountInstruction(ownerAddress, swapTokenAAccount, authority, baseMint)
 					const tx = new Transaction().add(ix)
-					const sig = await sendTransaction(tx, connection)
-					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
+					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
+					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
 					console.log('✅ Swap Token A account created:', sig)
+
+					// Add delay to prevent wallet extension race condition
+					console.log('⏳ Waiting 2 seconds before next transaction...')
+					await new Promise((resolve) => setTimeout(resolve, 2000))
 				}
 
 				// Create swap's token B account (owned by authority)
@@ -349,9 +408,13 @@ export const useCreatePool = () => {
 					console.log('📝 Creating swap token B account...')
 					const ix = createAssociatedTokenAccountInstruction(ownerAddress, swapTokenBAccount, authority, quoteMint)
 					const tx = new Transaction().add(ix)
-					const sig = await sendTransaction(tx, connection)
-					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
+					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
+					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
 					console.log('✅ Swap Token B account created:', sig)
+
+					// Add delay to prevent wallet extension race condition
+					console.log('⏳ Waiting 2 seconds before next transaction...')
+					await new Promise((resolve) => setTimeout(resolve, 2000))
 				}
 
 				// === Create LP token mint ===
@@ -386,7 +449,7 @@ export const useCreatePool = () => {
 				const createPoolTx = new Transaction().add(createMintIx, initMintIx, ataIx)
 
 				// Use sendTransaction which can handle additional signers
-				const poolSig = await sendTransaction(createPoolTx, connection, {
+				const poolSig = await sendTransactionWithRetry(createPoolTx, connection, sendTransaction, {
 					signers: [poolMint], // Pass poolMint as additional signer
 					skipPreflight: false,
 					preflightCommitment: 'confirmed'
@@ -394,8 +457,12 @@ export const useCreatePool = () => {
 
 				console.log('⏳ LP mint transaction sent:', poolSig)
 
-				await connection.confirmTransaction({ signature: poolSig, ...latestBlockhash }, 'confirmed')
+				await confirmTransactionWithTimeout(connection, poolSig, latestBlockhash)
 				console.log('✅ LP token mint created successfully')
+
+				// Add delay to prevent wallet extension race condition
+				console.log('⏳ Waiting 2 seconds before transferring authority...')
+				await new Promise((resolve) => setTimeout(resolve, 2000))
 
 				// === CRITICAL: Transfer Pool Mint Authority to Swap Authority ===
 				console.log('🔄 Transferring pool mint authority to swap authority...')
@@ -409,9 +476,13 @@ export const useCreatePool = () => {
 				)
 
 				const transferAuthorityTx = new Transaction().add(setAuthorityIx)
-				const transferSig = await sendTransaction(transferAuthorityTx, connection)
-				await connection.confirmTransaction({ signature: transferSig, ...latestBlockhash }, 'confirmed')
+				const transferSig = await sendTransactionWithRetry(transferAuthorityTx, connection, sendTransaction)
+				await confirmTransactionWithTimeout(connection, transferSig, latestBlockhash)
 				console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
+
+				// Add delay to prevent wallet extension race condition
+				console.log('⏳ Waiting 2 seconds before next transaction...')
+				await new Promise((resolve) => setTimeout(resolve, 2000))
 
 				// === Enhanced Fee Configuration ===
 				const feeTierMap: Record<string, { numerator: number; denominator: number }> = {
@@ -452,9 +523,13 @@ export const useCreatePool = () => {
 						poolMint.publicKey
 					)
 					const tx = new Transaction().add(feeIx)
-					const sig = await sendTransaction(tx, connection)
-					await connection.confirmTransaction({ signature: sig, ...latestBlockhash }, 'confirmed')
+					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
+					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
 					console.log('✅ Fee account created:', sig)
+
+					// Add delay to prevent wallet extension race condition
+					console.log('⏳ Waiting 2 seconds before next transaction...')
+					await new Promise((resolve) => setTimeout(resolve, 2000))
 				}
 
 				// Verify all accounts exist before initialization
@@ -562,9 +637,13 @@ export const useCreatePool = () => {
 
 				// Send initial liquidity transfer
 				const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
-				const liquiditySig = await sendTransaction(liquidityTx, connection)
-				await connection.confirmTransaction({ signature: liquiditySig, ...latestBlockhash }, 'confirmed')
+				const liquiditySig = await sendTransactionWithRetry(liquidityTx, connection, sendTransaction)
+				await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
 				console.log('✅ Initial liquidity transferred to pool accounts:', liquiditySig)
+
+				// Add delay to prevent wallet extension race condition
+				console.log('⏳ Waiting 2 seconds before swap initialization...')
+				await new Promise((resolve) => setTimeout(resolve, 2000))
 
 				// === Swap Initialization ===
 				const swapCurve = {
@@ -709,7 +788,7 @@ export const useCreatePool = () => {
 
 				// === IMPORTANT: Use sendTransaction with additional signers ===
 				console.log('📝 Sending final transaction with BBA wallet...')
-				const finalSig = await sendTransaction(finalTx, connection, {
+				const finalSig = await sendTransactionWithRetry(finalTx, connection, sendTransaction, {
 					signers: [tokenSwap], // Additional signer required
 					skipPreflight: false,
 					preflightCommitment: 'confirmed'
@@ -718,12 +797,9 @@ export const useCreatePool = () => {
 				console.log('⏳ Final transaction sent:', finalSig)
 
 				// Wait for confirmation
-				const confirmation = await connection.confirmTransaction(
-					{ signature: finalSig, ...latestBlockhash },
-					'confirmed'
-				)
+				const confirmation: any = await confirmTransactionWithTimeout(connection, finalSig, latestBlockhash)
 
-				if (confirmation.value.err) {
+				if (confirmation.value?.err) {
 					throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
 				}
 
