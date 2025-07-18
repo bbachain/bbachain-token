@@ -39,7 +39,7 @@ import {
 	TBurnTokenPayload,
 	TMintTokenPayload
 } from './types'
-import { getTokenData, getTokenMetadata } from './utils'
+import { getTokenData, getTokenMetadata, getLPTokenData } from './utils'
 
 export const useGetTokens = () => {
 	const { publicKey: ownerAddress } = useWallet()
@@ -545,5 +545,34 @@ export const useMintTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
+	})
+}
+
+export const useGetLPTokens = () => {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useQuery<TGetTokenResponse>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN, 'LP_TOKENS', ownerAddress?.toBase58()],
+		queryFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			const tokenAccounts = await getTokenAccounts(connection, ownerAddress)
+			const lpTokenData = await Promise.all(
+				tokenAccounts.map(async (account) => {
+					const mintKey = new PublicKey(account.mintAddress)
+					return await getLPTokenData(connection, mintKey)
+				})
+			)
+
+			const filteredLPTokenData = lpTokenData.filter((token): token is TGetTokenDataResponse => token !== null)
+
+			return {
+				message: `Successfully get LP tokens with address ${ownerAddress.toBase58()}`,
+				data: filteredLPTokenData
+			}
+		},
+		enabled: !!ownerAddress,
+		staleTime: 30000, // 30 seconds
+		gcTime: 5 * 60 * 1000 // 5 minutes
 	})
 }
