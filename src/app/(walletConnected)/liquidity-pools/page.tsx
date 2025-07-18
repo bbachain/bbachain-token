@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PoolListColumns } from '@/features/liquidityPool/components/Columns'
 import CreatePoolForm from '@/features/liquidityPool/components/CreatePoolForm'
 import { DataTable as PoolListTable } from '@/features/liquidityPool/components/DataTable'
+import StatisticCard from '@/features/liquidityPool/components/StatisticCard'
 import { useGetPools } from '@/features/liquidityPool/services'
 import { formatOnchainPoolsForUI } from '@/features/liquidityPool/utils'
 import { useGetBalance } from '@/services/wallet'
@@ -56,6 +57,21 @@ export default function LiquidityPools() {
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const allPoolsData = getPoolsQuery.data ? formatOnchainPoolsForUI(getPoolsQuery.data.data) : []
 
+	const statisticData = [
+		{
+			title: 'Total Pool',
+			content: allPoolsData.length.toLocaleString()
+		},
+		{
+			title: 'Total TVL',
+			content: '$' + allPoolsData.reduce((sum, pool) => sum + pool.liquidity, 0).toLocaleString()
+		},
+		{
+			title: 'AVG. APR',
+			content: `${allPoolsData.length > 0 ? (allPoolsData.reduce((sum, pool) => sum + pool.apr24h, 0) / allPoolsData.length).toFixed(2) : '0.00'}%`
+		}
+	]
+
 	// Handle errors
 	useEffect(() => {
 		if (getPoolsQuery.isError && getPoolsQuery.error) {
@@ -73,12 +89,6 @@ export default function LiquidityPools() {
 		}
 	}, [getBalanceQuery.isError, getBalanceQuery.error])
 
-	useEffect(() => {
-		if (getPoolsQuery.isSuccess) {
-			console.log('pools data ', allPoolsData)
-		}
-	}, [allPoolsData, getPoolsQuery.isSuccess])
-
 	// Show loading state while balance is loading
 	if (getBalanceQuery.isLoading) {
 		return (
@@ -94,10 +104,8 @@ export default function LiquidityPools() {
 			{/* Header Section */}
 			<div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
 				<div className="text-center md:text-left">
-					<h1 className="md:text-[55px] leading-tight text-3xl font-bold text-main-black">Liquidity Pools</h1>
-					<p className="text-gray-600 dark:text-gray-400 mt-2 text-sm md:text-base">
-						Discover and manage liquidity pools on BBAChain
-					</p>
+					<h1 className="md:text-[45px] leading-tight text-3xl font-bold text-main-black">Liquidity Pools</h1>
+					<p className="text-lg text-dark-grey font-normal">Discover and manage liquidity pools on BBAChain</p>
 				</div>
 
 				{/* Create Pool Button */}
@@ -124,60 +132,35 @@ export default function LiquidityPools() {
 			{isNoBalance && <NoBalanceAlert />}
 
 			{/* Pools Section */}
-			<div className="space-y-6">
+			<div className="flex flex-col space-y-14">
 				{/* Stats Cards */}
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-						<h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Pools</h3>
-						<p className="text-2xl font-bold text-main-black dark:text-white mt-2">
-							{getPoolsQuery.isLoading ? <Skeleton className="h-8 w-16" /> : allPoolsData.length}
-						</p>
-					</div>
-					<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-						<h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total TVL</h3>
-						<p className="text-2xl font-bold text-main-black dark:text-white mt-2">
-							{getPoolsQuery.isLoading ? (
-								<Skeleton className="h-8 w-20" />
-							) : (
-								`$${allPoolsData.reduce((sum, pool) => sum + pool.liquidity, 0).toLocaleString()}`
-							)}
-						</p>
-					</div>
-					<div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-						<h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Average APR</h3>
-						<p className="text-2xl font-bold text-main-black dark:text-white mt-2">
-							{getPoolsQuery.isLoading ? (
-								<Skeleton className="h-8 w-16" />
-							) : (
-								`${allPoolsData.length > 0 ? (allPoolsData.reduce((sum, pool) => sum + pool.apr24h, 0) / allPoolsData.length).toFixed(2) : '0.00'}%`
-							)}
-						</p>
-					</div>
+					{statisticData.map((stats) => (
+						<StatisticCard key={stats.title} isLoading={getPoolsQuery.isLoading} {...stats} />
+					))}
 				</div>
 
 				{/* Pools Table */}
-				<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-					{getPoolsQuery.isError ? (
-						<EmptyPoolsState />
-					) : allPoolsData.length === 0 && !getPoolsQuery.isLoading ? (
-						<EmptyPoolsState />
-					) : (
-						<PoolListTable
-							columns={PoolListColumns}
-							data={allPoolsData}
-							isLoading={getPoolsQuery.isLoading}
-							onRefresh={() => getPoolsQuery.refetch()}
-							enableColumnFilters={true}
-							enableGlobalFilter={true}
-							enablePagination={true}
-							enableSorting={true}
-							enableExport={true}
-							enableColumnVisibility={true}
-							pageSize={10}
-							pageSizeOptions={[5, 10, 20, 50, 100]}
-						/>
-					)}
-				</div>
+				{getPoolsQuery.isError ? (
+					<EmptyPoolsState />
+				) : allPoolsData.length === 0 && !getPoolsQuery.isLoading ? (
+					<EmptyPoolsState />
+				) : (
+					<PoolListTable
+						columns={PoolListColumns}
+						data={allPoolsData}
+						isLoading={getPoolsQuery.isLoading}
+						onRefresh={() => getPoolsQuery.refetch()}
+						enableColumnFilters={true}
+						enableGlobalFilter={true}
+						enablePagination={true}
+						enableSorting={true}
+						enableExport={true}
+						enableColumnVisibility={true}
+						pageSize={10}
+						pageSizeOptions={[5, 10, 20, 50, 100]}
+					/>
+				)}
 			</div>
 		</div>
 	)

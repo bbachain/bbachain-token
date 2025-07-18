@@ -15,7 +15,7 @@ import { Button } from '../ui/button'
 export function NoBalanceAlert() {
 	const { cluster } = useCluster()
 	const requestAirdropMutation = useRequestAirdrop()
-	const onSubmitAirdrop = () => requestAirdropMutation.mutate({ amount: 1 })
+	const onSubmitAirdrop = () => requestAirdropMutation.mutate({ amount: 10 })
 
 	useEffect(() => {
 		if (requestAirdropMutation.isSuccess && requestAirdropMutation.data)

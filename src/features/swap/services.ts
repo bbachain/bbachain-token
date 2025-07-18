@@ -6,7 +6,8 @@ import {
 	NATIVE_MINT,
 	createApproveInstruction,
 	createSyncNativeInstruction,
-	createCloseAccountInstruction
+	createCloseAccountInstruction,
+	ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
 import { createSwapInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
@@ -828,6 +829,16 @@ export const useExecuteSwap = () => {
 				console.log(`📝 Adding ${preTxInstructions.length} pre-swap instructions (BBA wrapping)`)
 				preTxInstructions.forEach((ix) => transaction.add(ix))
 			}
+
+			console.log(
+				'📦 preTxInstructions',
+				preTxInstructions.map((ix, i) => ({
+					index: i,
+					programId: ix.programId.toBase58(),
+					keys: ix.keys.map((k: any) => k.pubkey.toBase58()),
+					data: ix.data.toString('hex')
+				}))
+			)
 
 			// Add approve instruction for input token if needed
 			if (isBBASwap && isInputBBA) {

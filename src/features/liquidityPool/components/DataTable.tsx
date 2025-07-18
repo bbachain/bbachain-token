@@ -15,10 +15,13 @@ import {
 import Link from 'next/link'
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { BiSort } from 'react-icons/bi'
+import { BsDownload } from 'react-icons/bs'
 import { HiOutlineAdjustmentsHorizontal } from 'react-icons/hi2'
 import { IoIosArrowBack, IoIosArrowForward, IoIosArrowDown } from 'react-icons/io'
 import { IoSearchOutline, IoFilterOutline, IoDownloadOutline, IoEyeOutline } from 'react-icons/io5'
+import { TbAdjustmentsHorizontal } from 'react-icons/tb'
 import { TbRefresh, TbColumns } from 'react-icons/tb'
+import { TfiReload } from 'react-icons/tfi'
 
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -349,15 +352,15 @@ export function DataTable<TData, TValue>({
 					<div className="flex flex-col sm:flex-row gap-3 flex-1">
 						{/* Search Input */}
 						{enableGlobalFilter && (
-							<div className="relative flex-1 max-w-sm">
-								<IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+							<section className="relative max-w-[400px] w-full">
+								<IoSearchOutline className="absolute left-3 top-1/2 text-xl -translate-y-1/2 text-gray-500" />
 								<Input
-									placeholder="Search pools, tokens, or addresses..."
+									placeholder="Search"
 									value={globalFilter}
 									onChange={(e) => setGlobalFilter(e.target.value)}
-									className="pl-9 h-10 border-gray-300 dark:border-gray-600 rounded-lg"
+									className="rounded-[10px] pl-9 md:h-12 h-9 border-[1.4px] border-[#989898] dark:border-[#C6C6C6]"
 								/>
-							</div>
+							</section>
 						)}
 
 						{/* Quick Filter Presets */}
@@ -366,7 +369,7 @@ export function DataTable<TData, TValue>({
 								value={advancedFilters.type}
 								onValueChange={(value: FilterType) => setAdvancedFilters((prev) => ({ ...prev, type: value }))}
 							>
-								<SelectTrigger className="w-40 h-10">
+								<SelectTrigger className="w-[150px] p-[18px] h-12 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black ">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -387,12 +390,12 @@ export function DataTable<TData, TValue>({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<Button
-										variant="outline"
-										size="sm"
+										variant="ghost"
+										size="icon"
+										className="[&_svg]:size-6"
 										onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-										className={cn('h-10 px-3', showAdvancedFilters && 'bg-primary text-primary-foreground')}
 									>
-										<HiOutlineAdjustmentsHorizontal className="h-4 w-4" />
+										<TbAdjustmentsHorizontal />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent>Advanced Filters</TooltipContent>
@@ -403,8 +406,8 @@ export function DataTable<TData, TValue>({
 						{enableColumnVisibility && (
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" size="sm" className="h-10 px-3">
-										<TbColumns className="h-4 w-4" />
+									<Button variant="ghost" size="icon" className="[&_svg]:size-6">
+										<TbColumns />
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end" className="w-48">
@@ -432,13 +435,13 @@ export function DataTable<TData, TValue>({
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
-											variant="outline"
-											size="sm"
+											variant="ghost"
+											size="icon"
+											className="[&_svg]:size-5"
 											onClick={exportData}
-											className="h-10 px-3"
 											disabled={filteredPools === 0}
 										>
-											<IoDownloadOutline className="h-4 w-4" />
+											<BsDownload />
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>Export to CSV</TooltipContent>
@@ -451,8 +454,8 @@ export function DataTable<TData, TValue>({
 							<TooltipProvider>
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<Button variant="outline" size="sm" onClick={onRefresh} className="h-10 px-3">
-											<TbRefresh className="h-4 w-4" />
+										<Button variant="ghost" size="icon" className="[&_svg]:size-5" onClick={onRefresh}>
+											<TfiReload />
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>Refresh data</TooltipContent>
