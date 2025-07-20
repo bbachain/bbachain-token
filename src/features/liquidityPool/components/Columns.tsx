@@ -2,6 +2,7 @@
 import { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown, TrendingUp, TrendingDown, Minus, Star } from 'lucide-react'
 import Image from 'next/image'
+import { RxCaretSort } from 'react-icons/rx'
 
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -65,12 +66,12 @@ const formatPercentage = (
 
 	if (value > 0) {
 		trend = 'up'
-		color = 'text-green-700 dark:text-green-400'
-		bgColor = 'bg-green-50 dark:bg-green-900/20'
+		color = 'text-main-green'
+		bgColor = 'bg-main-green'
 	} else if (value < 0) {
 		trend = 'down'
-		color = 'text-red-700 dark:text-red-400'
-		bgColor = 'bg-red-50 dark:bg-red-900/20'
+		color = 'text-error'
+		bgColor = 'bg-error'
 	}
 
 	return { formatted, trend, color, bgColor }
@@ -101,7 +102,7 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
-								<Star className="h-4 w-4 text-gray-400 hover:text-yellow-500 transition-colors" />
+								<Star className="h-5 w-5 text-gray-400 hover:text-yellow-500 transition-colors" />
 							</button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -119,9 +120,9 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 							<div className="relative">
 								<Image
 									src={mintA.logoURI && mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'}
-									width={28}
-									height={28}
-									className="rounded-full border-2 border-white dark:border-gray-800 shadow-sm"
+									width={30}
+									height={30}
+									className="rounded-full"
 									alt={`${mintA.name} icon`}
 									onError={(e) => {
 										e.currentTarget.src = '/icon-placeholder.svg'
@@ -131,9 +132,9 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 							<div className="relative -ml-2">
 								<Image
 									src={mintB.logoURI && mintB.logoURI !== '' ? mintB.logoURI : '/icon-placeholder.svg'}
-									width={28}
-									height={28}
-									className="rounded-full border-2 border-white dark:border-gray-800 shadow-sm"
+									width={30}
+									height={30}
+									className="rounded-full"
 									alt={`${mintB.name} icon`}
 									onError={(e) => {
 										e.currentTarget.src = '/icon-placeholder.svg'
@@ -164,14 +165,19 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 			{/* Token pair name and fee - Raydium style */}
 			<div className="flex flex-col min-w-0 flex-1">
 				<div className="flex items-center gap-2 mb-1">
-					<h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+					<h4 className="text-sm text-main-black truncate">
 						{mintA.symbol}-{mintB.symbol}
 					</h4>
 				</div>
 				<div className="flex items-center gap-1">
-					<span className={cn('text-xs px-1.5 py-0.5 rounded font-medium', getFeeTierColor(swapFee))}>
+					<p
+						className={cn(
+							'text-xs text-center text-dark-grey px-1.5 py-0.5 rounded font-medium',
+							getFeeTierColor(swapFee)
+						)}
+					>
 						{(swapFee * 100).toFixed(2)}%
-					</span>
+					</p>
 				</div>
 			</div>
 		</div>
@@ -186,15 +192,15 @@ function LiquidityDisplay({ value }: { value: number }) {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<div className="flex flex-col items-start">
-						<div className={cn('text-sm font-semibold', healthColor)}>{formatCurrency(value)}</div>
-						<div className="text-xs text-gray-500 dark:text-gray-400">{formatNumber(value)} TVL</div>
+						<p className={cn('text-sm font-semibold text-main-black', healthColor)}>{formatCurrency(value)}</p>
+						<p className="text-xs text-dark-grey">{formatNumber(value)} TVL</p>
 					</div>
 				</TooltipTrigger>
 				<TooltipContent>
 					<div className="space-y-1">
 						<p className="font-semibold">Total Value Locked</p>
 						<p className="text-sm">${value.toLocaleString()}</p>
-						<p className="text-xs text-gray-500 dark:text-gray-400">
+						<p className="text-xs text-dark-grey">
 							{value >= 1_000_000
 								? 'High Liquidity'
 								: value >= 100_000
@@ -216,8 +222,8 @@ function VolumeDisplay({ value }: { value: number }) {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<div className="flex flex-col items-start">
-						<div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(value)}</div>
-						<div className="text-xs text-gray-500 dark:text-gray-400">24h volume</div>
+						<div className="text-sm text-main-black">{formatCurrency(value)}</div>
+						<div className="text-xs text-dark-grey">24h volume</div>
 					</div>
 				</TooltipTrigger>
 				<TooltipContent>
@@ -246,8 +252,8 @@ function FeesDisplay({ value }: { value: number }) {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<div className="flex flex-col items-start">
-						<div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(value)}</div>
-						<div className="text-xs text-gray-500 dark:text-gray-400">24h fees</div>
+						<div className="text-sm text-main-black">{formatCurrency(value)}</div>
+						<div className="text-xs text-dark-grey">24h fees</div>
 					</div>
 				</TooltipTrigger>
 				<TooltipContent>
@@ -271,13 +277,15 @@ function APRDisplay({ value }: { value: number }) {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<div className="flex flex-col items-start">
-						<div className={cn('text-sm font-semibold flex items-center gap-1 px-2 py-1 rounded-md', color, bgColor)}>
-							<TrendIcon className="h-3 w-3" />
-							<span>{formatted}</span>
+						<div className="text-sm flex items-center gap-1">
+							<section className={cn('rounded-[5px] h-4 w-4 flex items-center justify-center', bgColor)}>
+								<TrendIcon className="w-2.5 h-2.5 text-main-white" />
+							</section>
+							<p className={cn('text-sm', color)}>{formatted}</p>
 						</div>
-						<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+						<p className="text-xs text-dark-grey">
 							{trend === 'up' ? 'Increasing' : trend === 'down' ? 'Decreasing' : 'Stable'}
-						</div>
+						</p>
 					</div>
 				</TooltipTrigger>
 				<TooltipContent>
@@ -308,14 +316,14 @@ function SortableHeader({
 		<Button
 			variant="ghost"
 			className={cn(
-				'p-0 font-semibold text-sm text-gray-900 dark:text-gray-100 hover:text-main-green transition-colors',
+				'p-0 font-semibold text-sm text-main-black hover:text-main-green transition-colors',
 				'justify-start h-auto',
 				className
 			)}
 			onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 		>
 			{children}
-			<ArrowUpDown className="ml-2 h-4 w-4" />
+			<RxCaretSort className="ml-2 !h-6 !w-6" />
 		</Button>
 	)
 }
@@ -325,12 +333,12 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		id: 'pool',
 		accessorKey: 'name',
 		header: ({ column }) => (
-			<div className="pl-6">
+			<div className="md:pl-6">
 				<SortableHeader column={column}>Pool</SortableHeader>
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="pl-6">
+			<div className="md:pl-6">
 				<TokenPairDisplay mintA={row.original.mintA} mintB={row.original.mintB} swapFee={row.original.swapFee} />
 			</div>
 		),

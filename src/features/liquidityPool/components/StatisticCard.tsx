@@ -9,15 +9,15 @@ interface StatisticCardProps {
 
 export default function StatisticCard({ title, content, isLoading }: StatisticCardProps) {
 	return (
-		<Card className="bg-box flex flex-col space-y-2.5 border-box-2 rounded-[8px] p-[18px]">
+		<Card className="bg-box flex flex-col md:space-y-2.5 border-box-2 rounded-[8px] md:p-[18px] p-1.5">
 			<CardHeader className="p-0">
-				<CardTitle className="text-main-black text-lg">{title}</CardTitle>
+				<CardTitle className="text-main-black lg:text-lg text-xs">{title}</CardTitle>
 			</CardHeader>
 			<CardContent className="p-0">
 				{isLoading ? (
 					<Skeleton className="h-8 w-16" />
 				) : (
-					<p className="font-semibold text-main-black text-[27px]">{content}</p>
+					<p className="font-semibold text-main-black lg:text-[27px] text-sm">{content}</p>
 				)}
 			</CardContent>
 		</Card>

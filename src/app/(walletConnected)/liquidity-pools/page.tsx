@@ -15,8 +15,19 @@ import { DataTable as PoolListTable } from '@/features/liquidityPool/components/
 import StatisticCard from '@/features/liquidityPool/components/StatisticCard'
 import { useGetPools } from '@/features/liquidityPool/services'
 import { formatOnchainPoolsForUI } from '@/features/liquidityPool/utils'
+import { useIsMobile } from '@/hooks/isMobile'
 import { useGetBalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
+
+function formatAbbreviatedNumber(value: number): string {
+	if (value >= 1_000_000_000) {
+		return (value / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B'
+	} else if (value >= 1_000_000) {
+		return (value / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
+	} else {
+		return value.toLocaleString()
+	}
+}
 
 function EmptyPoolsState() {
 	return (
@@ -48,10 +59,10 @@ function EmptyPoolsState() {
 }
 
 export default function LiquidityPools() {
-	const router = useRouter()
 	const getPoolsQuery = useGetPools()
 	const getBalanceQuery = useGetBalance()
 	const { openErrorDialog } = useErrorDialog()
+	const isMobile = useIsMobile()
 	const [isCreatePoolOpen, setIsCreatePoolOpen] = useState(false)
 
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
@@ -64,7 +75,9 @@ export default function LiquidityPools() {
 		},
 		{
 			title: 'Total TVL',
-			content: '$' + allPoolsData.reduce((sum, pool) => sum + pool.liquidity, 0).toLocaleString()
+			content: isMobile
+				? '$' + formatAbbreviatedNumber(allPoolsData.reduce((sum, pool) => sum + pool.liquidity, 0))
+				: '$' + allPoolsData.reduce((sum, pool) => sum + pool.liquidity, 0).toLocaleString()
 		},
 		{
 			title: 'AVG. APR',
@@ -134,7 +147,7 @@ export default function LiquidityPools() {
 			{/* Pools Section */}
 			<div className="flex flex-col space-y-14">
 				{/* Stats Cards */}
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div className="grid grid-cols-3 gap-4">
 					{statisticData.map((stats) => (
 						<StatisticCard key={stats.title} isLoading={getPoolsQuery.isLoading} {...stats} />
 					))}
@@ -151,6 +164,7 @@ export default function LiquidityPools() {
 						data={allPoolsData}
 						isLoading={getPoolsQuery.isLoading}
 						onRefresh={() => getPoolsQuery.refetch()}
+						isRefreshing={getPoolsQuery.isRefetching}
 						enableColumnFilters={true}
 						enableGlobalFilter={true}
 						enablePagination={true}

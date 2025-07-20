@@ -50,6 +50,7 @@ interface DataTableProps<TData, TValue> {
 	data: TData[]
 	isLoading?: boolean
 	onRefresh?: () => void
+	isRefreshing?: boolean
 	enableColumnFilters?: boolean
 	enableGlobalFilter?: boolean
 	enablePagination?: boolean
@@ -198,6 +199,7 @@ export function DataTable<TData, TValue>({
 	columns,
 	data,
 	isLoading = false,
+	isRefreshing,
 	onRefresh,
 	enableColumnFilters = true,
 	enableGlobalFilter = true,
@@ -344,7 +346,7 @@ export function DataTable<TData, TValue>({
 	}
 
 	return (
-		<div className="w-full space-y-4">
+		<div className="w-full space-y-6">
 			{/* Enhanced Header Controls */}
 			<div className="flex flex-col gap-4">
 				{/* Search and Quick Filters */}
@@ -455,7 +457,7 @@ export function DataTable<TData, TValue>({
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button variant="ghost" size="icon" className="[&_svg]:size-5" onClick={onRefresh}>
-											<TfiReload />
+											<TfiReload className={cn(isRefreshing && 'animate-spin')} />
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>Refresh data</TooltipContent>
@@ -467,11 +469,11 @@ export function DataTable<TData, TValue>({
 
 				{/* Advanced Filters Panel */}
 				{showAdvancedFilters && (
-					<Card className="border-gray-200 dark:border-gray-800">
-						<CardContent className="p-4">
+					<Card className="bg-box">
+						<CardContent className="p-[18px]">
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 								<div>
-									<label className="text-sm font-medium mb-2 block">Min Liquidity ($)</label>
+									<label className="text-lg font-normal mb-2 block">Min Liquidity ($)</label>
 									<Input
 										type="number"
 										placeholder="0"
@@ -482,11 +484,11 @@ export function DataTable<TData, TValue>({
 												minLiquidity: parseInt(e.target.value) || 0
 											}))
 										}
-										className="h-9"
+										className="h-10 bg-main-white border-strokes focus:border-main-white focus:ring-0 text-sm text-light-grey"
 									/>
 								</div>
 								<div>
-									<label className="text-sm font-medium mb-2 block">Max Liquidity ($)</label>
+									<label className="text-lg font-normal mb-2 block">Max Liquidity ($)</label>
 									<Input
 										type="number"
 										placeholder="No limit"
@@ -497,11 +499,11 @@ export function DataTable<TData, TValue>({
 												maxLiquidity: parseInt(e.target.value) || 0
 											}))
 										}
-										className="h-9"
+										className="h-10 bg-main-white border-strokes focus:border-main-white focus:ring-0 text-sm text-light-grey"
 									/>
 								</div>
 								<div>
-									<label className="text-sm font-medium mb-2 block">Min APR (%)</label>
+									<label className="text-lg font-normal mb-2 block">Min APR (%)</label>
 									<Input
 										type="number"
 										placeholder="0"
@@ -512,11 +514,11 @@ export function DataTable<TData, TValue>({
 												minAPR: parseInt(e.target.value) || 0
 											}))
 										}
-										className="h-9"
+										className="h-10 bg-main-white border-strokes focus:border-main-white focus:ring-0 text-sm text-light-grey"
 									/>
 								</div>
 								<div>
-									<label className="text-sm font-medium mb-2 block">Max Fee (%)</label>
+									<label className="text-lg font-normal mb-2 block">Max Fee (%)</label>
 									<Input
 										type="number"
 										step="0.01"
@@ -528,14 +530,14 @@ export function DataTable<TData, TValue>({
 												maxFee: parseFloat(e.target.value) || 0
 											}))
 										}
-										className="h-9"
+										className="h-10 bg-main-white border-strokes focus:border-main-white focus:ring-0 text-sm text-light-grey"
 									/>
 								</div>
 							</div>
-							<div className="flex justify-end mt-4">
+							<div className="flex justify-end mt-[18px]">
 								<Button
-									variant="outline"
 									size="sm"
+									className="bg-dark-grey rounded-[26px] text-xs text-main-white"
 									onClick={() =>
 										setAdvancedFilters({
 											type: 'all',
@@ -597,20 +599,24 @@ export function DataTable<TData, TValue>({
 			</div>
 
 			{/* Stats Bar */}
-			<div className="flex items-center justify-between py-2 px-1 text-sm text-gray-600 dark:text-gray-400">
-				<div className="flex items-center gap-4">
-					<span>
-						{filteredPools === totalPools ? `${totalPools} pools` : `${filteredPools} of ${totalPools} pools`}
-					</span>
+			<div className="flex items-center justify-between">
+				<div className="flex text-main-black text-lg items-center gap-6">
+					<p>
+						{filteredPools === totalPools ? `${totalPools} total pools` : `${filteredPools} of ${totalPools} pools`}
+					</p>
 					{enablePagination && filteredPools > 0 && (
-						<span>
-							Showing {startIndex}-{endIndex} of {filteredPools}
-						</span>
+						<p>
+							Showing{' '}
+							<span className="font-medium">
+								{startIndex}-{endIndex}
+							</span>{' '}
+							of <span className="font-medium">{filteredPools}</span>
+						</p>
 					)}
 				</div>
 				{enablePagination && (
-					<div className="flex items-center gap-2">
-						<span className="text-sm">Rows per page:</span>
+					<div className="flex text-sm text-main-black items-center gap-2">
+						<p>Rows per page:</p>
 						<Select
 							value={table.getState().pagination.pageSize.toString()}
 							onValueChange={(value) => {
@@ -633,21 +639,21 @@ export function DataTable<TData, TValue>({
 			</div>
 
 			{/* Table */}
-			<div className="rounded-[12px] border border-gray-200 dark:border-gray-800 overflow-hidden">
+			<div className="rounded-[12px] border border-light-grey overflow-hidden">
 				<div className="overflow-x-auto">
 					<Table className="w-full">
 						<TableHeader>
 							{table.getHeaderGroups().map((headerGroup) => (
 								<TableRow
 									key={headerGroup.id}
-									className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800"
+									className="bg-box border-b h-[58px] border-gray-200 dark:border-gray-800"
 								>
 									{headerGroup.headers.map((header) => (
-										<TableHead key={header.id} className="font-semibold text-gray-900 dark:text-gray-100 h-12">
+										<TableHead key={header.id} className="font-semibold text-main-black">
 											{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
 										</TableHead>
 									))}
-									<TableHead className="w-32 text-right">Actions</TableHead>
+									<TableHead className="w-32 text-right text-main-black md:pr-6 font-semibold">Actions</TableHead>
 								</TableRow>
 							))}
 						</TableHeader>
@@ -670,13 +676,13 @@ export function DataTable<TData, TValue>({
 													{flexRender(cell.column.columnDef.cell, cell.getContext())}
 												</TableCell>
 											))}
-											<TableCell className="py-3 text-right">
+											<TableCell className="py-3 text-right md:pr-6">
 												<div className="flex justify-end gap-2">
 													<Link
 														href={`/swap?from=${(row.original as PoolListProps).mintA.address}&to=${(row.original as PoolListProps).mintB.address}`}
 														className={cn(
-															buttonVariants({ variant: 'outline', size: 'sm' }),
-															'h-8 px-3 text-xs font-medium border-main-green text-main-green hover:bg-main-green hover:text-white transition-colors'
+															buttonVariants({ variant: 'outline', size: 'lg' }),
+															'h-7 w-[49.5px] rounded-[13px] py-1.5 text-xs font-medium border-main-green text-main-green hover:bg-main-green hover:text-white transition-colors'
 														)}
 													>
 														Swap
@@ -684,8 +690,8 @@ export function DataTable<TData, TValue>({
 													<Link
 														href={`/liquidity-pools/deposit/${id}`}
 														className={cn(
-															buttonVariants({ variant: 'default', size: 'sm' }),
-															'h-8 px-3 text-xs font-medium bg-main-green hover:bg-hover-green text-white'
+															buttonVariants({ variant: 'default', size: 'lg' }),
+															'h-7 w-[75px] rounded-[13px] py-1.5 text-xs font-medium bg-main-green hover:bg-hover-green text-white'
 														)}
 													>
 														Deposit
@@ -709,27 +715,16 @@ export function DataTable<TData, TValue>({
 
 			{/* Enhanced Pagination */}
 			{enablePagination && filteredPools > 0 && (
-				<div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
-					<div className="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => table.setPageIndex(0)}
-							disabled={!table.getCanPreviousPage()}
-							className="h-9 px-3"
-						>
-							First
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => table.previousPage()}
-							disabled={!table.getCanPreviousPage()}
-							className="h-9 px-2"
-						>
-							<IoIosArrowBack className="h-4 w-4" />
-						</Button>
-					</div>
+				<div className="flex items-center justify-center gap-2">
+					<Button
+						variant="ghost"
+						size="icon"
+						className="[&_svg]:size-5"
+						onClick={() => table.previousPage()}
+						disabled={!table.getCanPreviousPage()}
+					>
+						<IoIosArrowBack />
+					</Button>
 
 					{/* Page Numbers */}
 					<div className="flex items-center gap-1">
@@ -751,7 +746,10 @@ export function DataTable<TData, TValue>({
 									variant={currentPage === pageNum + 1 ? 'default' : 'outline'}
 									size="sm"
 									onClick={() => table.setPageIndex(pageNum)}
-									className={cn('h-9 w-9 p-0', currentPage === pageNum + 1 && 'bg-main-green hover:bg-hover-green')}
+									className={cn(
+										'h-9 w-9 p-0 rounded-full',
+										currentPage === pageNum + 1 && 'bg-main-green hover:bg-hover-green'
+									)}
 								>
 									{pageNum + 1}
 								</Button>
@@ -759,26 +757,15 @@ export function DataTable<TData, TValue>({
 						})}
 					</div>
 
-					<div className="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => table.nextPage()}
-							disabled={!table.getCanNextPage()}
-							className="h-9 px-2"
-						>
-							<IoIosArrowForward className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => table.setPageIndex(totalPages - 1)}
-							disabled={!table.getCanNextPage()}
-							className="h-9 px-3"
-						>
-							Last
-						</Button>
-					</div>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="[&_svg]:size-5"
+						onClick={() => table.nextPage()}
+						disabled={!table.getCanNextPage()}
+					>
+						<IoIosArrowForward />
+					</Button>
 				</div>
 			)}
 		</div>
