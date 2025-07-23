@@ -47,7 +47,17 @@ const NavMenu: NavMenuProps[] = [
 	},
 	{
 		name: 'Liquidity',
-		href: '/liquidity-pools'
+		href: '',
+		subMenu: [
+			{
+				name: 'All Liquidity Pools',
+				href: '/liquidity-pools'
+			},
+			{
+				name: 'Create Liquidity Pool',
+				href: '/liquidity-pools/create-pool'
+			}
+		]
 	},
 	{
 		name: 'Contact',

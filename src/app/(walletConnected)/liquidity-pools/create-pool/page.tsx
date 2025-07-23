@@ -27,6 +27,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useCreatePool } from '@/features/liquidityPool/services'
+import { TCreatePoolPayload, MintInfo } from '@/features/liquidityPool/types'
+import { createPoolValidation } from '@/features/liquidityPool/validation'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import {
@@ -41,10 +44,6 @@ import { cn, formatTokenBalance } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
 import StaticTokens, { isBBAPool, getBBAPositionInPool, requiresBBAWrapping, isNativeBBA } from '@/staticData/tokens'
 import { useErrorDialog } from '@/stores/errorDialog'
-
-import { useCreatePool } from '../services'
-import { TCreatePoolPayload, MintInfo } from '../types'
-import { createPoolValidation } from '../validation'
 
 // Enhanced step configuration
 const createPoolSteps = [
@@ -341,7 +340,7 @@ function TokenSelectionCard({
 	)
 }
 
-export default function CreatePoolForm() {
+export default function CreatePool() {
 	// Hooks
 	const getTokensQuery = useGetTokensFromAPI()
 	const createPoolMutation = useCreatePool()

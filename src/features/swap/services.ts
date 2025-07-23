@@ -6,7 +6,8 @@ import {
 	NATIVE_MINT,
 	createApproveInstruction,
 	createSyncNativeInstruction,
-	createCloseAccountInstruction
+	createCloseAccountInstruction,
+	ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
 import { createSwapInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
@@ -33,7 +34,6 @@ import {
 	TTokenProps,
 	TGetSwapTransactionData
 } from './types'
-import { getCoinGeckoTokenId } from './utils'
 
 interface RawTokenSwap {
 	version: number
@@ -224,25 +224,23 @@ export const useGetTokenPrice = ({ mintAddress }: { mintAddress: string }) =>
 		refetchInterval: 60000
 	})
 
-export const useGetCoinGeckoTokenPrice = ({ symbol }: { symbol: string }) =>
+export const useGetCoinGeckoTokenPrice = ({ coinGeckoId }: { coinGeckoId?: string }) =>
 	useQuery<number>({
-		queryKey: [SERVICES_KEY.SWAP.GET_COIN_GECKO_TOKEN_PRICE, symbol],
+		queryKey: [SERVICES_KEY.SWAP.GET_COIN_GECKO_TOKEN_PRICE, coinGeckoId],
 		queryFn: async () => {
-			const coinGeckoTokenId = getCoinGeckoTokenId(symbol)
-
-			if (!coinGeckoTokenId) return 0
+			if (!coinGeckoId) return 0
 			const res = await axios.get(ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE, {
 				params: {
-					ids: coinGeckoTokenId,
+					ids: coinGeckoId,
 					vs_currencies: 'usd'
 				}
 			})
-			const usdRate = res.data[coinGeckoTokenId].usd ?? 0
+			const usdRate = res.data[coinGeckoId].usd ?? 0
 			// Only log price if it's actually different from previous value to reduce spam
-			console.log(`💰 ${symbol} price: $${usdRate}`)
+			console.log(`💰 ${coinGeckoId} price: $${usdRate}`)
 			return usdRate
 		},
-		enabled: !!symbol,
+		enabled: !!coinGeckoId,
 		refetchInterval: 300000, // Reduced to 5 minutes to avoid spam
 		staleTime: 60000 // Cache for 1 minute
 	})
@@ -828,6 +826,16 @@ export const useExecuteSwap = () => {
 				console.log(`📝 Adding ${preTxInstructions.length} pre-swap instructions (BBA wrapping)`)
 				preTxInstructions.forEach((ix) => transaction.add(ix))
 			}
+
+			console.log(
+				'📦 preTxInstructions',
+				preTxInstructions.map((ix, i) => ({
+					index: i,
+					programId: ix.programId.toBase58(),
+					keys: ix.keys.map((k: any) => k.pubkey.toBase58()),
+					data: ix.data.toString('hex')
+				}))
+			)
 
 			// Add approve instruction for input token if needed
 			if (isBBASwap && isInputBBA) {

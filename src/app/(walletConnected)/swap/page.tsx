@@ -25,6 +25,7 @@ import {
 	useGetCoinGeckoTokenPrice
 } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
+import { getCoinGeckoId } from '@/features/swap/utils'
 import { cn } from '@/lib/utils'
 
 const initialBaseTokenProps: TTokenProps = {
@@ -141,8 +142,8 @@ export default function Swap() {
 	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: toTokenProps.address })
 
 	// Get token prices (fallback to external API if needed)
-	const getMintATokenPrice = useGetCoinGeckoTokenPrice({ symbol: fromTokenProps.symbol })
-	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({ symbol: toTokenProps.symbol })
+	const getMintATokenPrice = useGetCoinGeckoTokenPrice({ coinGeckoId: getCoinGeckoId(fromTokenProps.address) })
+	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({ coinGeckoId: getCoinGeckoId(toTokenProps.address) })
 
 	// Swap execution
 	const executeSwapMutation = useExecuteSwap()

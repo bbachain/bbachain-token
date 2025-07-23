@@ -2,10 +2,15 @@ import { NATIVE_MINT } from '@bbachain/spl-token'
 
 import { MintInfo } from '@/features/liquidityPool/types'
 
-const StaticTokens: MintInfo[] = [
+export type ExtendedMintInfo = MintInfo & {
+	coinGeckoId?: string
+}
+
+const StaticTokens: ExtendedMintInfo[] = [
 	{
 		name: 'BBA Coin',
 		symbol: 'BBA',
+		coinGeckoId: 'bbachain',
 		address: NATIVE_MINT.toBase58(),
 		logoURI: '/bba_logo.svg',
 		decimals: 9,
@@ -14,6 +19,7 @@ const StaticTokens: MintInfo[] = [
 	{
 		name: 'Tether USD',
 		symbol: 'USDT',
+		coinGeckoId: 'tether',
 		address: 'GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR',
 		logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
 		decimals: 6,
@@ -22,6 +28,7 @@ const StaticTokens: MintInfo[] = [
 	{
 		name: 'USD Coin',
 		symbol: 'USDC',
+		coinGeckoId: 'usd-coin',
 		address: '3ifxm7UKBEFxVnGn3SiZh1QMW7RCJPbAeE4JYh8hiYUd',
 		logoURI: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
 		decimals: 9,
@@ -30,19 +37,13 @@ const StaticTokens: MintInfo[] = [
 	{
 		name: 'Shiba Inu',
 		symbol: 'SHIB',
+		coinGeckoId: 'shiba-inu',
 		address: 'LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq',
 		logoURI: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
 		decimals: 6,
 		tags: ['meme']
 	}
 ]
-
-export const CoinGeckoTokenIds: Record<string, string> = {
-	BBA: 'bbachain',
-	USDT: 'tether',
-	USDC: 'usd-coin',
-	SHIB: 'shiba-inu'
-}
 
 // Create a lookup map for faster access
 const TokenRegistry = new Map<string, MintInfo>()
@@ -111,7 +112,7 @@ export function getNativeBBAToken(): MintInfo {
 
 /**
  * ========================================
- * BBA LIQUIDITY POOL UTILITIES  
+ * BBA LIQUIDITY POOL UTILITIES
  * ========================================
  */
 

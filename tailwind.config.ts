@@ -59,8 +59,11 @@ const config: Config = {
 					'4': 'hsl(var(--chart-4))',
 					'5': 'hsl(var(--chart-5))'
 				},
-				box: 'hsl(var(--box))',
-				'box-2': 'hsl(var(--box-2))',
+				box: {
+					DEFAULT: 'hsl(var(--box))',
+					'2': 'hsl(var(--box-2))',
+					'3': 'hsl(var(--box-3))'
+				},
 				main: {
 					green: 'hsl(var(--primary-green))',
 					black: 'hsl(var(--primary-black))',
