@@ -115,17 +115,17 @@ export default function LiquidityPools() {
 	return (
 		<div className="xl:px-48 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-6">
 			{/* Header Section */}
-			<div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-				<div className="text-center md:text-left">
-					<h1 className="md:text-[45px] leading-tight text-3xl font-bold text-main-black">Liquidity Pools</h1>
-					<p className="text-lg text-dark-grey font-normal">Discover and manage liquidity pools on BBAChain</p>
+			<div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2.5 md:space-y-0">
+				<div className="text-left">
+					<h1 className="md:text-[45px] leading-tight text-xl font-bold text-main-black">Liquidity Pools</h1>
+					<p className="md:text-lg text-sm text-dark-grey font-normal">Discover and manage liquidity pools on BBAChain</p>
 				</div>
 
 				{/* Create Pool Button */}
 				<Dialog open={isCreatePoolOpen} onOpenChange={setIsCreatePoolOpen}>
 					<DialogTrigger asChild>
 						<Button
-							className="bg-main-green hover:bg-hover-green text-white rounded-full px-6 py-3 flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 md:text-base text-sm"
+							className="bg-main-green md:w-[168px] w-[123px] hover:bg-hover-green text-white rounded-full md:px-6 md:py-3 px-3 py-1.5 flex items-center md:space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 md:text-base text-sm"
 							size="lg"
 						>
 							<Plus className="w-5 h-5" />
@@ -145,7 +145,7 @@ export default function LiquidityPools() {
 			{isNoBalance && <NoBalanceAlert />}
 
 			{/* Pools Section */}
-			<div className="flex flex-col space-y-14">
+			<div className="flex flex-col md:space-y-14 space-y-4">
 				{/* Stats Cards */}
 				<div className="grid grid-cols-3 gap-4">
 					{statisticData.map((stats) => (

@@ -1,6 +1,6 @@
 'use client'
 import { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown, TrendingUp, TrendingDown, Minus, Star } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Star } from 'lucide-react'
 import Image from 'next/image'
 import { RxCaretSort } from 'react-icons/rx'
 
@@ -23,7 +23,7 @@ export interface PoolListProps {
 }
 
 // Helper function to format currency with better precision
-const formatCurrency = (value: number): string => {
+export const formatCurrency = (value: number): string => {
 	if (value === 0) return '$0.00'
 	if (value >= 1_000_000_000) {
 		return `$${(value / 1_000_000_000).toFixed(2)}B`
@@ -78,7 +78,7 @@ const formatPercentage = (
 }
 
 // Helper function to get fee tier badge color
-const getFeeTierColor = (fee: number): string => {
+export const getFeeTierColor = (fee: number): string => {
 	if (fee <= 0.001) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
 	if (fee <= 0.003) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
 	if (fee <= 0.01) return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
@@ -97,7 +97,7 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 	return (
 		<div className="flex items-center w-full min-w-0">
 			{/* Star icon for favorites (like Raydium) */}
-			<div className="flex-shrink-0 mr-3">
+			<div className="md:flex hidden flex-shrink-0 mr-3">
 				<TooltipProvider>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -333,7 +333,7 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		id: 'pool',
 		accessorKey: 'name',
 		header: ({ column }) => (
-			<div className="md:pl-6">
+			<div className="md:pl-6 pl-2">
 				<SortableHeader column={column}>Pool</SortableHeader>
 			</div>
 		),

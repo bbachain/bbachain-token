@@ -1,5 +1,6 @@
-import { CoinGeckoTokenIds } from '@/staticData/tokens'
+import StaticTokens from '@/staticData/tokens'
 
-export function getCoinGeckoTokenId(symbol: string): string | undefined {
-	return CoinGeckoTokenIds[symbol.toUpperCase()]
+export function getCoinGeckoId(address: string) {
+	const coinGeckoId = StaticTokens.find((token) => address === token.address)?.coinGeckoId
+	return coinGeckoId
 }

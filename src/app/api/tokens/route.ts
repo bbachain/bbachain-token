@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { MintInfo } from '@/features/liquidityPool/types'
-import StaticTokens from '@/staticData/tokens'
+import StaticTokens, { ExtendedMintInfo } from '@/staticData/tokens'
 import { TSuccessMessage } from '@/types'
 
 export type TGetTokensResponse = TSuccessMessage & {
-	data: MintInfo[]
+	data: ExtendedMintInfo[]
 }
 
 /**

@@ -178,7 +178,9 @@ export default function Navbar() {
 									<NavigationMenuContent
 										className={cn(
 											'absolute top-full bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80',
-											nav.name === 'NFT' ? 'left-24' : 'left-10'
+											nav.name === 'NFT' && 'left-24',
+											nav.name === 'Tokens' && 'left-10',
+											nav.name === 'Liquidity' && 'left-52'
 										)}
 									>
 										<ul className="flex flex-col w-[230px] p-3">
