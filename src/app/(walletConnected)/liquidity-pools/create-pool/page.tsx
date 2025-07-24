@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronDown, ChevronLeft, ChevronRight, Info, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { ChevronDown, ArrowLeft, ArrowRight, Info, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -11,7 +11,7 @@ import { MdTrendingUp } from 'react-icons/md'
 
 import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import {
 	Dialog,
 	DialogContent,
@@ -40,6 +40,7 @@ import {
 } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
 import { getCoinGeckoId } from '@/features/swap/utils'
+import FormProgressLine from '@/features/tokens/components/form/FormProgressLine'
 import { cn, formatTokenBalance } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
 import StaticTokens, { isBBAPool, getBBAPositionInPool, requiresBBAWrapping, isNativeBBA } from '@/staticData/tokens'
@@ -51,29 +52,25 @@ const createPoolSteps = [
 		id: 1,
 		name: 'Token Selection',
 		description: 'Choose the token pair for your liquidity pool',
-		fields: ['baseToken', 'quoteToken', 'feeTier'],
-		icon: '🪙'
+		fields: ['baseToken', 'quoteToken', 'feeTier']
 	},
 	{
 		id: 2,
 		name: 'Price Configuration',
-		description: 'Set initial price and range for the pool',
-		fields: ['initialPrice', 'minInitialPrice', 'maxInitialPrice'],
-		icon: '📊'
+		description: 'Set the initial price and range for your pool',
+		fields: ['initialPrice', 'minInitialPrice', 'maxInitialPrice']
 	},
 	{
 		id: 3,
 		name: 'Deposit Amounts',
 		description: 'Enter the amount of tokens to deposit',
-		fields: ['baseTokenAmount', 'quoteTokenAmount'],
-		icon: '💰'
+		fields: ['baseTokenAmount', 'quoteTokenAmount']
 	},
 	{
 		id: 4,
 		name: 'Review & Create',
 		description: 'Review your pool configuration and create',
-		fields: [],
-		icon: '✅'
+		fields: []
 	}
 ]
 
@@ -88,55 +85,6 @@ const feeTierOptions = [
 ]
 
 type FieldName = keyof TCreatePoolPayload
-
-// Enhanced Progress Line Component
-function EnhancedProgressLine({ currentStep, steps }: { currentStep: number; steps: typeof createPoolSteps }) {
-	return (
-		<div className="w-full mb-8">
-			<div className="flex items-center justify-between mb-4">
-				{steps.map((step, index) => (
-					<div key={step.id} className="flex flex-col items-center flex-1">
-						<div className="flex items-center w-full">
-							<div
-								className={cn(
-									'flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300',
-									index <= currentStep
-										? 'bg-main-green border-main-green text-white'
-										: 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500'
-								)}
-							>
-								{index < currentStep ? (
-									<CheckCircle className="w-5 h-5" />
-								) : (
-									<span className="text-sm font-medium">{step.id}</span>
-								)}
-							</div>
-							{index < steps.length - 1 && (
-								<div
-									className={cn(
-										'flex-1 h-0.5 mx-2 transition-all duration-300',
-										index < currentStep ? 'bg-main-green' : 'bg-gray-300 dark:bg-gray-600'
-									)}
-								/>
-							)}
-						</div>
-						<div className="mt-2 text-center">
-							<p
-								className={cn(
-									'text-xs font-medium',
-									index <= currentStep ? 'text-main-green' : 'text-gray-400 dark:text-gray-500'
-								)}
-							>
-								{step.name}
-							</p>
-							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">{step.description}</p>
-						</div>
-					</div>
-				))}
-			</div>
-		</div>
-	)
-}
 
 // Success Dialog Component
 function SuccessDialog({ isOpen, onClose, poolData }: { isOpen: boolean; onClose: () => void; poolData: any }) {
@@ -298,13 +246,13 @@ function TokenSelectionCard({
 }) {
 	return (
 		<div className="space-y-2">
-			<label className="text-sm font-medium text-main-black">{label}</label>
+			<label className={cn('text-sm md:text-lg', error ? 'text-error' : 'text-main-black')}>{label}</label>
 			<Button
 				type="button"
 				variant="outline"
 				className={cn(
 					'w-full justify-between h-14 p-4 rounded-xl border-2 transition-all duration-200',
-					error ? 'border-red-500' : 'border-gray-200 dark:border-gray-700 hover:border-main-green'
+					error ? 'border-error' : 'border-strokes hover:border-hover-green'
 				)}
 				onClick={onSelect}
 			>
@@ -335,7 +283,7 @@ function TokenSelectionCard({
 				</div>
 				<ChevronDown className="h-4 w-4 opacity-50" />
 			</Button>
-			{error && <p className="text-sm text-red-500">{error}</p>}
+			{error && <p className="text-sm font-medium text-error">{error}</p>}
 		</div>
 	)
 }
@@ -403,10 +351,10 @@ export default function CreatePool() {
 		mintAddress: selectedQuoteToken?.address || ''
 	})
 	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
-		coinGeckoId: getCoinGeckoId(selectedBaseToken.address)
+		coinGeckoId: getCoinGeckoId(selectedBaseToken?.address)
 	})
 	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
-		coinGeckoId: getCoinGeckoId(selectedQuoteToken.address)
+		coinGeckoId: getCoinGeckoId(selectedQuoteToken?.address)
 	})
 
 	const mintABalance = getMintABalance.data?.balance || 0
@@ -480,6 +428,13 @@ export default function CreatePool() {
 		}
 	}, [isBBAPoolPair, form, nonBBAToken?.symbol])
 
+	const onSubmit = useCallback(
+		(payload: TCreatePoolPayload) => {
+			createPoolMutation.mutate(payload)
+		},
+		[createPoolMutation]
+	)
+
 	// Handlers
 	const onNext = useCallback(async () => {
 		const fields = createPoolSteps[currentStep].fields
@@ -492,20 +447,13 @@ export default function CreatePool() {
 		} else {
 			await form.handleSubmit(onSubmit)()
 		}
-	}, [currentStep, form])
+	}, [currentStep, form, onSubmit])
 
 	const onPrev = useCallback(() => {
 		if (currentStep > 0) {
 			setCurrentStep((step) => step - 1)
 		}
 	}, [currentStep])
-
-	const onSubmit = useCallback(
-		(payload: TCreatePoolPayload) => {
-			createPoolMutation.mutate(payload)
-		},
-		[createPoolMutation]
-	)
 
 	const onSelectBaseToken = useCallback(
 		(token: MintInfo) => {
@@ -636,37 +584,33 @@ export default function CreatePool() {
 	}
 
 	return (
-		<div className="max-w-2xl mx-auto px-4 py-6">
-			<div className="text-center mb-8">
-				<h1 className="text-2xl md:text-3xl font-bold text-main-black mb-2">Create Liquidity Pool</h1>
-				<p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
-					Create a new liquidity pool for token trading on BBAChain
-				</p>
-			</div>
-
+		<div className="max-w-4xl mx-auto md:px-0 px-[15px] flex flex-col space-y-14">
 			{/* Show balance alert if needed */}
 			{isNoBalance && <NoBalanceAlert />}
+
+			<div className="text-center flex flex-col space-y-3 ">
+				<h1 className="md:text-[45px] text-xl font-bold text-main-black">Create Liquidity Pool</h1>
+				<p className="text-xs md:text-lg text-dark-grey">Create a new liquidity pool for token trading on BBAChain</p>
+			</div>
 
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
 					{/* Progress Line */}
-					<EnhancedProgressLine currentStep={currentStep} steps={createPoolSteps} />
-
-					{/* Step 1: Token Selection */}
-					{currentStep === 0 && (
-						<Card className="border-2 border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl shadow-lg">
-							<CardHeader className="text-center pb-4 px-4 md:px-6">
-								<div className="flex items-center justify-center space-x-2 mb-2">
-									<span className="text-xl md:text-2xl">🪙</span>
-									<CardTitle className="text-lg md:text-xl">Token Selection</CardTitle>
-								</div>
-								<p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
-									Choose the token pair for your liquidity pool
-								</p>
+					<FormProgressLine steps={createPoolSteps} currentStep={currentStep} />
+					<section className="md:px-28">
+						<Card className="md:p-6 p-3 flex flex-col space-y-[18px] border-main-green rounded-[12px] shadow-lg">
+							<CardHeader className="text-center p-0">
+								<CardTitle className="text-lg md:text-[28px] font-bold text-main-black">
+									{createPoolSteps[currentStep].name}
+								</CardTitle>
+								<CardDescription className="text-xs md:text-sm text-dark-grey">
+									{createPoolSteps[currentStep].description}
+								</CardDescription>
 							</CardHeader>
-							<CardContent className="space-y-4 md:space-y-6 px-4 md:px-6">
-								{/* Token Selection */}
-								<div className="grid gap-4 md:gap-6">
+							{/* Step 1: Token Selection */}
+							{currentStep === 0 && (
+								<CardContent className="space-y-3 md:space-y-6 p-0">
+									{/* Token Selection */}
 									<TokenSelectionCard
 										label="Base Token"
 										token={selectedBaseToken}
@@ -679,566 +623,530 @@ export default function CreatePool() {
 										onSelect={() => onOpenTokenDialog('to')}
 										error={form.formState.errors.quoteToken?.message}
 									/>
-								</div>
 
-								{/* Fee Tier Selection */}
-								<FormField
-									control={form.control}
-									name="feeTier"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel className="text-sm md:text-base font-medium">Fee Tier</FormLabel>
-											<Select onValueChange={field.onChange} defaultValue={field.value}>
-												<FormControl>
-													<SelectTrigger className="h-12 md:h-14 rounded-lg md:rounded-xl border-2 border-gray-200 dark:border-gray-700">
-														<SelectValue placeholder="Select fee tier" />
-													</SelectTrigger>
-												</FormControl>
-												<SelectContent>
-													{feeTierOptions.map((option) => (
-														<SelectItem key={option.value} value={option.value.toString()}>
-															<div className="flex items-center justify-between w-full">
-																<span className="font-medium">{option.label}</span>
-																<span className="text-xs text-gray-500 ml-2 hidden sm:inline">
-																	{option.description}
-																</span>
-															</div>
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											<FormMessage />
-										</FormItem>
+									{/* Fee Tier Selection */}
+									<FormField
+										control={form.control}
+										name="feeTier"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="text-sm md:text-lg text-main-black font-normal">Fee Tier</FormLabel>
+												<Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+													<FormControl>
+														<SelectTrigger className="h-12 md:h-14 hover:border-hover-green rounded-lg md:rounded-xl border-2 border-strokes">
+															<SelectValue placeholder="Select fee tier" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														{feeTierOptions.map((option) => (
+															<SelectItem key={option.value} value={option.value.toString()}>
+																<div className="flex items-center justify-between w-full">
+																	<span className="font-medium">{option.label}</span>
+																	<span className="text-xs text-gray-500 ml-2 hidden sm:inline">
+																		{option.description}
+																	</span>
+																</div>
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+												<FormMessage className="text-sm" />
+											</FormItem>
+										)}
+									/>
+
+									{/* BBA Pool Warning/Info */}
+									{isBBAPoolPair && (
+										<div className="bg-light-yellow rounded-lg md:rounded-xl p-3 md:p-4 border-2 border-warning">
+											<div className="flex items-start space-x-2 md:space-x-3">
+												<div className="flex-shrink-0 w-6 h-6 bg-warning text-white rounded-full flex items-center justify-center text-sm font-bold">
+													!
+												</div>
+												<div className="flex-1 text-main-black">
+													<h4 className="text-sm md:text-base font-semibold mb-1">BBA Native Token Pool</h4>
+													<p className="text-xs md:text-sm  mb-2">
+														You&apos;re creating a pool with BBA (native token). This requires special handling:
+													</p>
+													<ul className="text-xs md:text-sm  space-y-1">
+														<li className="flex items-center space-x-2">
+															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
+															<span>BBA will be automatically wrapped to WBBA for the pool</span>
+														</li>
+														<li className="flex items-center space-x-2">
+															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
+															<span>Recommended fee tier: 0.3% for BBA/{nonBBAToken?.symbol} pairs</span>
+														</li>
+														<li className="flex items-center space-x-2">
+															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
+															<span>Pool will use NATIVE_MINT for WBBA representation</span>
+														</li>
+													</ul>
+												</div>
+											</div>
+										</div>
 									)}
-								/>
 
-								{/* BBA Pool Warning/Info */}
-								{isBBAPoolPair && (
-									<div className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-orange-200 dark:border-orange-800">
-										<div className="flex items-start space-x-2 md:space-x-3">
-											<div className="flex-shrink-0 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-												!
-											</div>
-											<div className="flex-1">
-												<h4 className="text-sm md:text-base font-semibold text-orange-800 dark:text-orange-200 mb-1">
-													BBA Native Token Pool
-												</h4>
-												<p className="text-xs md:text-sm text-orange-700 dark:text-orange-300 mb-2">
-													You&apos;re creating a pool with BBA (native token). This requires special handling:
-												</p>
-												<ul className="text-xs md:text-sm text-orange-700 dark:text-orange-300 space-y-1">
-													<li className="flex items-center space-x-2">
-														<span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
-														<span>BBA will be automatically wrapped to WBBA for the pool</span>
-													</li>
-													<li className="flex items-center space-x-2">
-														<span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
-														<span>Recommended fee tier: 0.3% for BBA/{nonBBAToken?.symbol} pairs</span>
-													</li>
-													<li className="flex items-center space-x-2">
-														<span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
-														<span>Pool will use NATIVE_MINT for WBBA representation</span>
-													</li>
-												</ul>
-											</div>
-										</div>
-									</div>
-								)}
-
-								{/* Pool Preview */}
-								{selectedBaseToken && selectedQuoteToken && (
-									<div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg md:rounded-xl p-3 md:p-4">
-										<div className="flex items-center space-x-2 md:space-x-3">
-											<div className="flex -space-x-1 md:-space-x-2">
-												<Image
-													src={selectedBaseToken.logoURI || '/icon-placeholder.svg'}
-													width={24}
-													height={24}
-													className="md:w-8 md:h-8 rounded-full border-2 border-white"
-													alt={selectedBaseToken.symbol}
-												/>
-												<Image
-													src={selectedQuoteToken.logoURI || '/icon-placeholder.svg'}
-													width={24}
-													height={24}
-													className="md:w-8 md:h-8 rounded-full border-2 border-white"
-													alt={selectedQuoteToken.symbol}
-												/>
-											</div>
-											<div>
-												<h3 className="text-sm md:text-base font-semibold text-main-black">
-													{selectedBaseToken.symbol}/{selectedQuoteToken.symbol}
-													{isBBAPoolPair && <span className="ml-1 text-orange-600 text-xs">(Native)</span>}
-												</h3>
-												<p className="text-xs md:text-sm text-gray-600">
-													Fee: {form.watch('feeTier')}%
-													{isBBAPoolPair && <span className="ml-1 text-orange-600">(BBA Pool)</span>}
-												</p>
-											</div>
-										</div>
-									</div>
-								)}
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Step 2: Price Configuration */}
-					{currentStep === 1 && (
-						<Card className="border-2 border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl shadow-lg">
-							<CardHeader className="text-center pb-4 px-4 md:px-6">
-								<div className="flex items-center justify-center space-x-2 mb-2">
-									<span className="text-xl md:text-2xl">📊</span>
-									<CardTitle className="text-lg md:text-xl">Price Configuration</CardTitle>
-								</div>
-								<p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
-									Set the initial price and range for your pool
-								</p>
-							</CardHeader>
-							<CardContent className="space-y-4 md:space-y-6 px-4 md:px-6">
-								{/* Initial Price */}
-								<FormField
-									control={form.control}
-									name="initialPrice"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel className="flex items-center space-x-2 text-sm md:text-base">
-												<span>Initial Price</span>
-												<TooltipProvider>
-													<Tooltip>
-														<TooltipTrigger>
-															<Info className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-														</TooltipTrigger>
-														<TooltipContent>
-															<p>The starting price ratio between the two tokens</p>
-														</TooltipContent>
-													</Tooltip>
-												</TooltipProvider>
-											</FormLabel>
-											<FormControl>
-												<div className="relative">
-													<Input
-														{...field}
-														type="number"
-														step="0.000001"
-														placeholder="0.0"
-														className="h-12 md:h-14 text-base md:text-lg rounded-lg md:rounded-xl border-2 border-gray-200 dark:border-gray-700 pr-20 md:pr-24"
+									{/* Pool Preview */}
+									{selectedBaseToken && selectedQuoteToken && (
+										<div className="bg-box-3 rounded-lg md:rounded-xl p-3 md:p-4">
+											<div className="flex items-center space-x-2 md:space-x-3">
+												<div className="flex -space-x-1 md:-space-x-2">
+													<Image
+														src={selectedBaseToken.logoURI || '/icon-placeholder.svg'}
+														width={24}
+														height={24}
+														className="md:w-8 md:h-8 rounded-full border-2 border-white"
+														alt={selectedBaseToken.symbol}
 													/>
-													<div className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-xs md:text-sm text-gray-500 max-w-[80px] md:max-w-none truncate">
-														{exchangeRate}
-													</div>
+													<Image
+														src={selectedQuoteToken.logoURI || '/icon-placeholder.svg'}
+														width={24}
+														height={24}
+														className="md:w-8 md:h-8 rounded-full border-2 border-white"
+														alt={selectedQuoteToken.symbol}
+													/>
 												</div>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
+												<div>
+													<h3 className="text-sm md:text-base font-semibold text-main-black">
+														{selectedBaseToken.symbol}/{selectedQuoteToken.symbol}
+														{isBBAPoolPair && <span className="ml-1 text-orange-600 text-xs">(Native)</span>}
+													</h3>
+													<p className="text-xs md:text-sm text-gray-600">
+														Fee: {form.watch('feeTier')}%
+														{isBBAPoolPair && <span className="ml-1 text-orange-600">(BBA Pool)</span>}
+													</p>
+												</div>
+											</div>
+										</div>
 									)}
-								/>
+								</CardContent>
+							)}
 
-								{/* Price Range */}
-								<div className="space-y-3 md:space-y-4">
-									<label className="text-sm md:text-base font-medium">Price Range</label>
-									<Tabs
-										defaultValue="full-range"
-										onValueChange={(value) => form.setValue('rangeType', value as 'full-range' | 'custom-range')}
-									>
-										<TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-800 h-9 md:h-10">
-											<TabsTrigger value="full-range" className="text-sm">
-												Full Range
-											</TabsTrigger>
-											<TabsTrigger value="custom-range" className="text-sm">
-												Custom Range
-											</TabsTrigger>
-										</TabsList>
-										<TabsContent value="full-range" className="mt-3 md:mt-4">
-											<div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg md:rounded-xl p-3 md:p-4">
-												<div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
-													<Info className="w-4 h-4 md:w-5 md:h-5" />
-													<span className="text-sm md:text-base font-medium">Full Range Selected</span>
+							{/* Step 2: Price Configuration */}
+							{currentStep === 1 && (
+								<CardContent className="space-y-4 md:space-y-6 p-0">
+									{/* Initial Price */}
+									<FormField
+										control={form.control}
+										name="initialPrice"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="text-sm md:text-lg font-normal flex items-center space-x-2">
+													<span>Initial Price</span>
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger>
+																<Info className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
+															</TooltipTrigger>
+															<TooltipContent>
+																<p>The starting price ratio between the two tokens</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
+												</FormLabel>
+												<FormControl>
+													<div className="relative">
+														<Input
+															{...field}
+															type="number"
+															step="0.000001"
+															placeholder="0.0"
+															className="h-12 md:h-14 remove-arrow-input hover:border-hover-green rounded-lg md:rounded-xl border-2 border-strokes"
+														/>
+														<div className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 text-xs md:text-sm text-gray-500 max-w-[80px] md:max-w-none truncate">
+															{exchangeRate}
+														</div>
+													</div>
+												</FormControl>
+												<FormMessage className="text-sm" />
+											</FormItem>
+										)}
+									/>
+
+									{/* Price Range */}
+									<div className="flex flex-col space-y-2">
+										<label className="text-sm md:text-lg font-normal">Price Range</label>
+										<Tabs
+											defaultValue="full-range"
+											onValueChange={(value) => form.setValue('rangeType', value as 'full-range' | 'custom-range')}
+										>
+											<TabsList className="bg-light-green px-3 py-1.5 w-full h-10 mb-[18px]">
+												<TabsTrigger
+													value="full-range"
+													className="w-full h-full bg-transparent text-sm text-light-grey font-normal hover:bg-main-green hover:text-main-white  focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
+												>
+													Full Range
+												</TabsTrigger>
+												<TabsTrigger
+													value="custom-range"
+													className="w-full h-full bg-transparent text-sm text-light-grey font-normal hover:bg-main-green hover:text-main-white  focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
+												>
+													Custom Range
+												</TabsTrigger>
+											</TabsList>
+											<TabsContent value="full-range" className="mt-3 md:mt-4">
+												<div className="bg-light-blue border-2 border-main-blue rounded-lg md:rounded-xl p-3 md:p-4">
+													<div className="flex items-center space-x-2 text-main-black">
+														<Info className="w-4 h-4 text-main-blue md:w-5 md:h-5 " />
+														<span className="text-sm md:text-base font-medium">Full Range Selected</span>
+													</div>
+													<p className="text-xs md:text-sm text-main-black mt-1">
+														Your liquidity will be active across all price ranges (0 to ∞)
+													</p>
 												</div>
-												<p className="text-xs md:text-sm text-blue-600 dark:text-blue-400 mt-1">
-													Your liquidity will be active across all price ranges (0 to ∞)
-												</p>
-											</div>
-										</TabsContent>
-										<TabsContent value="custom-range" className="mt-3 md:mt-4">
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-												<FormField
-													control={form.control}
-													name="minInitialPrice"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel className="text-sm md:text-base">Min Price</FormLabel>
-															<FormControl>
-																<Input
-																	{...field}
-																	type="number"
-																	step="0.000001"
-																	placeholder="0.0"
-																	className="h-10 md:h-12 rounded-lg md:rounded-xl"
-																/>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
+											</TabsContent>
+											<TabsContent value="custom-range" className="mt-3 md:mt-4">
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+													<FormField
+														control={form.control}
+														name="minInitialPrice"
+														render={({ field }) => (
+															<FormItem>
+																<FormLabel className="text-sm md:text-base">Min Price</FormLabel>
+																<FormControl>
+																	<Input
+																		{...field}
+																		type="number"
+																		step="0.000001"
+																		placeholder="0.0"
+																		className="h-10 md:h-12 rounded-lg md:rounded-xl"
+																	/>
+																</FormControl>
+																<FormMessage />
+															</FormItem>
+														)}
+													/>
+													<FormField
+														control={form.control}
+														name="maxInitialPrice"
+														render={({ field }) => (
+															<FormItem>
+																<FormLabel className="text-sm md:text-base">Max Price</FormLabel>
+																<FormControl>
+																	<Input
+																		{...field}
+																		type="number"
+																		step="0.000001"
+																		placeholder="0.0"
+																		className="h-10 md:h-12 rounded-lg md:rounded-xl"
+																	/>
+																</FormControl>
+																<FormMessage />
+															</FormItem>
+														)}
+													/>
+												</div>
+											</TabsContent>
+										</Tabs>
+									</div>
+								</CardContent>
+							)}
+
+							{/* Step 3: Deposit Amounts */}
+							{currentStep === 2 && (
+								<CardContent className="space-y-4 md:space-y-6 p-0">
+									<div className="relative">
+										<div className="space-y-3 md:space-y-4">
+											{selectedBaseToken && (
+												<SwapItem
+													noTitle
+													type="from"
+													tokenProps={selectedBaseToken}
+													price={baseTokenPrice}
+													balance={formattedMintABalance}
+													inputAmount={baseTokenAmount}
+													setInputAmount={handleBaseAmountChange}
 												/>
-												<FormField
-													control={form.control}
-													name="maxInitialPrice"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel className="text-sm md:text-base">Max Price</FormLabel>
-															<FormControl>
-																<Input
-																	{...field}
-																	type="number"
-																	step="0.000001"
-																	placeholder="0.0"
-																	className="h-10 md:h-12 rounded-lg md:rounded-xl"
-																/>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
+											)}
+											{selectedQuoteToken && (
+												<SwapItem
+													noTitle
+													type="to"
+													tokenProps={selectedQuoteToken}
+													price={quoteTokenPrice}
+													balance={formattedMintBBalance}
+													inputAmount={quoteTokenAmount}
+													setInputAmount={handleQuoteAmountChange}
 												/>
-											</div>
-										</TabsContent>
-									</Tabs>
-								</div>
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Step 3: Deposit Amounts */}
-					{currentStep === 2 && (
-						<Card className="border-2 border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl shadow-lg">
-							<CardHeader className="text-center pb-4 px-4 md:px-6">
-								<div className="flex items-center justify-center space-x-2 mb-2">
-									<span className="text-xl md:text-2xl">💰</span>
-									<CardTitle className="text-lg md:text-xl">Deposit Amounts</CardTitle>
-								</div>
-								<p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
-									Enter the amount of tokens you want to deposit
-								</p>
-							</CardHeader>
-							<CardContent className="space-y-4 md:space-y-6 px-4 md:px-6">
-								<div className="relative">
-									<div className="space-y-3 md:space-y-4">
-										{selectedBaseToken && (
-											<SwapItem
-												noTitle
-												type="from"
-												tokenProps={selectedBaseToken}
-												price={baseTokenPrice}
-												balance={formattedMintABalance}
-												inputAmount={baseTokenAmount}
-												setInputAmount={handleBaseAmountChange}
-											/>
-										)}
-										{selectedQuoteToken && (
-											<SwapItem
-												noTitle
-												type="to"
-												tokenProps={selectedQuoteToken}
-												price={quoteTokenPrice}
-												balance={formattedMintBBalance}
-												inputAmount={quoteTokenAmount}
-												setInputAmount={handleQuoteAmountChange}
-											/>
-										)}
-									</div>
-									<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-										<div className="bg-main-green text-white rounded-full p-2 md:p-3 shadow-lg">
-											<FaPlus className="w-3 h-3 md:w-4 md:h-4" />
+											)}
 										</div>
-									</div>
-								</div>
-
-								{/* Deposit Summary */}
-								<div className="bg-gray-50 dark:bg-gray-800 rounded-lg md:rounded-xl p-3 md:p-4 space-y-2 md:space-y-3">
-									<h4 className="text-sm md:text-base font-medium text-main-black">Deposit Summary</h4>
-									<div className="space-y-1 md:space-y-2 text-xs md:text-sm">
-										<div className="flex justify-between">
-											<span className="text-gray-600 dark:text-gray-400">Total Value:</span>
-											<span className="font-medium">${totalDepositValue.toFixed(2)}</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-gray-600 dark:text-gray-400">Pool Share:</span>
-											<span className="font-medium">100% (New Pool)</span>
-										</div>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Step 4: Review & Create */}
-					{currentStep === 3 && (
-						<Card className="border-2 border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl shadow-lg">
-							<CardHeader className="text-center pb-4 px-4 md:px-6">
-								<div className="flex items-center justify-center space-x-2 mb-2">
-									<span className="text-xl md:text-2xl">✅</span>
-									<CardTitle className="text-lg md:text-xl">Review & Create</CardTitle>
-								</div>
-								<p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
-									Review your pool configuration before creating
-								</p>
-							</CardHeader>
-							<CardContent className="space-y-4 md:space-y-6 px-4 md:px-6">
-								{/* Pool Overview */}
-								<div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg md:rounded-xl p-4 md:p-6">
-									<div className="flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4 space-y-3 md:space-y-0">
-										<div className="flex items-center space-x-2 md:space-x-3">
-											<div className="flex -space-x-1 md:-space-x-2">
-												<Image
-													src={selectedBaseToken?.logoURI || '/icon-placeholder.svg'}
-													width={32}
-													height={32}
-													className="md:w-10 md:h-10 rounded-full border-2 border-white"
-													alt={selectedBaseToken?.symbol}
-												/>
-												<Image
-													src={selectedQuoteToken?.logoURI || '/icon-placeholder.svg'}
-													width={32}
-													height={32}
-													className="md:w-10 md:h-10 rounded-full border-2 border-white"
-													alt={selectedQuoteToken?.symbol}
-												/>
-											</div>
-											<div>
-												<h3 className="text-base md:text-lg font-semibold text-main-black">
-													{selectedBaseToken?.symbol}/{selectedQuoteToken?.symbol}
-												</h3>
-												<p className="text-xs md:text-sm text-gray-600">Fee: {form.watch('feeTier')}%</p>
-											</div>
-										</div>
-										<div className="text-left md:text-right">
-											<p className="text-xs md:text-sm text-gray-600">Total Deposit</p>
-											<p className="text-base md:text-lg font-semibold text-main-black">
-												${totalDepositValue.toFixed(2)}
-											</p>
+										<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+											<Button
+												onClick={() => {}}
+												type="button"
+												size="icon"
+												className="rounded-full md:[&_svg]:size-6 	border-none bg-main-green text-main-white md:w-14 md:h-14 w-8 h-8"
+											>
+												<FaPlus />
+											</Button>
 										</div>
 									</div>
 
-									{/* Pool Stats Preview */}
-									<div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mt-4">
-										<div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
-											<p className="text-xs text-gray-600 dark:text-gray-400">Initial TVL</p>
-											<p className="text-sm md:text-base font-semibold text-main-black">
-												${totalDepositValue.toFixed(2)}
-											</p>
-										</div>
-										<div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center">
-											<p className="text-xs text-gray-600 dark:text-gray-400">Your Share</p>
-											<p className="text-sm md:text-base font-semibold text-main-black">100%</p>
-										</div>
-										<div className="bg-white/60 dark:bg-gray-800/60 rounded-lg p-3 text-center col-span-2 md:col-span-1">
-											<p className="text-xs text-gray-600 dark:text-gray-400">Swap Fee</p>
-											<p className="text-sm md:text-base font-semibold text-main-black">{form.watch('feeTier')}%</p>
-										</div>
-									</div>
-								</div>
-
-								{/* Detailed Information */}
-								<div className="grid gap-3 md:gap-4">
-									{/* Pool Configuration */}
-									<div className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl p-3 md:p-4 border border-gray-200 dark:border-gray-700">
-										<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
-											<span className="mr-2">⚙️</span>
-											Pool Configuration
-										</h4>
-										<div className="space-y-2 md:space-y-3">
-											<div className="flex justify-between items-center py-1">
-												<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Initial Price:</span>
-												<span className="text-xs md:text-sm font-medium text-right max-w-[60%] break-words">
-													{form.watch('initialPrice')} {exchangeRate}
-												</span>
+									{/* Deposit Summary */}
+									<div className="border-2 border-dark-grey rounded-lg md:rounded-xl p-3 md:p-4 space-y-2 md:space-y-3">
+										<h4 className="text-sm md:text-base font-medium text-main-black">Deposit Summary</h4>
+										<div className="space-y-1 md:space-y-2 text-xs md:text-sm">
+											<div className="flex justify-between">
+												<span className="text-gray-600 dark:text-gray-400">Total Value:</span>
+												<span className="font-medium">${totalDepositValue.toFixed(2)}</span>
 											</div>
-											<div className="flex justify-between items-center py-1">
-												<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Price Range:</span>
-												<span className="text-xs md:text-sm font-medium">
-													{form.watch('rangeType') === 'custom-range'
-														? `${form.watch('minInitialPrice')} - ${form.watch('maxInitialPrice')}`
-														: 'Full Range (0 to ∞)'}
-												</span>
-											</div>
-											<div className="flex justify-between items-center py-1">
-												<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee:</span>
-												<span className="text-xs md:text-sm font-medium">{form.watch('feeTier')}% per trade</span>
-											</div>
-											<div className="flex justify-between items-center py-1">
-												<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pool Type:</span>
-												<span className="text-xs md:text-sm font-medium">Constant Product (x*y=k)</span>
+											<div className="flex justify-between">
+												<span className="text-gray-600 dark:text-gray-400">Pool Share:</span>
+												<span className="font-medium">100% (New Pool)</span>
 											</div>
 										</div>
 									</div>
+								</CardContent>
+							)}
 
-									{/* Token Deposits */}
-									<div className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl p-3 md:p-4 border border-gray-200 dark:border-gray-700">
-										<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
-											<span className="mr-2">💰</span>
-											Token Deposits
-										</h4>
-										<div className="space-y-3">
-											<div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-												<div className="flex items-center space-x-2">
+							{/* Step 4: Review & Create */}
+							{currentStep === 3 && (
+								<CardContent className="space-y-4 md:space-y-6 p-0">
+									{/* Pool Overview */}
+									<div className="bg-opacity-30 bg-[#D9D9D9] rounded-lg md:rounded-xl p-4 md:p-6">
+										<div className="flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4 space-y-3 md:space-y-0">
+											<div className="flex items-center space-x-2 md:space-x-3">
+												<div className="flex -space-x-1 md:-space-x-2">
 													<Image
 														src={selectedBaseToken?.logoURI || '/icon-placeholder.svg'}
-														width={24}
-														height={24}
-														className="rounded-full"
+														width={32}
+														height={32}
+														className="md:w-10 md:h-10 rounded-full border-2 border-white"
 														alt={selectedBaseToken?.symbol}
 													/>
-													<div>
-														<p className="text-xs md:text-sm font-medium">{selectedBaseToken?.symbol}</p>
-														<p className="text-xs text-gray-500">{selectedBaseToken?.name}</p>
-													</div>
-												</div>
-												<div className="text-right">
-													<p className="text-xs md:text-sm font-semibold">{baseTokenAmount} tokens</p>
-													<p className="text-xs text-gray-500">${baseTokenPrice.toFixed(2)}</p>
-												</div>
-											</div>
-											<div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-												<div className="flex items-center space-x-2">
 													<Image
 														src={selectedQuoteToken?.logoURI || '/icon-placeholder.svg'}
-														width={24}
-														height={24}
-														className="rounded-full"
+														width={32}
+														height={32}
+														className="md:w-10 md:h-10 rounded-full border-2 border-white"
 														alt={selectedQuoteToken?.symbol}
 													/>
-													<div>
-														<p className="text-xs md:text-sm font-medium">{selectedQuoteToken?.symbol}</p>
-														<p className="text-xs text-gray-500">{selectedQuoteToken?.name}</p>
+												</div>
+												<div>
+													<h3 className="text-base md:text-lg font-semibold text-main-black">
+														{selectedBaseToken?.symbol}/{selectedQuoteToken?.symbol}
+													</h3>
+													<p className="text-xs md:text-sm text-light-grey">Fee: {form.watch('feeTier')}%</p>
+												</div>
+											</div>
+											<div className="text-left md:text-right">
+												<p className="text-xs md:text-sm text-light-grey">Total Deposit</p>
+												<p className="text-base md:text-lg font-semibold text-main-black">
+													${totalDepositValue.toFixed(2)}
+												</p>
+											</div>
+										</div>
+
+										{/* Pool Stats Preview */}
+										<div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mt-4">
+											<div className="bg-box-3 border border-box-2 rounded-lg p-3 text-center">
+												<p className="text-main-black md:text-sm text-xs font-normal">Initial TVL</p>
+												<p className="text-sm md:text-base font-semibold text-main-black">
+													${totalDepositValue.toFixed(2)}
+												</p>
+											</div>
+											<div className="bg-box-3 border border-box-2 rounded-lg p-3 text-center">
+												<p className="text-main-black md:text-sm text-xs font-normal">Your Share</p>
+												<p className="text-sm md:text-base font-semibold text-main-black">100%</p>
+											</div>
+											<div className="bg-box-3 border border-box-2 rounded-lg p-3 text-center col-span-2 md:col-span-1">
+												<p className="text-main-black md:text-sm text-xs font-normal">Swap Fee</p>
+												<p className="text-sm md:text-base font-semibold text-main-black">{form.watch('feeTier')}%</p>
+											</div>
+										</div>
+									</div>
+
+									{/* Detailed Information */}
+									<div className="grid gap-3 md:gap-4">
+										{/* Pool Configuration */}
+										<div className="bg-opacity-30 bg-[#D9D9D9] rounded-lg md:rounded-xl p-3 md:p-4">
+											<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
+												<span className="mr-2">⚙️</span>
+												Pool Configuration
+											</h4>
+											<div className="space-y-2 md:space-y-3">
+												<div className="flex justify-between items-center py-1">
+													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Initial Price:</span>
+													<span className="text-xs md:text-sm font-medium text-right max-w-[60%] break-words">
+														{form.watch('initialPrice')} {exchangeRate}
+													</span>
+												</div>
+												<div className="flex justify-between items-center py-1">
+													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Price Range:</span>
+													<span className="text-xs md:text-sm font-medium">
+														{form.watch('rangeType') === 'custom-range'
+															? `${form.watch('minInitialPrice')} - ${form.watch('maxInitialPrice')}`
+															: 'Full Range (0 to ∞)'}
+													</span>
+												</div>
+												<div className="flex justify-between items-center py-1">
+													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee:</span>
+													<span className="text-xs md:text-sm font-medium">{form.watch('feeTier')}% per trade</span>
+												</div>
+												<div className="flex justify-between items-center py-1">
+													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pool Type:</span>
+													<span className="text-xs md:text-sm font-medium">Constant Product (x*y=k)</span>
+												</div>
+											</div>
+										</div>
+
+										{/* Token Deposits */}
+										<div className="bg-opacity-30 bg-[#D9D9D9] rounded-lg md:rounded-xl p-3 md:p-4">
+											<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
+												<span className="mr-2">💰</span>
+												Token Deposits
+											</h4>
+											<div className="space-y-3">
+												<div className="flex items-center justify-between p-2 bg-main-white rounded-lg">
+													<div className="flex items-center space-x-2">
+														<Image
+															src={selectedBaseToken?.logoURI || '/icon-placeholder.svg'}
+															width={24}
+															height={24}
+															className="rounded-full"
+															alt={selectedBaseToken?.symbol}
+														/>
+														<div>
+															<p className="text-xs md:text-sm font-medium">{selectedBaseToken?.symbol}</p>
+															<p className="text-xs text-gray-500">{selectedBaseToken?.name}</p>
+														</div>
+													</div>
+													<div className="text-right">
+														<p className="text-xs md:text-sm font-semibold">{baseTokenAmount} tokens</p>
+														<p className="text-xs text-gray-500">${baseTokenPrice.toFixed(2)}</p>
 													</div>
 												</div>
-												<div className="text-right">
-													<p className="text-xs md:text-sm font-semibold">{quoteTokenAmount} tokens</p>
-													<p className="text-xs text-gray-500">${quoteTokenPrice.toFixed(2)}</p>
+												<div className="flex items-center justify-between p-2 bg-main-white rounded-lg">
+													<div className="flex items-center space-x-2">
+														<Image
+															src={selectedQuoteToken?.logoURI || '/icon-placeholder.svg'}
+															width={24}
+															height={24}
+															className="rounded-full"
+															alt={selectedQuoteToken?.symbol}
+														/>
+														<div>
+															<p className="text-xs md:text-sm font-medium">{selectedQuoteToken?.symbol}</p>
+															<p className="text-xs text-gray-500">{selectedQuoteToken?.name}</p>
+														</div>
+													</div>
+													<div className="text-right">
+														<p className="text-xs md:text-sm font-semibold">{quoteTokenAmount} tokens</p>
+														<p className="text-xs text-gray-500">${quoteTokenPrice.toFixed(2)}</p>
+													</div>
 												</div>
 											</div>
 										</div>
-									</div>
 
-									{/* Expected Returns */}
-									<div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-green-200 dark:border-green-800">
-										<h4 className="text-sm md:text-base font-medium text-green-900 dark:text-green-100 mb-2 md:mb-3 flex items-center">
-											<span className="mr-2">📈</span>
-											Expected Returns
-										</h4>
-										<div className="space-y-2">
-											<div className="flex justify-between items-center">
-												<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
-													Trading Fee Revenue:
-												</span>
-												<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
-													{form.watch('feeTier')}% per trade
-												</span>
-											</div>
-											<div className="flex justify-between items-center">
-												<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
-													Est. Daily Volume (1% of TVL):
-												</span>
-												<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
-													${(totalDepositValue * 0.01).toFixed(2)}
-												</span>
-											</div>
-											<div className="flex justify-between items-center">
-												<span className="text-xs md:text-sm text-green-700 dark:text-green-300">Est. Daily Fees:</span>
-												<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
-													${((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100).toFixed(4)}
-												</span>
-											</div>
-											<div className="pt-2 border-t border-green-200 dark:border-green-700">
-												<div className="flex justify-between items-center">
-													<span className="text-xs md:text-sm font-medium text-green-700 dark:text-green-300">
-														Est. Annual APR:
-													</span>
-													<span className="text-sm md:text-base font-bold text-green-900 dark:text-green-100">
-														{(
-															((((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100) * 365) /
-																totalDepositValue) *
-															100
-														).toFixed(2)}
-														%
-													</span>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-
-								{/* Risk Warning */}
-								<div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg md:rounded-xl p-3 md:p-4">
-									<div className="flex items-start space-x-2 md:space-x-3">
-										<AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-										<div>
-											<h4 className="text-sm md:text-base font-medium text-yellow-800 dark:text-yellow-200">
-												Important Notice
+										{/* Expected Returns */}
+										<div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-green-200 dark:border-green-800">
+											<h4 className="text-sm md:text-base font-medium text-green-900 dark:text-green-100 mb-2 md:mb-3 flex items-center">
+												<span className="mr-2">📈</span>
+												Expected Returns
 											</h4>
-											<p className="text-xs md:text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-												Creating a liquidity pool involves risk. Token prices can fluctuate, and you may experience
-												impermanent loss. Please ensure you understand the risks before proceeding.
-											</p>
+											<div className="space-y-2">
+												<div className="flex justify-between items-center">
+													<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
+														Trading Fee Revenue:
+													</span>
+													<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
+														{form.watch('feeTier')}% per trade
+													</span>
+												</div>
+												<div className="flex justify-between items-center">
+													<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
+														Est. Daily Volume (1% of TVL):
+													</span>
+													<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
+														${(totalDepositValue * 0.01).toFixed(2)}
+													</span>
+												</div>
+												<div className="flex justify-between items-center">
+													<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
+														Est. Daily Fees:
+													</span>
+													<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
+														${((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100).toFixed(4)}
+													</span>
+												</div>
+												<div className="pt-2 border-t border-green-200 dark:border-green-700">
+													<div className="flex justify-between items-center">
+														<span className="text-xs md:text-sm font-medium text-green-700 dark:text-green-300">
+															Est. Annual APR:
+														</span>
+														<span className="text-sm md:text-base font-bold text-green-900 dark:text-green-100">
+															{(
+																((((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100) * 365) /
+																	totalDepositValue) *
+																100
+															).toFixed(2)}
+															%
+														</span>
+													</div>
+												</div>
+											</div>
 										</div>
 									</div>
-								</div>
-							</CardContent>
-						</Card>
-					)}
 
-					{/* Navigation Buttons */}
-					<div className="flex justify-between items-center pt-4 md:pt-6">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onPrev}
-							disabled={currentStep === 0 || createPoolMutation.isPending}
-							className="flex items-center space-x-1 md:space-x-2 px-3 md:px-6 h-10 md:h-12 text-sm md:text-base"
-						>
-							<ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
-							<span className="hidden sm:inline">Previous</span>
-							<span className="sm:hidden">Prev</span>
-						</Button>
-
-						<div className="flex space-x-1 md:space-x-2">
-							{createPoolSteps.map((_, index) => (
-								<div
-									key={index}
-									className={cn(
-										'w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-all duration-300',
-										index === currentStep ? 'bg-main-green w-6 md:w-8' : 'bg-gray-300 dark:bg-gray-600'
-									)}
-								/>
-							))}
-						</div>
-
-						<Button
-							type="button"
-							onClick={onNext}
-							disabled={createPoolMutation.isPending || (currentStep === 3 && !form.formState.isValid)}
-							className="flex items-center space-x-1 md:space-x-2 px-3 md:px-6 h-10 md:h-12 text-sm md:text-base bg-main-green hover:bg-hover-green disabled:opacity-50 disabled:cursor-not-allowed"
-						>
-							{createPoolMutation.isPending ? (
-								<>
-									<Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
-									<span className="hidden sm:inline">Creating Pool...</span>
-									<span className="sm:hidden">Creating...</span>
-								</>
-							) : currentStep === createPoolSteps.length - 1 ? (
-								<>
-									<span className="hidden sm:inline">🚀 Create Liquidity Pool</span>
-									<span className="sm:hidden">🚀 Create</span>
-									<CheckCircle className="w-3 h-3 md:w-4 md:h-4" />
-								</>
-							) : (
-								<>
-									<span className="hidden sm:inline">Next</span>
-									<span className="sm:hidden">Next</span>
-									<ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
-								</>
+									{/* Risk Warning */}
+									<div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg md:rounded-xl p-3 md:p-4">
+										<div className="flex items-start space-x-2 md:space-x-3">
+											<AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+											<div>
+												<h4 className="text-sm md:text-base font-medium text-yellow-800 dark:text-yellow-200">
+													Important Notice
+												</h4>
+												<p className="text-xs md:text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+													Creating a liquidity pool involves risk. Token prices can fluctuate, and you may experience
+													impermanent loss. Please ensure you understand the risks before proceeding.
+												</p>
+											</div>
+										</div>
+									</div>
+								</CardContent>
 							)}
-						</Button>
-					</div>
+
+							{/* Navigation Buttons */}
+							<CardFooter className="flex justify-between items-center w-full py-0 md:px-3">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={onPrev}
+									disabled={currentStep === 0 || createPoolMutation.isPending}
+									className="flex items-center space-x-2 py-1 px-3 h-10 max-w-28 w-full text-sm md:text-base"
+								>
+									<ArrowLeft className="w-3 h-3 md:w-4 md:h-4" />
+									<span className="hidden sm:inline">Previous</span>
+									<span className="sm:hidden">Prev</span>
+								</Button>
+								<Button
+									type="button"
+									onClick={onNext}
+									disabled={createPoolMutation.isPending || (currentStep === 3 && !form.formState.isValid)}
+									className="flex items-center rounded-[26px] space-x-2 py-1 px-3 h-10 max-w-36 w-full text-sm md:text-base bg-main-green hover:bg-hover-green disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									{createPoolMutation.isPending ? (
+										<>
+											<Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
+											<span className="hidden sm:inline">Creating Pool...</span>
+											<span className="sm:hidden">Creating...</span>
+										</>
+									) : currentStep === createPoolSteps.length - 1 ? (
+										<>
+											<span>Create Pool</span>
+											<ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+										</>
+									) : (
+										<>
+											<span className="hidden sm:inline">Next</span>
+											<span className="sm:hidden">Next</span>
+											<ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+										</>
+									)}
+								</Button>
+							</CardFooter>
+						</Card>
+					</section>
 				</form>
 			</Form>
 

@@ -28,8 +28,11 @@ body {
 		--primary-green: 113 100% 39%;
 		--primary-black: 0 0% 20%;
 		--primary-white: 0 0% 100%;
+		--primary-blue: 217 100% 53%;
 		--secondary-light-grey: 0 0% 60%;
 		--secondary-light-green: 113 100% 91%;
+		--secondary-light-yellow: 35 100% 93%;
+		--secondary-light-blue: 213 100% 96%;
 		--secondary-hover-green: 110 75% 61%;
 		--secondary-dark-grey: 0 0% 40%;
 		--secondary-strokes: 0 0% 40% / 0.35;
@@ -38,6 +41,7 @@ body {
 		--box-3: 0 0% 91%;
 		--light-box: 0 0% 91%;
 		--error: 0 93% 52%;
+		--warning: 37 93% 52%;
 		--card: 0 0% 100%;
 		--card-foreground: 0 0% 3.9%;
 		--popover: 0 0% 100%;
@@ -68,8 +72,11 @@ body {
 		--primary-green: 113 100% 43%;
 		--primary-black: 0 0% 100%;
 		--primary-white: 0 0% 0%;
+		--primary-blue: 217 100% 53%;
 		--secondary-light-grey: 0 0% 78%;
 		--secondary-light-green: 113 100% 91%;
+		--secondary-light-yellow: 35 54% 19%;
+		--secondary-light-blue: 213 42% 18%;
 		--secondary-hover-green: 110 75% 61%;
 		--secondary-dark-grey: 0 0% 100%;
 		--secondary-strokes: 0 0% 100%;
@@ -78,6 +85,7 @@ body {
 		--box-3: 0 1% 14%;
 		--light-box: 0 0% 91%;
 		--error: 0 93% 52%;
+		--warning: 37 93% 52%;
 		--card: 0 0% 3.9%;
 		--card-foreground: 0 0% 98%;
 		--popover: 0 0% 3.9%;
