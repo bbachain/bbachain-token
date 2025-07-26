@@ -6,27 +6,28 @@ import Image from 'next/image'
 import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { FaChartArea } from 'react-icons/fa'
 import { FaPlus } from 'react-icons/fa6'
-import { MdTrendingUp } from 'react-icons/md'
+import { IoSettings } from 'react-icons/io5'
 
 import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import {
 	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
 	DialogTitle,
-	DialogFooter
+	DialogDescription,
+	DialogClose,
+	DialogContent,
+	DialogFooter,
+	DialogHeader
 } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
 import { useCreatePool } from '@/features/liquidityPool/services'
 import { TCreatePoolPayload, MintInfo } from '@/features/liquidityPool/types'
 import { createPoolValidation } from '@/features/liquidityPool/validation'
@@ -43,7 +44,7 @@ import { getCoinGeckoId } from '@/features/swap/utils'
 import FormProgressLine from '@/features/tokens/components/form/FormProgressLine'
 import { cn, formatTokenBalance } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
-import StaticTokens, { isBBAPool, getBBAPositionInPool, requiresBBAWrapping, isNativeBBA } from '@/staticData/tokens'
+import { isBBAPool, getBBAPositionInPool, requiresBBAWrapping } from '@/staticData/tokens'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 // Enhanced step configuration
@@ -86,120 +87,6 @@ const feeTierOptions = [
 
 type FieldName = keyof TCreatePoolPayload
 
-// Success Dialog Component
-function SuccessDialog({ isOpen, onClose, poolData }: { isOpen: boolean; onClose: () => void; poolData: any }) {
-	const handleViewPool = () => {
-		// Navigate to the created pool
-		onClose()
-		// TODO: Add navigation to pool detail page
-	}
-
-	const handleCreateAnother = () => {
-		onClose()
-		// Form will be reset in the onClose handler
-	}
-
-	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="sm:max-w-[500px] rounded-[16px] p-0 overflow-hidden">
-				{/* Success Header with Animation */}
-				<div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 text-center">
-					<div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
-						<CheckCircle className="w-8 h-8" />
-					</div>
-					<DialogTitle className="text-xl font-semibold mb-2">🎉 Pool Created Successfully!</DialogTitle>
-					<DialogDescription className="text-green-100">
-						Your liquidity pool is now live and trading on BBAChain
-					</DialogDescription>
-				</div>
-
-				<div className="p-6 space-y-6">
-					{/* Pool Information */}
-					<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-						<h4 className="font-semibold text-main-black mb-3 flex items-center">
-							<span className="text-lg mr-2">💰</span>
-							Pool Information
-						</h4>
-						<div className="space-y-3">
-							<div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-								<span className="text-gray-600 dark:text-gray-400">Pool Address:</span>
-								<div className="flex items-center space-x-2">
-									<span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-										{poolData?.tokenSwap?.slice(0, 8)}...{poolData?.tokenSwap?.slice(-8)}
-									</span>
-									<Button
-										size="sm"
-										variant="ghost"
-										className="h-6 w-6 p-0"
-										onClick={() => navigator.clipboard.writeText(poolData?.tokenSwap || '')}
-									>
-										📋
-									</Button>
-								</div>
-							</div>
-							<div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-								<span className="text-gray-600 dark:text-gray-400">LP Token:</span>
-								<div className="flex items-center space-x-2">
-									<span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-										{poolData?.poolMint?.slice(0, 8)}...{poolData?.poolMint?.slice(-8)}
-									</span>
-									<Button
-										size="sm"
-										variant="ghost"
-										className="h-6 w-6 p-0"
-										onClick={() => navigator.clipboard.writeText(poolData?.poolMint || '')}
-									>
-										📋
-									</Button>
-								</div>
-							</div>
-							<div className="flex justify-between items-center py-2">
-								<span className="text-gray-600 dark:text-gray-400">Status:</span>
-								<span className="flex items-center space-x-2 text-green-600 dark:text-green-400">
-									<span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-									<span className="font-medium">Active</span>
-								</span>
-							</div>
-						</div>
-					</div>
-
-					{/* Next Steps */}
-					<div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
-						<h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3 flex items-center">
-							<span className="text-lg mr-2">🚀</span>
-							What&apos;s Next?
-						</h4>
-						<ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
-							<li className="flex items-center space-x-2">
-								<span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-								<span>Your pool is now discoverable by traders</span>
-							</li>
-							<li className="flex items-center space-x-2">
-								<span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-								<span>You&apos;ll earn fees from trades automatically</span>
-							</li>
-							<li className="flex items-center space-x-2">
-								<span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-								<span>Monitor your position in the Pools dashboard</span>
-							</li>
-						</ul>
-					</div>
-
-					{/* Action Buttons */}
-					<div className="flex gap-3">
-						<Button onClick={handleViewPool} variant="outline" className="flex-1">
-							View Pool
-						</Button>
-						<Button onClick={handleCreateAnother} className="flex-1 bg-main-green hover:bg-hover-green">
-							Create Another Pool
-						</Button>
-					</div>
-				</div>
-			</DialogContent>
-		</Dialog>
-	)
-}
-
 // Loading Overlay Component
 function LoadingOverlay({ isVisible, message }: { isVisible: boolean; message: string }) {
 	if (!isVisible) return null
@@ -229,6 +116,21 @@ function LoadingOverlay({ isVisible, message }: { isVisible: boolean; message: s
 				</div>
 			</div>
 		</div>
+	)
+}
+
+function LoadingDialog({ isOpen, title, description }: { isOpen: boolean; title: string; description: string }) {
+	return (
+		<Dialog open={isOpen}>
+			<DialogContent className="flex md:w-auto w-[290px] flex-col space-y-0 items-center text-center px-11 py-9">
+				<DialogHeader>
+					<DialogTitle></DialogTitle>
+				</DialogHeader>
+				<Image src="/parsing-loader.svg" width={64} height={64} alt="loader parser" className="animate-spin" />
+				<h4 className="mt-2 text-center font-semibold text-lg mb-1">{title}</h4>
+				<p className="text-lg text-[#989898]">{description}</p>
+			</DialogContent>
+		</Dialog>
 	)
 }
 
@@ -295,9 +197,6 @@ export default function CreatePool() {
 	const getBalanceQuery = useGetBalance()
 	const { openErrorDialog } = useErrorDialog()
 
-	// Token data from API with fallback to static data
-	const tokenData = getTokensQuery.data?.data || StaticTokens
-
 	// Form setup
 	const form = useForm<TCreatePoolPayload>({
 		mode: 'all',
@@ -321,12 +220,10 @@ export default function CreatePool() {
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
 	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
 	const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState<boolean>(false)
-	const [poolCreationData, setPoolCreationData] = useState<any>(null)
 
 	// Computed values
 	const selectedBaseToken = form.watch('baseToken')
 	const selectedQuoteToken = form.watch('quoteToken')
-	const priceSetting = form.watch('priceSetting')
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	// BBA Pool Detection
@@ -395,11 +292,9 @@ export default function CreatePool() {
 	// Handle successful pool creation
 	useEffect(() => {
 		if (createPoolMutation.isSuccess && createPoolMutation.data) {
-			setPoolCreationData(createPoolMutation.data)
 			setIsSuccessDialogOpen(true)
 			form.reset()
 			setCurrentStep(0)
-			toast.success('Pool created successfully!')
 		}
 	}, [createPoolMutation.isSuccess, createPoolMutation.data, form])
 
@@ -562,26 +457,6 @@ export default function CreatePool() {
 	)
 
 	// Show loading state for tokens
-	if (isLoadingTokens) {
-		return (
-			<div className="max-w-2xl mx-auto px-4 py-6">
-				<div className="text-center mb-8">
-					<h1 className="text-3xl font-bold text-main-black mb-2">Create Liquidity Pool</h1>
-					<p className="text-gray-600 dark:text-gray-400">Create a new liquidity pool for token trading on BBAChain</p>
-				</div>
-
-				<div className="space-y-6">
-					<div className="flex items-center justify-center py-12">
-						<div className="text-center space-y-4">
-							<Loader2 className="w-8 h-8 animate-spin mx-auto text-main-green" />
-							<p className="text-gray-600 dark:text-gray-400">Loading available tokens...</p>
-							<p className="text-sm text-gray-500 dark:text-gray-500">Fetching token list from BBAChain registry</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		)
-	}
 
 	return (
 		<div className="max-w-4xl mx-auto md:px-0 px-[15px] flex flex-col space-y-14">
@@ -597,7 +472,7 @@ export default function CreatePool() {
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
 					{/* Progress Line */}
 					<FormProgressLine steps={createPoolSteps} currentStep={currentStep} />
-					<section className="md:px-28">
+					<section className="md:px-36">
 						<Card className="md:p-6 p-3 flex flex-col space-y-[18px] border-main-green rounded-[12px] shadow-lg">
 							<CardHeader className="text-center p-0">
 								<CardTitle className="text-lg md:text-[28px] font-bold text-main-black">
@@ -773,18 +648,18 @@ export default function CreatePool() {
 											<TabsList className="bg-light-green px-3 py-1.5 w-full h-10 mb-[18px]">
 												<TabsTrigger
 													value="full-range"
-													className="w-full h-full bg-transparent text-sm text-light-grey font-normal hover:bg-main-green hover:text-main-white  focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
+													className="w-full h-full bg-transparent text-sm text-light-grey font-normal hover:bg-main-green hover:text-main-white focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
 												>
 													Full Range
 												</TabsTrigger>
 												<TabsTrigger
 													value="custom-range"
-													className="w-full h-full bg-transparent text-sm text-light-grey font-normal hover:bg-main-green hover:text-main-white  focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
+													className="w-full h-full bg-transparent text-sm text-light-grey font-normal hover:bg-main-green hover:text-main-white focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
 												>
 													Custom Range
 												</TabsTrigger>
 											</TabsList>
-											<TabsContent value="full-range" className="mt-3 md:mt-4">
+											<TabsContent value="full-range" className="p-2.5">
 												<div className="bg-light-blue border-2 border-main-blue rounded-lg md:rounded-xl p-3 md:p-4">
 													<div className="flex items-center space-x-2 text-main-black">
 														<Info className="w-4 h-4 text-main-blue md:w-5 md:h-5 " />
@@ -795,14 +670,14 @@ export default function CreatePool() {
 													</p>
 												</div>
 											</TabsContent>
-											<TabsContent value="custom-range" className="mt-3 md:mt-4">
+											<TabsContent value="custom-range" className="p-2.5">
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
 													<FormField
 														control={form.control}
 														name="minInitialPrice"
 														render={({ field }) => (
 															<FormItem>
-																<FormLabel className="text-sm md:text-base">Min Price</FormLabel>
+																<FormLabel className="text-sm md:text-base font-normal">Min Price</FormLabel>
 																<FormControl>
 																	<Input
 																		{...field}
@@ -821,7 +696,7 @@ export default function CreatePool() {
 														name="maxInitialPrice"
 														render={({ field }) => (
 															<FormItem>
-																<FormLabel className="text-sm md:text-base">Max Price</FormLabel>
+																<FormLabel className="text-sm md:text-base font-normal">Max Price</FormLabel>
 																<FormControl>
 																	<Input
 																		{...field}
@@ -961,31 +836,33 @@ export default function CreatePool() {
 										{/* Pool Configuration */}
 										<div className="bg-opacity-30 bg-[#D9D9D9] rounded-lg md:rounded-xl p-3 md:p-4">
 											<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
-												<span className="mr-2">⚙️</span>
+												<IoSettings className="text-main-green mr-1.5" />
 												Pool Configuration
 											</h4>
 											<div className="space-y-2 md:space-y-3">
-												<div className="flex justify-between items-center py-1">
-													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Initial Price:</span>
-													<span className="text-xs md:text-sm font-medium text-right max-w-[60%] break-words">
+												<div className="flex justify-between items-center">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Initial Price:</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium text-right max-w-[60%] break-words">
 														{form.watch('initialPrice')} {exchangeRate}
-													</span>
+													</p>
 												</div>
-												<div className="flex justify-between items-center py-1">
-													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Price Range:</span>
-													<span className="text-xs md:text-sm font-medium">
+												<div className="flex justify-between items-center">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Price Range:</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">
 														{form.watch('rangeType') === 'custom-range'
 															? `${form.watch('minInitialPrice')} - ${form.watch('maxInitialPrice')}`
 															: 'Full Range (0 to ∞)'}
-													</span>
+													</p>
 												</div>
-												<div className="flex justify-between items-center py-1">
-													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee:</span>
-													<span className="text-xs md:text-sm font-medium">{form.watch('feeTier')}% per trade</span>
+												<div className="flex justify-between items-center">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee:</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">
+														{form.watch('feeTier')}% per trade
+													</p>
 												</div>
-												<div className="flex justify-between items-center py-1">
-													<span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pool Type:</span>
-													<span className="text-xs md:text-sm font-medium">Constant Product (x*y=k)</span>
+												<div className="flex justify-between items-center">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pool Type:</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">Constant Product (x*y=k)</p>
 												</div>
 											</div>
 										</div>
@@ -993,7 +870,13 @@ export default function CreatePool() {
 										{/* Token Deposits */}
 										<div className="bg-opacity-30 bg-[#D9D9D9] rounded-lg md:rounded-xl p-3 md:p-4">
 											<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
-												<span className="mr-2">💰</span>
+												<Image
+													src="/money-bag-icon.svg"
+													width={15}
+													height={15}
+													alt="money-bag-icon"
+													className="inline mr-1.5"
+												/>
 												Token Deposits
 											</h4>
 											<div className="space-y-3">
@@ -1039,49 +922,43 @@ export default function CreatePool() {
 										</div>
 
 										{/* Expected Returns */}
-										<div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg md:rounded-xl p-3 md:p-4 border border-green-200 dark:border-green-800">
-											<h4 className="text-sm md:text-base font-medium text-green-900 dark:text-green-100 mb-2 md:mb-3 flex items-center">
-												<span className="mr-2">📈</span>
+										<div className="bg-transparent-green rounded-lg md:rounded-xl p-3 md:p-4 border border-main-green">
+											<h4 className="text-sm md:text-base font-medium text-main-black mb-2 md:mb-3 flex items-center">
+												<FaChartArea className="text-main-green mr-1.5" />
 												Expected Returns
 											</h4>
 											<div className="space-y-2">
 												<div className="flex justify-between items-center">
-													<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
-														Trading Fee Revenue:
-													</span>
-													<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee Revenue:</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">
 														{form.watch('feeTier')}% per trade
-													</span>
+													</p>
 												</div>
 												<div className="flex justify-between items-center">
-													<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
 														Est. Daily Volume (1% of TVL):
-													</span>
-													<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
+													</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">
 														${(totalDepositValue * 0.01).toFixed(2)}
-													</span>
+													</p>
 												</div>
 												<div className="flex justify-between items-center">
-													<span className="text-xs md:text-sm text-green-700 dark:text-green-300">
-														Est. Daily Fees:
-													</span>
-													<span className="text-xs md:text-sm font-medium text-green-900 dark:text-green-100">
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Est. Daily Fees:</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">
 														${((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100).toFixed(4)}
-													</span>
+													</p>
 												</div>
 												<div className="pt-2 border-t border-green-200 dark:border-green-700">
 													<div className="flex justify-between items-center">
-														<span className="text-xs md:text-sm font-medium text-green-700 dark:text-green-300">
-															Est. Annual APR:
-														</span>
-														<span className="text-sm md:text-base font-bold text-green-900 dark:text-green-100">
+														<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Est. Annual APR:</h5>
+														<p className="text-xs text-main-black md:text-sm font-medium">
 															{(
 																((((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100) * 365) /
 																	totalDepositValue) *
 																100
 															).toFixed(2)}
 															%
-														</span>
+														</p>
 													</div>
 												</div>
 											</div>
@@ -1090,8 +967,8 @@ export default function CreatePool() {
 
 									{/* Risk Warning */}
 									<div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg md:rounded-xl p-3 md:p-4">
-										<div className="flex items-start space-x-2 md:space-x-3">
-											<AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+										<div className="flex items-start space-x-1.5">
+											<AlertCircle className="text-yellow-600 dark:text-yellow-400" />
 											<div>
 												<h4 className="text-sm md:text-base font-medium text-yellow-800 dark:text-yellow-200">
 													Important Notice
@@ -1107,7 +984,7 @@ export default function CreatePool() {
 							)}
 
 							{/* Navigation Buttons */}
-							<CardFooter className="flex justify-between items-center w-full py-0 md:px-3">
+							<CardFooter className="flex justify-between items-center w-full py-0 md:px-3 px-0">
 								<Button
 									type="button"
 									variant="ghost"
@@ -1162,40 +1039,26 @@ export default function CreatePool() {
 			/>
 
 			{/* Success Dialog */}
-			<SuccessDialog
+			<LPSuccessDialog
 				isOpen={isSuccessDialogOpen}
-				onClose={() => {
-					setIsSuccessDialogOpen(false)
-					setPoolCreationData(null)
-				}}
-				poolData={poolCreationData}
+				onOpenChange={setIsSuccessDialogOpen}
+				title="Liquidity Pool Created Successfully"
+				contents={[
+					'🎉 Your new liquidity pool has been created!',
+					`Pair: ${form.getValues('baseToken.symbol')} / ${form.getValues('quoteToken.symbol')}`,
+					`Initial Liquidity: ${form.getValues('baseToken.symbol')}: ${form.getValues('baseTokenAmount')}, ${form.getValues('quoteToken.symbol')}: ${form.getValues('quoteTokenAmount')}`,
+					'You can now add more liquidity or begin trading this pair.'
+				]}
+				linkText="View Pool"
+				link=""
 			/>
 
 			{/* Loading Overlay */}
-			<LoadingOverlay
-				isVisible={createPoolMutation.isPending}
-				message="Your liquidity pool is being created on BBAChain."
+			<LoadingDialog
+				isOpen={createPoolMutation.isPending}
+				title="Creating Pool..."
+				description="Your liquidity pool is being created on BBAChain."
 			/>
-
-			{/* Token Loading Status */}
-			{isLoadingTokens && (
-				<div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-					<div className="flex items-center space-x-3">
-						<Loader2 className="w-4 h-4 animate-spin text-main-green" />
-						<span className="text-sm text-gray-600 dark:text-gray-400">Loading tokens from API...</span>
-					</div>
-				</div>
-			)}
-
-			{/* Token Error Status */}
-			{isTokensError && (
-				<div className="fixed bottom-4 right-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg shadow-lg p-4 border border-yellow-200 dark:border-yellow-800">
-					<div className="flex items-center space-x-3">
-						<AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-						<span className="text-sm text-yellow-700 dark:text-yellow-300">API unavailable, using static tokens</span>
-					</div>
-				</div>
-			)}
 		</div>
 	)
 }

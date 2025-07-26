@@ -80,6 +80,7 @@ const config: Config = {
 				warning: 'hsl(var(--warning))',
 				strokes: 'hsl(var(--secondary-strokes))',
 				'hover-green': 'hsl(var(--secondary-hover-green))',
+				'transparent-green': 'var(--secondary-transparent-green)',
 				'dark-grey': 'hsl(var(--secondary-dark-grey))'
 			},
 			keyframes: {
