@@ -43,7 +43,8 @@ const POOL_SERVICE_KEY = {
 	CREATE_POOL: 'create-pool',
 	GET_POOL_BY_ID: 'get-pool-by-id',
 	GET_POOL_BY_MINT: 'get-pool-by-mint',
-	GET_POOL_STATS: 'get-pool-stats'
+	GET_POOL_STATS: 'get-pool-stats',
+	GET_TRANSACTIONS_BY_POOL_ID: 'get-transations-by-pool-id'
 } as const
 
 const SERVICES_KEY = {

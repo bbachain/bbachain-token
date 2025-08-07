@@ -63,3 +63,4 @@ export type TGetSwapTransactionData = {
 export type TPostSwapTokensResponse = TSuccessMessage & {
 	txId: string
 }
+

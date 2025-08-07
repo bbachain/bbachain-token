@@ -72,7 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		}
 
 		const tokens = StaticTokens.filter((token) => addresses.includes(token.address))
-
+		
 		return NextResponse.json(
 			{
 				message: `Successfully retrieved ${tokens.length} tokens`,

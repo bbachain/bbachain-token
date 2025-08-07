@@ -1,6 +1,10 @@
+import moment from 'moment'
+
+import { getBBAFromDaltons, isNativeBBA } from '@/staticData/tokens'
+
 import { PoolListProps } from './components/Columns'
 import { OnchainPoolData } from './onchain'
-import { PoolData } from './types'
+import { MintInfo, PoolData, TokenTransactionBalance, TransactionData } from './types'
 
 /**
  * Convert OnchainPoolData to PoolListProps for UI display
@@ -137,4 +141,77 @@ export function getPoolStatistics(pools: PoolListProps[]): {
 		totalFees24h,
 		averageAPR
 	}
+}
+
+function getSignerWallet(transaction: TransactionData): string | null {
+	const signer = transaction.transaction.message.accountKeys.find((a) => a.signer)
+	return signer?.pubkey || null
+}
+
+function getTotalTransactionBalance(
+	balances: TokenTransactionBalance[] | number[],
+	mint: MintInfo,
+	wallet: string
+): number {
+	if (isNativeBBA(mint.address) && typeof balances[0] === 'number') {
+		return getBBAFromDaltons(balances[0]) as number
+	}
+	const balancesData = (balances as TokenTransactionBalance[]).find((b) => b.mint === mint.address && b.owner === wallet)
+	return balancesData?.uiTokenAmount.uiAmount ?? 0
+}
+
+function getTransactionDelta(
+	pre: TokenTransactionBalance[] | number[],
+	post: TokenTransactionBalance[] | number[],
+	mint: MintInfo,
+	wallet: string
+): number {
+	return getTotalTransactionBalance(post, mint, wallet) - getTotalTransactionBalance(pre, mint, wallet)
+}
+
+function isPositive(x: number, tolerance = 1e-9) {
+	return x > tolerance
+}
+function isNegative(x: number, tolerance = 1e-9) {
+	return x < -tolerance
+}
+
+function classifyType(baseDelta: number, quoteDelta: number): 'BUY' | 'SELL' | 'REMOVE' | 'ADD' | 'UNKNOWN' {
+	if (isPositive(baseDelta) && isNegative(quoteDelta)) return 'BUY'
+	if (isNegative(baseDelta) && isPositive(quoteDelta)) return 'SELL'
+	if (isPositive(baseDelta) && isPositive(quoteDelta)) return 'REMOVE'
+	if (isNegative(baseDelta) && isNegative(quoteDelta)) return 'ADD'
+	return 'UNKNOWN'
+}
+
+export function processTransactionData(transaction: TransactionData, mintA: MintInfo, mintB: MintInfo) {
+	const wallet = getSignerWallet(transaction)
+	if (!wallet) return null
+
+	const baseDelta = getTransactionDelta(
+		isNativeBBA(mintA.address) ? transaction.meta.preBalances : transaction.meta.preTokenBalances,
+		isNativeBBA(mintA.address) ? transaction.meta.postBalances : transaction.meta.postTokenBalances,
+		mintA,
+		wallet
+	)
+	const quoteDelta = getTransactionDelta(
+		isNativeBBA(mintB.address) ? transaction.meta.preBalances : transaction.meta.preTokenBalances,
+		isNativeBBA(mintB.address) ? transaction.meta.postBalances : transaction.meta.postTokenBalances,
+		mintB,
+		wallet
+	)
+
+	const type = classifyType(baseDelta, quoteDelta)
+
+	const data = {
+		wallet,
+		time: moment.unix(transaction.blockTime).fromNow(),
+		type,	
+		baseAmount: Number(Math.abs(baseDelta).toFixed(2)),
+		quoteAmount: Number(Math.abs(quoteDelta).toFixed(2)),
+		baseToken: mintA,
+		quoteToken: mintB
+	}
+
+	return data
 }

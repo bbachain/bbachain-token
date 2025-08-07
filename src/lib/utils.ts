@@ -41,3 +41,12 @@ export function formatBalanceDisplay(balance: number, decimals: number, maxDecim
 		maximumFractionDigits: maxDecimals
 	})
 }
+
+export function getExplorerAddress(address: string) {
+	return `https://explorer.bbachain.com/address/${address}?cluster=testnet`
+}
+
+export function shortenAddress(address: string, startLength = 6, endLength = 4): string {
+	if (!address || address.length < startLength + endLength) return address
+	return `${address.slice(0, startLength)}...${address.slice(-endLength)}`
+}

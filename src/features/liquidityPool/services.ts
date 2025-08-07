@@ -19,8 +19,21 @@ import { addBBAToPoolAccount, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrappi
 import { formatTokenToDaltons } from '@/lib/utils'
 import { isBBAPool, getBBAPositionInPool, isNativeBBA, getWBBAMintAddress } from '@/staticData/tokens'
 
+import { useGetCoinGeckoTokenPrice } from '../swap/services'
+import { getCoinGeckoId } from '../swap/utils'
+
+import { TransactionListProps } from './components/TransactionColumns'
 import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
-import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolsResponse } from './types'
+import {
+	MintInfo,
+	PoolData,
+	TCreatePoolPayload,
+	TCreatePoolResponse,
+	TGetPoolsResponse,
+	TGetPoolTransactionResponse,
+	TransactionData
+} from './types'
+import { processTransactionData } from './utils'
 
 // Enhanced retry configuration
 const RETRY_CONFIG = {
@@ -303,6 +316,72 @@ export const usePoolsBackgroundSync = () => {
 		staleTime: Infinity, // Never mark as stale since this is just for background sync
 		retry: 1,
 		retryDelay: 5000
+	})
+}
+
+export const useGetTransactionsByPoolId = ({
+	poolId,
+	baseMint,
+	quoteMint
+}: {
+	poolId: string
+	baseMint: MintInfo | undefined
+	quoteMint: MintInfo | undefined
+}) => {
+	const isValidParams = !!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
+
+	const baseUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: baseMint ? getCoinGeckoId(baseMint.address) : ''
+	})
+
+	const quoteUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: quoteMint ? getCoinGeckoId(quoteMint.address) : ''
+	})
+
+	const baseInitialPrice = baseUSDValue.data ?? 0
+	const quoteInitialPrice = quoteUSDValue.data ?? 0
+
+	const areTokenPricesReady = baseUSDValue.status === 'success' && quoteUSDValue.status === 'success'
+
+	return useQuery<TGetPoolTransactionResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, baseMint?.address, quoteMint?.address],
+		enabled: isValidParams && areTokenPricesReady,
+		staleTime: Infinity, // Prevents re-fetching on focus or other triggers
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+		refetchInterval: false,
+		queryFn: async () => {
+			if (!baseMint || !quoteMint) throw new Error('Base and Quote mint should be selected')
+
+			try {
+				const { data } = await axios.get(`${ENDPOINTS.BBASCAN.GET_DATA_BY_ADDRESS}/${poolId}`)
+
+				const transactionData = data.transactions as TransactionData[]
+
+				console.log('Transaction count:', transactionData?.length)
+
+				const responseData = transactionData
+					.map((tx) => {
+						const parsedData = processTransactionData(tx, baseMint, quoteMint)
+						if (!parsedData) return null
+
+						const baseAmountInUSD = parsedData.baseAmount * baseInitialPrice
+						const quoteAmountInUSD = parsedData.quoteAmount * quoteInitialPrice
+
+						return {
+							...parsedData,
+							baseAmountInUSD,
+							quoteAmountInUSD
+						} as TransactionListProps
+					})
+					.filter((item): item is TransactionListProps => item !== null)
+
+				return { message: 'Successfully get transaction data', data: responseData }
+			} catch (error) {
+				console.error('Failed to fetch transactions:', error)
+				return { message: 'Failed to fetch transactions', data: [] }
+			}
+		}
 	})
 }
 

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { type TTokenProps } from '@/features/swap/types'
 import { TSuccessMessage } from '@/types'
 
+import { TransactionListProps } from './components/TransactionColumns'
 import { createPoolValidation } from './validation'
 
 export type TLPTokenProps = TTokenProps & {
@@ -78,6 +79,35 @@ export type RewardInfo = {
 	endTime: string
 }
 
+export type TokenTransactionBalance = {
+	accountIndex: number
+	mint: string
+	owner: string
+	uiTokenAmount: {
+		amount: string
+		decimals: number
+		uiAmount: number
+		uiAmountString: string
+	}
+}
+
+export type TransactionDataMeta = {
+	preBalances: number[]
+	preTokenBalances: TokenTransactionBalance[]
+	postBalances: number[]
+	postTokenBalances: TokenTransactionBalance[]
+}
+
+export type TransactionData = {
+	blockTime: number
+	transaction: {
+		message: {
+			accountKeys: { pubkey: string; signer: boolean }[]
+		}
+	}
+	meta: TransactionDataMeta
+}
+
 export type TGetPoolsResponse = TSuccessMessage & {
 	data: PoolData[]
 }
@@ -94,3 +124,7 @@ export type TCreatePoolResponse = {
 }
 
 export type TCreatePoolPayload = z.infer<typeof createPoolValidation>
+
+export type TGetPoolTransactionResponse = TSuccessMessage & {
+	data: TransactionListProps[]
+}
