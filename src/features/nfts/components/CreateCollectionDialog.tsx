@@ -22,11 +22,22 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { LoadingDialog, SuccessDialogCollection, SuccessDialogNFT } from '@/features/nfts/components/StatusDialog'
 import { useCreateCollection, useValidateOffChainMetadata } from '@/features/nfts/services'
-import { TCreateCollectionPayload, TCreateNFTDialogProps } from '@/features/nfts/types'
+import { TCreateCollectionPayload } from '@/features/nfts/types'
 import { CreateCollectionValidation } from '@/features/nfts/validation'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type FieldName = keyof TCreateCollectionPayload
+
+const createCollectionSteps = [
+	{
+		id: 1,
+		fields: ['uri']
+	},
+	{
+		id: 2,
+		fields: ['name', 'symbol', 'sellerFeeBasisPoints']
+	}
+]
 
 export default function CreateCollectionDialog() {
 	const form = useForm<TCreateCollectionPayload>({
@@ -46,18 +57,18 @@ export default function CreateCollectionDialog() {
 	const [isSuccessDialogMetadata, setIsSuccessDialogMetadata] = useState<boolean>(false)
 	const [isSuccessDialogCollection, setIsSuccessDialogCollection] = useState<boolean>(false)
 	const [isLoadingDialog, setIsLoadingDialog] = useState<boolean>(false)
-	const [loadingDialogProps, setLoadingDialogProps] = useState<TCreateNFTDialogProps>({
-		title: '',
-		description: ''
-	})
 
-	const onValidateMetata = async () => {
-		const fields = ['uri']
+	const onNext = async () => {
+		const fields = createCollectionSteps[step].fields
 		const isValid = await form.trigger(fields as FieldName[], { shouldFocus: true })
 
 		if (!isValid) return
 
-		validateMetadataMutation.mutate({ uri: form.getValues('uri') })
+		if (step === 0) {
+			validateMetadataMutation.mutate({ uri: form.getValues('uri') })
+		} else if (step === createCollectionSteps.length - 1) {
+			await form.handleSubmit(onCreateCollection)()
+		}
 	}
 
 	const onCreateCollection = async (payload: TCreateCollectionPayload) => createCollectionMutation.mutate(payload)
@@ -67,10 +78,6 @@ export default function CreateCollectionDialog() {
 	useEffect(() => {
 		if (validateMetadataMutation.isPending) {
 			setIsLoadingDialog(true)
-			setLoadingDialogProps({
-				title: 'Parsing Metadata',
-				description: 'We’re loading and validating your metadata. Please wait a moment.'
-			})
 			return () => setIsLoadingDialog(false)
 		}
 	}, [validateMetadataMutation.isPending])
@@ -99,10 +106,6 @@ export default function CreateCollectionDialog() {
 	useEffect(() => {
 		if (createCollectionMutation.isPending) {
 			setIsLoadingDialog(true)
-			setLoadingDialogProps({
-				title: 'Creating Your Collection NFT…',
-				description: 'Please wait while your metadata is uploaded and the transaction is confirmed.'
-			})
 			return () => setIsLoadingDialog(false)
 		}
 	}, [createCollectionMutation.isPending])
@@ -156,11 +159,13 @@ export default function CreateCollectionDialog() {
 							className="flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 							onSubmit={form.handleSubmit(onCreateCollection)}
 						>
-							{isLoadingDialog && (
-								<div className="w-full h-full flex flex-col space-y-3 items-center justify-between">
-									<Loader2 className="animate-spin" width={40} height={40} />
-									<h3>{loadingDialogProps.title}</h3>
-									<p>{loadingDialogProps.description}</p>
+							{isSuccessDialogCollection && (
+								<div>
+									<Image src="/success-parsed.svg" width={64} height={64} alt="success parsed" />
+									<h4 className="mt-8 text-center font-semibold text-lg mb-6">Successfully Created Collection</h4>
+									<p className="md:text-lg text-sm mb-12 text-light-grey">
+										{createCollectionMutation.data?.message ?? ''}
+									</p>
 								</div>
 							)}
 							{step === 1 && (
@@ -240,6 +245,23 @@ export default function CreateCollectionDialog() {
 										</FormItem>
 									)}
 								/>
+							)}
+
+							{isSuccessDialogCollection ? (
+								<div className="flex justify-end">
+									<DialogClose asChild>
+										<Button>Close</Button>
+									</DialogClose>
+								</div>
+							) : (
+								<div className="flex justify-end space-x-2.5">
+									<DialogClose asChild>
+										<Button variant="outline">Cancel</Button>
+									</DialogClose>
+									<Button type="button" onClick={onNext}>
+										{step === 0 ? 'Next' : 'Create Collection'}
+									</Button>
+								</div>
 							)}
 						</form>
 					</Form>
