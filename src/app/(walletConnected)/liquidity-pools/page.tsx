@@ -1,21 +1,20 @@
 'use client'
 
 import { Loader2, Plus } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
 import { NoBalanceAlert } from '@/components/layout/Alert'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
+import { buttonVariants } from '@/components/ui/button'
 import { PoolListColumns } from '@/features/liquidityPool/components/Columns'
-import CreatePoolForm from '@/features/liquidityPool/components/CreatePoolForm'
 import { DataTable as PoolListTable } from '@/features/liquidityPool/components/DataTable'
 import StatisticCard from '@/features/liquidityPool/components/StatisticCard'
 import { useGetPools } from '@/features/liquidityPool/services'
 import { formatOnchainPoolsForUI } from '@/features/liquidityPool/utils'
 import { useIsMobile } from '@/hooks/isMobile'
+import { cn } from '@/lib/utils'
 import { useGetBalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
@@ -118,27 +117,22 @@ export default function LiquidityPools() {
 			<div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2.5 md:space-y-0">
 				<div className="text-left">
 					<h1 className="md:text-[45px] leading-tight text-xl font-bold text-main-black">Liquidity Pools</h1>
-					<p className="md:text-lg text-sm text-dark-grey font-normal">Discover and manage liquidity pools on BBAChain</p>
+					<p className="md:text-lg text-sm text-dark-grey font-normal">
+						Discover and manage liquidity pools on BBAChain
+					</p>
 				</div>
 
 				{/* Create Pool Button */}
-				<Dialog open={isCreatePoolOpen} onOpenChange={setIsCreatePoolOpen}>
-					<DialogTrigger asChild>
-						<Button
-							className="bg-main-green md:w-[168px] w-[123px] hover:bg-hover-green text-white rounded-full md:px-6 md:py-3 px-3 py-1.5 flex items-center md:space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 md:text-base text-sm"
-							size="lg"
-						>
-							<Plus className="w-5 h-5" />
-							<span>Create Pool</span>
-						</Button>
-					</DialogTrigger>
-					<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-						<DialogHeader>
-							<DialogTitle className="text-xl font-bold text-main-black">Create New Liquidity Pool</DialogTitle>
-						</DialogHeader>
-						<CreatePoolForm />
-					</DialogContent>
-				</Dialog>
+				<Link
+					href="/create-pool"
+					className={cn(
+						buttonVariants({ size: 'lg' }),
+						'bg-main-green md:w-[168px] w-[123px] hover:bg-hover-green text-white rounded-full md:px-6 md:py-3 px-3 py-1.5 flex items-center md:space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 md:text-base text-sm'
+					)}
+				>
+					<Plus className="w-5 h-5" />
+					<span>Create Pool</span>
+				</Link>
 			</div>
 
 			{/* Balance Alert */}

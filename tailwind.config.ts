@@ -67,15 +67,20 @@ const config: Config = {
 				main: {
 					green: 'hsl(var(--primary-green))',
 					black: 'hsl(var(--primary-black))',
-					white: 'hsl(var(--primary-white))'
+					white: 'hsl(var(--primary-white))',
+					blue: 'hsl(var(--primary-blue))'
 				},
 				light: {
 					grey: 'hsl(var(--secondary-light-grey))',
-					green: 'hsl(var(--secondary-light-green))'
+					green: 'hsl(var(--secondary-light-green))',
+					yellow: 'hsl(var(--secondary-light-yellow))',
+					blue: 'hsl(var(--secondary-light-blue))'
 				},
 				error: 'hsl(var(--error))',
+				warning: 'hsl(var(--warning))',
 				strokes: 'hsl(var(--secondary-strokes))',
 				'hover-green': 'hsl(var(--secondary-hover-green))',
+				'transparent-green': 'var(--secondary-transparent-green)',
 				'dark-grey': 'hsl(var(--secondary-dark-grey))'
 			},
 			keyframes: {

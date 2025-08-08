@@ -105,7 +105,7 @@ export default function TokenListDialog({
 			<DialogContent className="md:max-w-[436px] max-w-[300px] rounded-[12px] shadow-[0_6px_14.1px_6px_rgba(0,0,0,0.25)]">
 				<DialogHeader className="flex flex-row items-center space-x-0.5 w-full">
 					<DialogTitle className="font-normal text-lg text-main-black">
-						Select Token {type === 'from' ? 'From' : 'To'}
+						Select {type === 'from' ? 'Base' : 'Quote'} Token
 					</DialogTitle>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -218,11 +218,6 @@ export default function TokenListDialog({
 														<p className="text-[10px] text-start text-light-grey max-w-[200px] truncate">
 															{token.name}
 														</p>
-														{search && token.address.toLowerCase().includes(search.toLowerCase()) && (
-															<p className="text-[9px] text-start text-gray-400 font-mono max-w-[200px] truncate">
-																{token.address}
-															</p>
-														)}
 													</div>
 												</div>
 
