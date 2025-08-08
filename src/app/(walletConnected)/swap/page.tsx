@@ -1,9 +1,10 @@
 'use client'
 
+import { NATIVE_MINT } from '@bbachain/spl-token'
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { IoMdSettings } from 'react-icons/io'
 
@@ -17,7 +18,6 @@ import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import {
 	useGetSwapQuote,
 	useGetUserBalanceByMint,
-	useGetTokenPrice,
 	useExecuteSwap,
 	useCanSwap,
 	useGetSwapRoute,
@@ -29,21 +29,21 @@ import { getCoinGeckoId } from '@/features/swap/utils'
 import { cn } from '@/lib/utils'
 
 const initialBaseTokenProps: TTokenProps = {
-	address: 'GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR',
-	logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
-	symbol: 'USDT',
-	name: 'Tether USD',
-	decimals: 6,
-	tags: ['stablecoin']
+	name: 'BBA Coin',
+	symbol: 'BBA',
+	address: NATIVE_MINT.toBase58(),
+	logoURI: '/bba_logo.svg',
+	decimals: 9,
+	tags: ['native']
 }
 
 const initialQuoteTokenProps: TTokenProps = {
-	address: 'LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq',
-	logoURI: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
-	symbol: 'SHIB',
-	name: 'Shiba Inu',
+	name: 'Tether USD',
+	symbol: 'USDT',
+	address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
+	logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
 	decimals: 6,
-	tags: ['meme']
+	tags: ['stablecoin']
 }
 
 export default function Swap() {
@@ -114,14 +114,21 @@ export default function Swap() {
 	}, [searchParams, allTokens])
 
 	// Function to update URL with current token selection
-	const updateURLParams = (fromToken: TTokenProps, toToken: TTokenProps) => {
-		const params = new URLSearchParams()
-		params.set('from', fromToken.address)
-		params.set('to', toToken.address)
+	const updateURLParams = useCallback(
+		(fromToken: TTokenProps, toToken: TTokenProps) => {
+			const params = new URLSearchParams()
+			params.set('from', fromToken.address)
+			params.set('to', toToken.address)
 
-		// Update URL without page reload
-		router.push(`/swap?${params.toString()}`, { scroll: false })
-	}
+			// Update URL without page reload
+			router.push(`/swap?${params.toString()}`, { scroll: false })
+		},
+		[router]
+	)
+
+	useEffect(() => {
+		updateURLParams(fromTokenProps, toTokenProps)
+	}, [fromTokenProps, toTokenProps, updateURLParams])
 
 	// Enhanced swap quote using onchain pools
 	const swapQuoteQuery = useGetSwapQuote({
@@ -167,16 +174,20 @@ export default function Swap() {
 
 	// Computed values
 	const swapQuote = swapQuoteQuery.data
-	const mintABalance = getMintABalance.data?.balance || 0
-	const mintBBalance = getMintBBalance.data?.balance || 0
-	const mintAInitialPrice = getMintATokenPrice.data || 0
-	const mintBInitialPrice = getMintBTokenPrice.data || 0
+	const mintABalance = getMintABalance.data?.balance ?? 0
+	const mintBBalance = getMintBBalance.data?.balance ?? 0
+	const mintAInitialPrice = getMintATokenPrice.data ?? 0
+	const mintBInitialPrice = getMintBTokenPrice.data ?? 0
 
 	// Calculate USD values
-	const inputAmount = swapQuote?.inputAmount || 0
-	const outputAmount = swapQuote?.outputAmount || 0
-	const baseTokenPrice = inputAmount > 0 ? inputAmount * mintAInitialPrice : 0
-	const quoteTokenPrice = outputAmount > 0 ? outputAmount * mintBInitialPrice : 0
+	const inputAmount = swapQuote?.inputAmount ?? 0
+	const outputAmount = swapQuote?.outputAmount ?? 0
+	const baseTokenPrice = inputAmount * mintAInitialPrice
+	const quoteTokenPrice = outputAmount * mintBInitialPrice
+
+	useEffect(() => {
+		console.log('base token price ', baseTokenPrice)
+	}, [baseTokenPrice])
 
 	// Improved validation
 	const userInputAmount = Number(amountIn) || 0
@@ -214,12 +225,10 @@ export default function Swap() {
 	// Enhanced token setters that update URL
 	const setFromTokenWithURL = (token: TTokenProps) => {
 		setFromTokenProps(token)
-		updateURLParams(token, toTokenProps)
 	}
 
 	const setToTokenWithURL = (token: TTokenProps) => {
 		setToTokenProps(token)
-		updateURLParams(fromTokenProps, token)
 	}
 
 	const onReverseSwap = () => {
@@ -229,7 +238,6 @@ export default function Swap() {
 		const newToToken = fromTokenProps
 		setFromTokenProps(newFromToken)
 		setToTokenProps(newToToken)
-		updateURLParams(newFromToken, newToToken)
 	}
 
 	const handleSwap = async () => {
