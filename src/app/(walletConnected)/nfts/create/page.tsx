@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import CreateCollectionDialog from '@/features/nfts/components/CreateCollectionDialog'
 import SelectCollection, { SelectedItem } from '@/features/nfts/components/SelectCollection'
 import { LoadingDialog, SuccessDialogNFT } from '@/features/nfts/components/StatusDialog'
 import { useGetCollections, useCreateNFT, useValidateOffChainMetadata } from '@/features/nfts/services'
@@ -48,6 +49,7 @@ export default function CreateNFT() {
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
+	const [isCreateCollection, setIsCreateCollection] = useState<boolean>(false)
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
 	const [successDialogProps, setSuccessDialogProps] = useState<TCreateNFTDialogProps>(initialDialogContent)
 	const [isLoadingDialog, setIsLoadingDialog] = useState<boolean>(false)
@@ -159,7 +161,7 @@ export default function CreateNFT() {
 		return (
 			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
 				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Creating your token...</p>
+				<p>Please wait...</p>
 			</div>
 		)
 
@@ -176,8 +178,9 @@ export default function CreateNFT() {
 				title={successDialogProps.title}
 				description={successDialogProps.description}
 			/>
+			<CreateCollectionDialog isOpen={isCreateCollection} onOpenChange={setIsCreateCollection} />
 			{isNoBalance && (
-				<div className="xl:px-24 md:px-16 px-[15px]">
+				<div className="xl:px-24 md:px-16 px-[15px] mb-7">
 					<NoBalanceAlert />
 				</div>
 			)}
@@ -240,7 +243,7 @@ export default function CreateNFT() {
 								setSelected={setSelectedCollection}
 								isDataPending={getCollectionQuery.isPending}
 								collectionList={collectionListData}
-								onCreateNew={() => router.push('/collection/create')}
+								onCreateNew={() => setIsCreateCollection(true)}
 							/>
 						</div>
 						<div className="flex justify-center">

@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -120,6 +120,14 @@ export default function CreateCollection() {
 		}
 	}, [createCollectionMutation.error, createCollectionMutation.isError, openErrorDialog])
 
+	if (getBalanceQuery.isLoading)
+		return (
+			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
+				<Loader2 className="animate-spin" width={40} height={40} />
+				<p>Please wait...</p>
+			</div>
+		)
+
 	return (
 		<>
 			<LoadingDialog
@@ -142,10 +150,14 @@ export default function CreateCollection() {
 					mintAddress: createCollectionMutation.data?.data.mintAddress ?? ''
 				}}
 			/>
+			{isNoBalance && (
+				<div className="xl:px-24 md:px-16 px-[15px] mb-7">
+					<NoBalanceAlert />
+				</div>
+			)}
 			<h1 className="text-center md:text-[55px] md:mb-9 md-3 leading-tight text-xl font-bold text-main-black">
 				Create NFT Collection
 			</h1>
-			{isNoBalance && <NoBalanceAlert />}
 			<Form {...form}>
 				<form
 					className="2xl:px-[420px] xl:px-80 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
