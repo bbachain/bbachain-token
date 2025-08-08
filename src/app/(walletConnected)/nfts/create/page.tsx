@@ -240,7 +240,7 @@ export default function CreateNFT() {
 								setSelected={setSelectedCollection}
 								isDataPending={getCollectionQuery.isPending}
 								collectionList={collectionListData}
-								onCreateNew={() => router.push('/create-collection')}
+								onCreateNew={() => router.push('/collection/create')}
 							/>
 						</div>
 						<div className="flex justify-center">
