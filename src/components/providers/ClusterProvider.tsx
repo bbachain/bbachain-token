@@ -6,6 +6,8 @@ import { atomWithStorage } from 'jotai/utils'
 import { createContext, ReactNode, useContext } from 'react'
 import toast from 'react-hot-toast'
 
+import { isProduction } from '@/lib/utils'
+
 export interface Cluster {
 	name: string
 	endpoint: string
@@ -22,7 +24,8 @@ export enum ClusterNetwork {
 // By default, we don't configure the mainnet-beta cluster
 // The endpoint provided by clusterApiUrl('mainnet-beta') does not allow access from the browser due to CORS restrictions
 // To use the mainnet-beta cluster, provide a custom endpoint
-export const defaultClusters: Cluster[] = [
+
+const developmentClusters: Cluster[] = [
 	{
 		name: 'mainnet',
 		endpoint: clusterApiUrl('mainnet'),
@@ -34,6 +37,16 @@ export const defaultClusters: Cluster[] = [
 		network: ClusterNetwork.Testnet
 	}
 ]
+
+const productionCluster: Cluster[] = [
+	{
+		name: 'mainnet',
+		endpoint: clusterApiUrl('mainnet'),
+		network: ClusterNetwork.Mainnet
+	}
+]
+
+export const defaultClusters: Cluster[] = isProduction ? productionCluster : developmentClusters
 
 const clusterAtom = atomWithStorage<Cluster>('bbachain-cluster', defaultClusters[0])
 const clustersAtom = atomWithStorage<Cluster[]>('bbachain-clusters', defaultClusters)
