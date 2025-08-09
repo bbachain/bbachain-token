@@ -804,15 +804,11 @@ export function DataTable<TData, TValue>({
 											key={row.id}
 											data-state={row.getIsSelected() && 'selected'}
 											className={cn(
-												'border-b  border-light-grey transition-colors hover:bg-box-3 focus:bg-box-3',
+												'border-b  border-light-grey hover:cursor-pointer transition-colors hover:bg-box-3 focus:bg-box-3',
 												'h-16',
 												index === table.getRowModel().rows.length - 1 && 'border-b-0'
 											)}
-											onClick={() => {
-												if (isMobile) {
-													router.push(`?poolId=${id}`)
-												}
-											}}
+											onClick={() => router.push(`/liquidity-pools/detail/${id}`)}
 										>
 											{row.getVisibleCells().map((cell) => (
 												<TableCell key={cell.id} className="py-3">

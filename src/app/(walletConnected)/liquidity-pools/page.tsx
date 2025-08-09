@@ -124,7 +124,7 @@ export default function LiquidityPools() {
 
 				{/* Create Pool Button */}
 				<Link
-					href="/create-pool"
+					href="/liquidity-pools/create-pool"
 					className={cn(
 						buttonVariants({ size: 'lg' }),
 						'bg-main-green md:w-[168px] w-[123px] hover:bg-hover-green text-white rounded-full md:px-6 md:py-3 px-3 py-1.5 flex items-center md:space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 md:text-base text-sm'
@@ -134,7 +134,6 @@ export default function LiquidityPools() {
 					<span>Create Pool</span>
 				</Link>
 			</div>
-
 			{/* Balance Alert */}
 			{isNoBalance && <NoBalanceAlert />}
 

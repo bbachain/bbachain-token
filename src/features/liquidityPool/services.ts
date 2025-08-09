@@ -251,7 +251,7 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 			}
 		},
 		enabled: !!poolId,
-		staleTime: 30000, // 30 seconds
+		...CACHE_CONFIG,
 		retry: 2,
 		retryDelay: 1000
 	})
@@ -346,10 +346,9 @@ export const useGetTransactionsByPoolId = ({
 	return useQuery<TGetPoolTransactionResponse>({
 		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, baseMint?.address, quoteMint?.address],
 		enabled: isValidParams && areTokenPricesReady,
-		staleTime: Infinity, // Prevents re-fetching on focus or other triggers
-		refetchOnWindowFocus: false,
-		refetchOnReconnect: false,
-		refetchInterval: false,
+		...CACHE_CONFIG,
+		retry: 2,
+		retryDelay: 1000,
 		queryFn: async () => {
 			if (!baseMint || !quoteMint) throw new Error('Base and Quote mint should be selected')
 
@@ -1037,6 +1036,7 @@ export const useCreatePool = () => {
 			// Invalidate pools cache to refresh the list
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()] })
 		},
 		onError: (error) => {
 			console.error('❌ Pool creation failed:', error)

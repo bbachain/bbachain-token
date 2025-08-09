@@ -1,6 +1,6 @@
 'use client'
 import { ColumnDef } from '@tanstack/react-table'
-import Link from 'next/link'
+import { sentenceCase } from 'text-case'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -79,9 +79,8 @@ function SelectTypePopover({ value = [], onChange }: SelectTypePopoverProps) {
 					Type
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent className="w-48 p-2 space-y-2">
-				<div className="flex items-center justify-between px-1">
-					<p className="text-sm font-medium text-muted-foreground">Filter Types</p>
+			<PopoverContent className="w-40 rounded-[4px] bg-white dark:bg-[#171717] p-2 space-y-2">
+				<div className="flex justify-end px-1">
 					{value?.length > 0 && (
 						<Button variant="ghost" size="sm" className="text-xs text-red-500 p-0 h-auto" onClick={clearAll}>
 							Clear
@@ -92,11 +91,8 @@ function SelectTypePopover({ value = [], onChange }: SelectTypePopoverProps) {
 					{typeOptions.map((type) => (
 						<div key={type} className="flex items-center space-x-2">
 							<Checkbox id={type} checked={isSelected(type)} onCheckedChange={() => toggleType(type)} />
-							<label
-								htmlFor={type}
-								className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-							>
-								{type}
+							<label htmlFor={type} className="text-sm font-normal text-main-black">
+								{sentenceCase(type)}
 							</label>
 						</div>
 					))}
@@ -132,30 +128,35 @@ export const getTransactionListColumns = (
 	{
 		accessorKey: 'baseAmount',
 		header: baseTokenSymbol,
-		cell: ({ row }) => <p>${row.original.baseAmount.toLocaleString()}</p>
+		cell: ({ row }) => <p>{row.original.baseAmount.toLocaleString()}</p>
 	},
 	{
 		accessorKey: 'quoteAmount',
 		header: quoteTokenSymbol,
-		cell: ({ row }) => <p>${row.original.quoteAmount.toLocaleString()}</p>
+		cell: ({ row }) => <p>{row.original.quoteAmount.toLocaleString()}</p>
 	},
 	{
 		accessorKey: 'baseAmountInUSD',
-		header: `${baseTokenSymbol} in USD`,
+		header: `${baseTokenSymbol} in USDT`,
 		cell: ({ row }) => <p>${row.original.baseAmountInUSD.toLocaleString()}</p>
 	},
 	{
 		accessorKey: 'quoteAmountInUSD',
-		header: `${quoteTokenSymbol} in USD`,
+		header: `${quoteTokenSymbol} in USDT`,
 		cell: ({ row }) => <p>${row.original.quoteAmountInUSD.toLocaleString()}</p>
 	},
 	{
 		accessorKey: 'wallet',
 		header: () => <h3 className="pr-6 text-right">Wallet</h3>,
 		cell: ({ row }) => (
-			<Link href={getExplorerAddress(row.original.wallet)} className="hover:text-main-green">
+			<a
+				className="hover:text-main-green"
+				href={getExplorerAddress(row.original.wallet)}
+				target="_blank"
+				rel="noopener noreferrer"
+			>
 				{shortenAddress(row.original.wallet)}
-			</Link>
+			</a>
 		)
 	}
 ]

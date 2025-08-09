@@ -595,6 +595,7 @@ export interface SwapExecutionResult {
 	actualOutputAmount: number
 	priceImpact: number
 	executionTime: number
+	poolDetail?: OnchainPoolData
 }
 
 /**
@@ -879,17 +880,29 @@ export const useExecuteSwap = () => {
 				outputAmount: expectedOutput,
 				actualOutputAmount: expectedOutput, // TODO: Get actual from transaction logs
 				priceImpact: calculatePriceImpact(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal),
-				executionTime: Date.now() - startTime
+				executionTime: Date.now() - startTime,
+				poolDetail: pool
 			} as SwapExecutionResult
 		},
 		onSuccess: (result) => {
 			console.log('✅ Swap completed successfully:', result)
+			const poolId = result.poolDetail?.address
+			const baseMint = result.poolDetail?.mintA
+			const quoteMint = result.poolDetail?.mintB
 
 			// Invalidate relevant queries to refresh balances and pool data
 			queryClient.invalidateQueries({ queryKey: ['swap-quote'] })
 			queryClient.invalidateQueries({ queryKey: ['user-balance'] })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.SWAP.GET_USER_BALANCE_BY_MINT] })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId] })
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, baseMint?.address, quoteMint?.address]
+			})
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, quoteMint?.address, baseMint?.address]
+			})
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, publicKey?.toBase58()] })
 		},
 		onError: (error) => {
 			console.error('❌ Swap failed:', error)

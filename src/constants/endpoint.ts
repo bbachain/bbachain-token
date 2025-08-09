@@ -3,7 +3,7 @@ const IPFS_BASE_ENDPOINT = 'https://ipfs.io/ipfs'
 const RAYDIUM_API_BASE_ENDPOINT = 'https://api-v3.raydium.io'
 const RAYDIUM_TRANSACTION_API_BASE_ENDPOINT = 'https://transaction-v1.raydium.io'
 const COIN_GECKO_API_BASE_ENDPOINT = 'https://api.coingecko.com/api/v3'
-const BBASCAN_TESTNET_API_BASE_ENDPOINT = 'https://api-testnet.bbascan.com/api'
+const BBASCAN_API_BASE_ENDPOINT = 'https://api.bbascan.com/api'
 
 const PINATA_ENDPOINTS = {
 	UPLOAD_FILE: PINATA_API_BASE_ENDPOINT + '/pinning/pinFileToIPFS',
@@ -28,7 +28,7 @@ const INTERNAL_API_ENDPOINTS = {
 } as const
 
 const BBASCAN_API_ENDPOINTS = {
-	GET_DATA_BY_ADDRESS: BBASCAN_TESTNET_API_BASE_ENDPOINT + '/address'
+	GET_DATA_BY_ADDRESS: BBASCAN_API_BASE_ENDPOINT + '/address'
 } as const
 
 const ENDPOINTS = {
