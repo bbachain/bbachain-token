@@ -129,7 +129,7 @@ export default function CreateCollection() {
 		)
 
 	return (
-		<>
+		<div className="xl:px-24 md:px-16 px-[15px]">
 			<LoadingDialog
 				title={loadingDialogProps.title}
 				description={loadingDialogProps.description}
@@ -151,16 +151,16 @@ export default function CreateCollection() {
 				}}
 			/>
 			{isNoBalance && (
-				<div className="xl:px-24 md:px-16 px-[15px] mb-7">
+				<div className="mb-7">
 					<NoBalanceAlert />
 				</div>
 			)}
-			<h1 className="text-center md:text-[55px] md:mb-9 md-3 leading-tight text-xl font-bold text-main-black">
+			<h1 className="text-center md:text-[55px] md:mb-9 mb-6 leading-tight text-xl font-bold text-main-black">
 				Create NFT Collection
 			</h1>
 			<Form {...form}>
 				<form
-					className="2xl:px-[420px] xl:px-80 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
+					className="w-full mx-auto md:max-w-[600px] max-w-[290px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 					onSubmit={form.handleSubmit(onCreateCollection)}
 				>
 					{step === 1 && (
@@ -286,6 +286,6 @@ export default function CreateCollection() {
 					)}
 				</form>
 			</Form>
-		</>
+		</div>
 	)
 }
