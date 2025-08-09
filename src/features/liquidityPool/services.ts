@@ -1024,6 +1024,10 @@ export const useCreatePool = () => {
 					feeAccount: feeAccount.toBase58(),
 					lpTokenAccount: poolTokenAccount.toBase58(),
 					signature: finalSig,
+					baseToken: payload.baseToken,
+					quoteToken: payload.quoteToken,
+					baseTokenAmount: Number(payload.baseTokenAmount),
+					quoteTokenAmount: Number(payload.quoteTokenAmount),
 					message: 'Pool created successfully!'
 				}
 			} catch (error) {

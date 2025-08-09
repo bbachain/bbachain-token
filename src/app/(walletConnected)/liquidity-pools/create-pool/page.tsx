@@ -990,12 +990,12 @@ export default function CreatePool() {
 				title="Liquidity Pool Created Successfully"
 				contents={[
 					'🎉 Your new liquidity pool has been created!',
-					`Pair: ${form.getValues('baseToken.symbol')} / ${form.getValues('quoteToken.symbol')}`,
-					`Initial Liquidity: ${form.getValues('baseToken.symbol')}: ${form.getValues('baseTokenAmount')}, ${form.getValues('quoteToken.symbol')}: ${form.getValues('quoteTokenAmount')}`,
+					`Pair: ${createPoolMutation.data?.baseToken.symbol} / ${createPoolMutation.data?.quoteToken.symbol}`,
+					`Initial Liquidity: ${createPoolMutation.data?.baseToken.symbol}: ${createPoolMutation.data?.baseTokenAmount}, ${createPoolMutation.data?.quoteToken.symbol}: ${createPoolMutation.data?.quoteTokenAmount}`,
 					'You can now add more liquidity or begin trading this pair.'
 				]}
 				linkText="View Pool"
-				link=""
+				link={`/liquidity-pools/detail/${createPoolMutation.data?.poolMint}`}
 			/>
 
 			{/* Loading Overlay */}

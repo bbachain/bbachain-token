@@ -121,6 +121,10 @@ export type TCreatePoolResponse = {
 	poolMint: string
 	feeAccount: string
 	lpTokenAccount: string
+	baseToken: MintInfo
+	quoteToken: MintInfo
+	baseTokenAmount: number
+	quoteTokenAmount: number
 }
 
 export type TCreatePoolPayload = z.infer<typeof createPoolValidation>
