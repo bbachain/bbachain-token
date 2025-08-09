@@ -190,7 +190,7 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 				<section>
 					<Button
 						variant="ghost"
-						onClick={() => router.push('/my-nfts')}
+						onClick={() => router.push('/nfts')}
 						className={'md:flex hidden w-32 mb-3 text-main-black items-center space-x-2.5 text-xl'}
 					>
 						<HiOutlineArrowNarrowLeft />

@@ -24,8 +24,8 @@ type BasicDialog = {
 export function LoadingDialog({ isOpen, title, description }: BasicDialog) {
 	return (
 		<Dialog open={isOpen}>
-			<DialogContent className="flex flex-col items-center text-center px-11 py-9">
-				<DialogHeader>
+			<DialogContent withoutClose className="flex md:max-w-[600px] rounded-[15px] max-w-[286px] w-full flex-col space-y-0 items-center text-center px-11 py-9">
+				<DialogHeader className="p-0">
 					<DialogTitle></DialogTitle>
 				</DialogHeader>
 				<Image src="/parsing-loader.svg" width={64} height={64} alt="loader parser" className="animate-spin" />
@@ -46,14 +46,14 @@ export function SuccessDialogNFT({
 }) {
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className="flex flex-col items-center text-center px-11 py-9">
-				<DialogHeader>
+			<DialogContent className="flex md:max-w-[600px] rounded-[15px] max-w-[286px] w-full flex-col space-y-0 items-center text-center px-11 py-9">
+				<DialogHeader className="p-0">
 					<DialogTitle></DialogTitle>
 				</DialogHeader>
 				<Image src="/success-parsed.svg" width={64} height={64} alt="success parsed" />
 				<h4 className="mt-8 text-center font-semibold text-lg mb-6">{title}</h4>
-				<p className="text-lg mb-12 text-[#989898]">{description}</p>
-				<DialogFooter>
+				<p className="md:text-lg text-sm mb-12 text-light-grey">{description}</p>
+				<DialogFooter className="p-0">
 					<DialogClose asChild>
 						<Button
 							className="bg-main-green w-[230px] hover:bg-hover-green rounded-[30px] h-[48px] text-lg text-main-white"

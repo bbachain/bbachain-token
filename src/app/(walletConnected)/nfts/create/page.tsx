@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import CreateCollectionDialog from '@/features/nfts/components/CreateCollectionDialog'
 import SelectCollection, { SelectedItem } from '@/features/nfts/components/SelectCollection'
 import { LoadingDialog, SuccessDialogNFT } from '@/features/nfts/components/StatusDialog'
 import { useGetCollections, useCreateNFT, useValidateOffChainMetadata } from '@/features/nfts/services'
@@ -48,6 +49,7 @@ export default function CreateNFT() {
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
+	const [isCreateCollection, setIsCreateCollection] = useState<boolean>(false)
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
 	const [successDialogProps, setSuccessDialogProps] = useState<TCreateNFTDialogProps>(initialDialogContent)
 	const [isLoadingDialog, setIsLoadingDialog] = useState<boolean>(false)
@@ -159,12 +161,12 @@ export default function CreateNFT() {
 		return (
 			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
 				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Creating your token...</p>
+				<p>Please wait...</p>
 			</div>
 		)
 
 	return (
-		<>
+		<div className="xl:px-24 md:px-16 px-[15px]">
 			<LoadingDialog
 				isOpen={isLoadingDialog}
 				title={loadingDialogProps.title}
@@ -176,13 +178,14 @@ export default function CreateNFT() {
 				title={successDialogProps.title}
 				description={successDialogProps.description}
 			/>
+			<CreateCollectionDialog isOpen={isCreateCollection} onOpenChange={setIsCreateCollection} />
 			{isNoBalance && (
-				<div className="xl:px-24 md:px-16 px-[15px]">
+				<div className="mb-7">
 					<NoBalanceAlert />
 				</div>
 			)}
 			{step === 'preview' && (
-				<div className="xl:px-24 md:px-16 px-[15px]">
+				<div>
 					<Button
 						variant="ghost"
 						onClick={() => setStep('upload')}
@@ -193,7 +196,7 @@ export default function CreateNFT() {
 					</Button>
 					<form
 						onSubmit={form.handleSubmit(onCreateNFT)}
-						className="flex flex-col md:px-[330px] md:space-y-6 space-y-3"
+						className="flex md:w-[600px] mx-auto w-full flex-col md:space-y-6 space-y-3"
 					>
 						<h3 className="text-center text-main-black font-medium text-[32px]">Metadata Preview</h3>
 						<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
@@ -240,7 +243,7 @@ export default function CreateNFT() {
 								setSelected={setSelectedCollection}
 								isDataPending={getCollectionQuery.isPending}
 								collectionList={collectionListData}
-								onCreateNew={() => router.push('/create-collection')}
+								onCreateNew={() => setIsCreateCollection(true)}
 							/>
 						</div>
 						<div className="flex justify-center">
@@ -257,7 +260,7 @@ export default function CreateNFT() {
 			{step === 'upload' && (
 				<Form {...form}>
 					<form
-						className="xl:px-[420px] md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
+						className="md:w-[600px] mx-auto w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 						onSubmit={form.handleSubmit(onValidateMetadata)}
 					>
 						<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">Mint New NFT</h1>
@@ -301,6 +304,6 @@ export default function CreateNFT() {
 					</form>
 				</Form>
 			)}
-		</>
+		</div>
 	)
 }
