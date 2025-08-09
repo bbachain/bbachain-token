@@ -32,6 +32,10 @@ const createCollectionSteps = [
 	{
 		id: 2,
 		fields: ['name', 'symbol', 'sellerFeeBasisPoints']
+	},
+	{
+		id: 3,
+		fields: []
 	}
 ]
 
@@ -65,15 +69,16 @@ export default function CreateCollectionDialog({
 
 		if (step === 0) {
 			validateMetadataMutation.mutate({ uri: form.getValues('uri') })
-		} else if (step === createCollectionSteps.length - 1) {
+		} else if (step === 1) {
 			await form.handleSubmit(onCreateCollection)()
+		} else if (step === createCollectionSteps.length - 1) {
+			handleDialogOpenChange(false)
 		}
 	}
 
 	const onCreateCollection = async (payload: TCreateCollectionPayload) => createCollectionMutation.mutate(payload)
 	const { openErrorDialog } = useErrorDialog()
 	const isLoading = validateMetadataMutation.isPending || createCollectionMutation.isPending
-	const isCreateCollectionSuccess = createCollectionMutation.isSuccess && createCollectionMutation.data
 
 	const handleDialogOpenChange = (open: boolean) => {
 		if (!open) {
@@ -92,7 +97,7 @@ export default function CreateCollectionDialog({
 			form.setValue('name', validateMetadataMutation.data.data.name)
 			form.setValue('symbol', validateMetadataMutation.data.data.symbol)
 			form.setValue('sellerFeeBasisPoints', validateMetadataMutation.data.data.seller_fee_basis_points.toString())
-			setStep(1)
+			setStep((step) => step + 1)
 		}
 	}, [form, validateMetadataMutation.data, validateMetadataMutation.isSuccess])
 
@@ -106,10 +111,11 @@ export default function CreateCollectionDialog({
 	}, [openErrorDialog, validateMetadataMutation.error, validateMetadataMutation.isError])
 
 	useEffect(() => {
-		if (isCreateCollectionSuccess) {
+		if (createCollectionMutation.isSuccess && createCollectionMutation.data) {
 			form.reset()
+			setStep((step) => step + 1)
 		}
-	}, [isCreateCollectionSuccess, form])
+	}, [createCollectionMutation.isSuccess, createCollectionMutation.data, form])
 
 	useEffect(() => {
 		if (createCollectionMutation.isError && createCollectionMutation.error) {
@@ -122,29 +128,26 @@ export default function CreateCollectionDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-			<DialogContent className="w-full md:max-w-[565px]">
-				<DialogHeader className="p-0">
+			<DialogContent className="w-full rounded-sm md:p-6 p-3 flex flex-col space-y-3 md:max-w-[565px] max-w-[290px]">
+				<DialogHeader className="!p-0">
 					<DialogTitle>Create New Collection</DialogTitle>
 					<DialogDescription>
 						Group your NFTs under a shared name for better visibility and verification.
 					</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
-					<form
-						className="flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
-						onSubmit={form.handleSubmit(onCreateCollection)}
-					>
-						{isCreateCollectionSuccess && (
-							<div>
-								<Image src="/success-parsed.svg" width={64} height={64} alt="success parsed" />
-								<h4 className="mt-8 text-center font-semibold text-lg mb-6">Successfully Created Collection</h4>
+					<form className="flex w-full h-full flex-col space-y-6" onSubmit={form.handleSubmit(onCreateCollection)}>
+						{step === 2 && (
+							<div className="w-full h-full text-center">
+								<Image src="/success-parsed.svg" className="mx-auto" width={64} height={64} alt="success parsed" />
+								<h4 className=" text-center font-semibold text-lg my-6">Successfully Created Collection</h4>
 								<p className="md:text-lg text-sm mb-12 text-light-grey">
 									{createCollectionMutation.data?.message ?? ''}
 								</p>
 							</div>
 						)}
 						{step === 1 && (
-							<div>
+							<div className="flex flex-col space-y-6">
 								<FormField
 									control={form.control}
 									name="name"
@@ -221,19 +224,34 @@ export default function CreateCollectionDialog({
 								)}
 							/>
 						)}
-
-						{isCreateCollectionSuccess ? (
+						{step === 2 ? (
 							<div className="flex justify-end">
 								<DialogClose asChild>
-									<Button>Close</Button>
+									<Button
+										variant="outline"
+										type="button"
+										className="rounded-[42px] border border-main-green text-main-green font-medium text-sm"
+									>
+										Close
+									</Button>
 								</DialogClose>
 							</div>
 						) : (
 							<div className="flex justify-end space-x-2.5">
 								<DialogClose asChild>
-									<Button variant="outline">Cancel</Button>
+									<Button
+										variant="outline"
+										className="rounded-[42px] border border-main-green text-main-green font-medium text-sm"
+									>
+										Cancel
+									</Button>
 								</DialogClose>
-								<Button type="button" disabled={isLoading} onClick={onNext}>
+								<Button
+									type="button"
+									className="rounded-[42px]  bg-main-green text-main-white hover:bg-hover-green font-medium text-sm"
+									disabled={isLoading}
+									onClick={onNext}
+								>
 									{isLoading && <Loader2 className="animate-spin" />}
 									{step === 0 ? 'Next' : 'Create Collection'}
 								</Button>

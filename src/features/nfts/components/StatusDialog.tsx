@@ -24,7 +24,7 @@ type BasicDialog = {
 export function LoadingDialog({ isOpen, title, description }: BasicDialog) {
 	return (
 		<Dialog open={isOpen}>
-			<DialogContent className="flex md:max-w-[600px] rounded-[15px] max-w-[286px] w-full flex-col space-y-0 items-center text-center px-11 py-9">
+			<DialogContent withoutClose className="flex md:max-w-[600px] rounded-[15px] max-w-[286px] w-full flex-col space-y-0 items-center text-center px-11 py-9">
 				<DialogHeader className="p-0">
 					<DialogTitle></DialogTitle>
 				</DialogHeader>
