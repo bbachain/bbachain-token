@@ -13,15 +13,6 @@ import { IoSettings } from 'react-icons/io5'
 import { NoBalanceAlert } from '@/components/layout/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-	Dialog,
-	DialogTitle,
-	DialogDescription,
-	DialogClose,
-	DialogContent,
-	DialogFooter,
-	DialogHeader
-} from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
@@ -31,6 +22,7 @@ import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog
 import { useCreatePool } from '@/features/liquidityPool/services'
 import { TCreatePoolPayload, MintInfo } from '@/features/liquidityPool/types'
 import { createPoolValidation } from '@/features/liquidityPool/validation'
+import { LoadingDialog } from '@/features/nfts/components/StatusDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
 import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import {
@@ -86,53 +78,6 @@ const feeTierOptions = [
 ]
 
 type FieldName = keyof TCreatePoolPayload
-
-// Loading Overlay Component
-function LoadingOverlay({ isVisible, message }: { isVisible: boolean; message: string }) {
-	if (!isVisible) return null
-
-	return (
-		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-			<div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-sm mx-4">
-				<div className="text-center space-y-4">
-					<div className="w-16 h-16 mx-auto bg-main-green/10 rounded-full flex items-center justify-center">
-						<Loader2 className="w-8 h-8 text-main-green animate-spin" />
-					</div>
-					<div>
-						<h3 className="font-semibold text-lg text-main-black">Creating Pool...</h3>
-						<p className="text-gray-600 dark:text-gray-400 mt-1">{message}</p>
-					</div>
-					<div className="flex justify-center space-x-1">
-						<div className="w-2 h-2 bg-main-green rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-						<div
-							className="w-2 h-2 bg-main-green rounded-full animate-bounce"
-							style={{ animationDelay: '150ms' }}
-						></div>
-						<div
-							className="w-2 h-2 bg-main-green rounded-full animate-bounce"
-							style={{ animationDelay: '300ms' }}
-						></div>
-					</div>
-				</div>
-			</div>
-		</div>
-	)
-}
-
-function LoadingDialog({ isOpen, title, description }: { isOpen: boolean; title: string; description: string }) {
-	return (
-		<Dialog open={isOpen}>
-			<DialogContent className="flex md:w-auto w-[290px] flex-col space-y-0 items-center text-center px-11 py-9">
-				<DialogHeader>
-					<DialogTitle></DialogTitle>
-				</DialogHeader>
-				<Image src="/parsing-loader.svg" width={64} height={64} alt="loader parser" className="animate-spin" />
-				<h4 className="mt-2 text-center font-semibold text-lg mb-1">{title}</h4>
-				<p className="text-lg text-[#989898]">{description}</p>
-			</DialogContent>
-		</Dialog>
-	)
-}
 
 // Enhanced Token Selection Card
 function TokenSelectionCard({

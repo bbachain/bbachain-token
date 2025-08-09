@@ -24,7 +24,7 @@ export const NftCard: React.FC<NftCardProps> = ({ image, name, collection, addre
 
 	return (
 		<Link
-			href={`/my-nfts/${address}`}
+			href={`/nfts/${address}`}
 			className="relative sm:h-[282px] sm:w-[220px] w-[130px] h-[146px] rounded-[10px] overflow-hidden shadow-lg"
 		>
 			<Image

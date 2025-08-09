@@ -224,7 +224,19 @@ export default function TokenDetail({ params }: { params: { address: string } })
 			type: 'input',
 			tip: 'Permanently remove tokens from circulation. Useful for reducing supply or managing errors.',
 			pending: burnTokensMutation.isPending,
-			disabled: isDisabled || burnTokenAmount === '' || burnTokenAmount === '0' || tokenDetailData?.supply === 0,
+			disabled:
+				isDisabled ||
+				burnTokenAmount === '' ||
+				Number(burnTokenAmount) <= 0 ||
+				tokenDetailData?.supply === 0 ||
+				Number(burnTokenAmount) >= tokenDetailData!.supply,
+			errorMessages: () => {
+				if (burnTokenAmount !== '' && Number(burnTokenAmount) <= 0) {
+					return { message: 'The value should be greater than 0' }
+				} else if (Number(burnTokenAmount) >= tokenDetailData!.supply) {
+					return { message: 'insufficient supply to burn' }
+				}
+			},
 			action: () =>
 				burnTokensMutation.mutate({ amount: Number(burnTokenAmount), decimals: tokenDetailData?.decimals! }),
 			onChange: (e: ChangeEvent<HTMLInputElement>) => setBurnTokenAmount(e.target.value)
@@ -235,7 +247,12 @@ export default function TokenDetail({ params }: { params: { address: string } })
 			type: 'input',
 			tip: 'Add more token supply to your account',
 			pending: mintTokensMutation.isPending,
-			disabled: isDisabled || mintTokenAmount === '' || mintTokenAmount === '0' || isMintRevoked,
+			disabled: isDisabled || mintTokenAmount === '' || Number(mintTokenAmount) <= 0 || isMintRevoked,
+			errorMessages: () => {
+				if (mintTokenAmount !== '' && Number(mintTokenAmount) <= 0) {
+					return { message: 'The value should be greater than 0' }
+				}
+			},
 			action: () =>
 				mintTokensMutation.mutate({ amount: Number(mintTokenAmount), decimals: tokenDetailData?.decimals! }),
 			onChange: (e: ChangeEvent<HTMLInputElement>) => setMintTokenAmount(e.target.value)
@@ -290,18 +307,6 @@ export default function TokenDetail({ params }: { params: { address: string } })
 			setIsChanged(false)
 		}
 	}, [initialData, updatePayload])
-
-	useEffect(() => {
-		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-			if (!isChanged) return
-			e.preventDefault()
-		}
-
-		window.addEventListener('beforeunload', handleBeforeUnload)
-		return () => {
-			window.removeEventListener('beforeunload', handleBeforeUnload)
-		}
-	}, [isChanged])
 
 	useEffect(() => {
 		if (updateTokenMetadataMutation.isSuccess && updateTokenMetadataMutation.data)
@@ -470,15 +475,24 @@ export default function TokenDetail({ params }: { params: { address: string } })
 											<h5 className="md:text-lg text-sm text-main-black">{optionData.label}</h5>
 										</section>
 										<section className="flex ml-9 space-x-2.5">
-											<Input
-												defaultValue={optionData.value}
-												onChange={optionData.onChange}
-												className="md:w-52 rounded-[8px]"
-												placeholder="Enter amount"
-												type="number"
-											/>
+											<div className="flex flex-col space-y-1">
+												<Input
+													defaultValue={optionData.value}
+													onChange={optionData.onChange}
+													className="md:w-52 rounded-[8px]"
+													placeholder="Enter amount"
+													type="number"
+												/>
+												<p className="text-error text-xs">{optionData.errorMessages?.()?.message}</p>
+											</div>
 											<Button
-												onClick={optionData.action}
+												onClick={
+													!optionData.disabled
+														? optionData.action
+														: () => {
+																console.log('this action is disabled')
+															}
+												}
 												type="button"
 												disabled={optionData.disabled}
 												className="bg-main-green rounded-[8px]"
