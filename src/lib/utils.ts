@@ -50,3 +50,5 @@ export function shortenAddress(address: string, startLength = 6, endLength = 4):
 	if (!address || address.length < startLength + endLength) return address
 	return `${address.slice(0, startLength)}...${address.slice(-endLength)}`
 }
+
+export const isProduction = process.env.NEXT_PUBLIC_APP_ENV === 'production'

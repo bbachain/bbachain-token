@@ -21,26 +21,17 @@ const StaticTokens: ExtendedMintInfo[] = [
 		name: 'Tether USD',
 		symbol: 'USDT',
 		coinGeckoId: 'tether',
-		address: 'GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR',
+		address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
 		logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
 		decimals: 6,
 		tags: ['stablecoin']
 	},
 	{
-		name: 'USD Coin',
-		symbol: 'USDC',
-		coinGeckoId: 'usd-coin',
-		address: '3ifxm7UKBEFxVnGn3SiZh1QMW7RCJPbAeE4JYh8hiYUd',
-		logoURI: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
-		decimals: 9,
-		tags: ['stablecoin']
-	},
-	{
-		name: 'Shiba Inu',
-		symbol: 'SHIB',
-		coinGeckoId: 'shiba-inu',
-		address: 'LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq',
-		logoURI: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+		name: 'SLSA',
+		symbol: 'SLSA',
+		coinGeckoId: '',
+		address: '2pCnkCrLZt4BTfsqABJpQCrynZZbtoqYmq86CusP4FbS',
+		logoURI: 'https://ipfs.io/ipfs/Qmd5CCuusYMDW7KDaed9x2LyeHesdzfthQg43gUuGgmbPD',
 		decimals: 6,
 		tags: ['meme']
 	}
