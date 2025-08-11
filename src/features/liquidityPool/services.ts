@@ -437,8 +437,8 @@ export const useCreatePool = () => {
 
 				console.log('✅ Pool validation passed')
 
+				let latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
-				const latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const baseMint = new PublicKey(payload.baseToken.address)
 				const quoteMint = new PublicKey(payload.quoteToken.address)
 
@@ -550,6 +550,7 @@ export const useCreatePool = () => {
 
 				console.log('⏳ LP mint transaction sent:', poolSig)
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				await confirmTransactionWithTimeout(connection, poolSig, latestBlockhash)
 				console.log('✅ LP token mint created successfully')
 
@@ -606,6 +607,7 @@ export const useCreatePool = () => {
 				console.log('Pool mint ', poolMint.publicKey.toBase58())
 				console.log('Token program id ', TOKEN_PROGRAM_ID.toBase58())
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const feeAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
 				const feeInfo = await connection.getAccountInfo(feeAccount)
 				if (!feeInfo) {
@@ -671,6 +673,7 @@ export const useCreatePool = () => {
 				// === BBA-AWARE Liquidity Transfer ===
 				console.log('💰 Preparing BBA-aware liquidity transfer...')
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				if (isBBAPoolPair) {
 					console.log('🪙 BBA Pool - Using special native token handling')
 
@@ -857,6 +860,7 @@ export const useCreatePool = () => {
 				await new Promise((resolve) => setTimeout(resolve, 2000))
 
 				// === Swap Initialization ===
+
 				const swapCurve = {
 					curveType: CurveType.ConstantProduct,
 					calculator: new Array(32).fill(0) // 32 bytes for curve parameters
@@ -985,6 +989,8 @@ export const useCreatePool = () => {
 				// === Single Transaction Approach (Matching Working Test) ===
 				console.log('🏗️ Creating single transaction with create + initialize...')
 				const finalTx = new Transaction().add(createSwapAccountIx, swapIx)
+
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 
 				// Set recent blockhash and fee payer
 				finalTx.recentBlockhash = latestBlockhash.blockhash

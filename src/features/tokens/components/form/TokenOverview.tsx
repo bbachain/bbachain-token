@@ -1,6 +1,6 @@
 'use client'
 
-import { CopyButton } from '@/components/layout/CopyButton'
+import { CopyButton } from '@/components/common/CopyButton'
 import { type TCreateTokenPayload } from '@/features/tokens/types'
 
 type CreateTokenOverviewProps = Partial<TCreateTokenPayload> & {

@@ -10,7 +10,7 @@ import { FaChartArea } from 'react-icons/fa'
 import { FaPlus } from 'react-icons/fa6'
 import { IoSettings } from 'react-icons/io5'
 
-import { NoBalanceAlert } from '@/components/layout/Alert'
+import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -221,8 +221,7 @@ export default function CreatePool() {
 			? `${selectedBaseToken.symbol} per ${selectedQuoteToken.symbol}`
 			: 'Token per Token'
 
-	// Loading states
-	const isLoadingTokens = getTokensQuery.isPending
+	// Status states
 	const isTokensError = getTokensQuery.isError
 
 	// Effects
@@ -250,6 +249,7 @@ export default function CreatePool() {
 				title: 'Failed to create pool',
 				description: createPoolMutation.error.message
 			})
+			console.error('Failed to create pool ', createPoolMutation.error.message)
 		}
 	}, [createPoolMutation.isError, createPoolMutation.error, openErrorDialog])
 
@@ -995,7 +995,7 @@ export default function CreatePool() {
 					'You can now add more liquidity or begin trading this pair.'
 				]}
 				linkText="View Pool"
-				link={`/liquidity-pools/detail/${createPoolMutation.data?.poolMint}`}
+				link={`/liquidity-pools/detail/${createPoolMutation.data?.tokenSwap}`}
 			/>
 
 			{/* Loading Overlay */}

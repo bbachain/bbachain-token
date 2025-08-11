@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
-import { NoBalanceAlert } from '@/components/layout/Alert'
+import { NoBalanceAlert } from '@/components/common/Alert'
 import { buttonVariants } from '@/components/ui/button'
 import { PoolListColumns } from '@/features/liquidityPool/components/Columns'
 import { DataTable as PoolListTable } from '@/features/liquidityPool/components/DataTable'

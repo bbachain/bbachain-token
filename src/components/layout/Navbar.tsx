@@ -9,9 +9,11 @@ import { IoSunnySharp, IoMoonSharp } from 'react-icons/io5'
 import { RxHamburgerMenu } from 'react-icons/rx'
 
 import { useIsMobile } from '@/hooks/isMobile'
-import { cn } from '@/lib/utils'
 import NavMenu from '@/staticData/navbar'
 
+import SelectCluster from '../common/SelectCluster'
+import ThemeImage from '../common/ThemeImage'
+import CustomWalletButton from '../common/WalletButton'
 import { useCluster } from '../providers/ClusterProvider'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion'
 import { Button } from '../ui/button'
@@ -25,10 +27,6 @@ import {
 	NavigationMenuTrigger
 } from '../ui/navigation-menu'
 import { Skeleton } from '../ui/skeleton'
-
-import SelectCluster from './SelectCluster'
-import ThemeImage from './ThemeImage'
-import CustomWalletButton from './WalletButton'
 
 function ThemeToggle() {
 	const { resolvedTheme, setTheme } = useTheme()
@@ -156,7 +154,7 @@ export default function Navbar() {
 	useEffect(() => setMounted(true), [])
 
 	return (
-		<nav className="lg:px-24 md:px-20 py-3.5  flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
+		<nav className="2xl:px-24 md:px-20 py-3.5  flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
 			<div className="flex items-center md:space-x-5 lg:space-x-[35px]">
 				<Link href="/">
 					<ThemeImage
@@ -171,19 +169,12 @@ export default function Navbar() {
 					<NavigationMenuList className="xl:flex space-x-9 items-center hidden">
 						{NavMenu.map((nav) =>
 							nav.subMenu ? (
-								<NavigationMenuItem key={nav.name}>
+								<NavigationMenuItem className="relative" key={nav.name}>
 									<NavigationMenuTrigger className="text-sm w-full p-0 hover:!bg-transparent font-normal hover:!text-hover-green text-main-black">
 										{nav.name}
 									</NavigationMenuTrigger>
-									<NavigationMenuContent
-										className={cn(
-											'absolute top-full bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80',
-											nav.name === 'NFT' && 'left-24',
-											nav.name === 'Tokens' && 'left-10',
-											nav.name === 'Liquidity' && 'left-60'
-										)}
-									>
-										<ul className="flex flex-col w-[230px] p-3">
+									<NavigationMenuContent className="top-full absolute -left-6">
+										<ul className="bg-background shadow-xl data-[motion=from-start]:slide-in-from-left-80 flex flex-col w-[230px] p-3">
 											{nav.subMenu.map((subNav) => (
 												<Link
 													className="flex px-3 py-2.5 justify-between text-sm font-normal hover:!text-hover-green text-main-black"

@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { capitalCase } from 'text-case'
 
-import { NoBalanceAlert } from '@/components/layout/Alert'
+import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'

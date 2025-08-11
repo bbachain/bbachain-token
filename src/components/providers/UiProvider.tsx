@@ -4,10 +4,10 @@ import * as React from 'react'
 import { ReactNode } from 'react'
 import { Toaster } from 'react-hot-toast'
 
-import ErrorDialog from '@/components/layout/ErrorDialog'
+import ErrorDialog from '@/components/common/ErrorDialog'
+import WalletListDialog from '@/components/common/WalletDialog'
 import Footer from '@/components/layout/Footer'
 import Navbar from '@/components/layout/Navbar'
-import WalletListDialog from '@/components/layout/WalletDialog'
 
 export default function UiProvider({ children }: { children: ReactNode }) {
 	return (

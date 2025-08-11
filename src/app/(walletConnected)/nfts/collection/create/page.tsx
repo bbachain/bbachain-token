@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
-import { NoBalanceAlert } from '@/components/layout/Alert'
+import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'

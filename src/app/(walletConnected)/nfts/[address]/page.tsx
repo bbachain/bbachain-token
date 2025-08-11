@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { FiExternalLink } from 'react-icons/fi'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 
-import { CopyButton } from '@/components/layout/CopyButton'
+import { CopyButton } from '@/components/common/CopyButton'
 import { useCluster } from '@/components/providers/ClusterProvider'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'

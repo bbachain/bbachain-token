@@ -1,4 +1,4 @@
-import InfoCard from '@/components/layout/InfoCard'
+import InfoCard from '@/components/common/InfoCard'
 import PrivacyPolicyData from '@/staticData/privacyPolicy'
 
 export default function PrivacyPolicy() {

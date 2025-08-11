@@ -11,7 +11,7 @@ import { IoIosSwap } from 'react-icons/io'
 import { IoAdd } from 'react-icons/io5'
 import { LuArrowUpDown } from 'react-icons/lu'
 
-import { CopyButton } from '@/components/layout/CopyButton'
+import { CopyButton } from '@/components/common/CopyButton'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getFeeTierColor } from '@/features/liquidityPool/components/Columns'
@@ -185,6 +185,14 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	if (getPoolById.isLoading || getTransactionsByPoolId.isLoading)
 		return (
 			<div className="w-full mx-auto 2xl:max-w-7xl lg:max-w-5xl md:max-w-2xl px-[15px]">
+				<Button
+					variant="ghost"
+					onClick={() => router.push('/liquidity-pools')}
+					className="md:flex p-0 hidden justify-start w-32 mb-14 text-main-black items-center space-x-2.5 text-xl"
+				>
+					<HiOutlineArrowNarrowLeft />
+					<h4>Pools</h4>
+				</Button>
 				<PoolDetailSkeleton />
 			</div>
 		)
