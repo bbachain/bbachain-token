@@ -193,7 +193,8 @@ export default function Swap() {
 	const userInputAmount = Number(amountIn) || 0
 	const userTokenBalance = mintABalance / Math.pow(10, fromTokenProps.decimals)
 	const isBaseTokenBalanceNotEnough = userInputAmount > userTokenBalance
-	const isAmountPositive = REGEX.POSITIVE_NUMBER.test(amountIn) && userInputAmount > 0
+	// Allow positive decimals for swap input
+	const isAmountPositive = REGEX.POSITIVE_DECIMAL.test(amountIn) && userInputAmount > 0
 	const hasValidTokenPair = fromTokenProps.address !== toTokenProps.address
 	const isValid =
 		!isBaseTokenBalanceNotEnough && isAmountPositive && hasValidTokenPair && canSwapQuery.data === true && swapQuote
