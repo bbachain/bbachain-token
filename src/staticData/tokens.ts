@@ -1,4 +1,5 @@
 import { NATIVE_MINT } from '@bbachain/spl-token'
+import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
 
 import { MintInfo } from '@/features/liquidityPool/types'
 
@@ -99,6 +100,10 @@ export function isBBAToken(address: string): boolean {
  */
 export function getNativeBBAToken(): MintInfo {
 	return StaticTokens[0] // First token is always BBA
+}
+
+export function getBBAFromDaltons(daltons: number): number {
+	return daltons / BBA_DALTON_UNIT
 }
 
 /**

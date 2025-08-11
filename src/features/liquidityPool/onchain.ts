@@ -16,87 +16,87 @@ const uint64 = (property: string = 'uint64') => {
 	return blob(8, property)
 }
 
-interface RawTokenSwap {
-	version: number
-	isInitialized: boolean
-	bumpSeed: number
-	poolTokenProgramId: Uint8Array
-	tokenAccountA: Uint8Array
-	tokenAccountB: Uint8Array
-	tokenPool: Uint8Array
-	mintA: Uint8Array
-	mintB: Uint8Array
-	feeAccount: Uint8Array
-	tradeFeeNumerator: Uint8Array
-	tradeFeeDenominator: Uint8Array
-	ownerTradeFeeNumerator: Uint8Array
-	ownerTradeFeeDenominator: Uint8Array
-	ownerWithdrawFeeNumerator: Uint8Array
-	ownerWithdrawFeeDenominator: Uint8Array
-	hostFeeNumerator: Uint8Array
-	hostFeeDenominator: Uint8Array
-	curveType: number
-	curveParameters: Uint8Array
-}
-
-export const TokenSwapLayout = struct<RawTokenSwap>([
-	u8('version'),
-	u8('isInitialized'),
-	u8('bumpSeed'),
-	publicKey('poolTokenProgramId'),
-	publicKey('tokenAccountA'),
-	publicKey('tokenAccountB'),
-	publicKey('tokenPool'),
-	publicKey('mintA'),
-	publicKey('mintB'),
-	publicKey('feeAccount'),
-	uint64('tradeFeeNumerator'),
-	uint64('tradeFeeDenominator'),
-	uint64('ownerTradeFeeNumerator'),
-	uint64('ownerTradeFeeDenominator'),
-	uint64('ownerWithdrawFeeNumerator'),
-	uint64('ownerWithdrawFeeDenominator'),
-	uint64('hostFeeNumerator'),
-	uint64('hostFeeDenominator'),
-	u8('curveType'),
-	blob(32, 'curveParameters')
-])
-
-export interface OnchainPoolData {
-	address: string
-	programId: string
-	swapData: RawTokenSwap
-	mintA: MintInfo
-	mintB: MintInfo
-	tokenAccountA: string
-	tokenAccountB: string
-	reserveA: bigint
-	reserveB: bigint
-	feeRate: number
-	tvl: number
-	volume24h: number
-	fees24h: number
-	apr24h: number
-}
-
-/**
- * Fetch all pool accounts from the Token Swap Program
- */
-export async function getPoolAccounts(connection: Connection): Promise<Array<{ pubkey: PublicKey; account: any }>> {
-	try {
-		const accounts = await connection.getProgramAccounts(TOKEN_SWAP_PROGRAM_ID, {
-			filters: [
-				{
-					dataSize: TokenSwapLayout.span // Only get accounts with correct data size
-				}
-			]
-		})
-		return accounts
-	} catch (error) {
-		console.error('Error fetching pool accounts:', error)
-		throw new Error('Failed to fetch pool accounts from onchain')
+	interface RawTokenSwap {
+		version: number
+		isInitialized: boolean
+		bumpSeed: number
+		poolTokenProgramId: Uint8Array
+		tokenAccountA: Uint8Array
+		tokenAccountB: Uint8Array
+		tokenPool: Uint8Array
+		mintA: Uint8Array
+		mintB: Uint8Array
+		feeAccount: Uint8Array
+		tradeFeeNumerator: Uint8Array
+		tradeFeeDenominator: Uint8Array
+		ownerTradeFeeNumerator: Uint8Array
+		ownerTradeFeeDenominator: Uint8Array
+		ownerWithdrawFeeNumerator: Uint8Array
+		ownerWithdrawFeeDenominator: Uint8Array
+		hostFeeNumerator: Uint8Array
+		hostFeeDenominator: Uint8Array
+		curveType: number
+		curveParameters: Uint8Array
 	}
-}
+
+	export const TokenSwapLayout = struct<RawTokenSwap>([
+		u8('version'),
+		u8('isInitialized'),
+		u8('bumpSeed'),
+		publicKey('poolTokenProgramId'),
+		publicKey('tokenAccountA'),
+		publicKey('tokenAccountB'),
+		publicKey('tokenPool'),
+		publicKey('mintA'),
+		publicKey('mintB'),
+		publicKey('feeAccount'),
+		uint64('tradeFeeNumerator'),
+		uint64('tradeFeeDenominator'),
+		uint64('ownerTradeFeeNumerator'),
+		uint64('ownerTradeFeeDenominator'),
+		uint64('ownerWithdrawFeeNumerator'),
+		uint64('ownerWithdrawFeeDenominator'),
+		uint64('hostFeeNumerator'),
+		uint64('hostFeeDenominator'),
+		u8('curveType'),
+		blob(32, 'curveParameters')
+	])
+
+	export interface OnchainPoolData {
+		address: string
+		programId: string
+		swapData: RawTokenSwap
+		mintA: MintInfo
+		mintB: MintInfo
+		tokenAccountA: string
+		tokenAccountB: string
+		reserveA: bigint
+		reserveB: bigint
+		feeRate: number
+		tvl: number
+		volume24h: number
+		fees24h: number
+		apr24h: number
+	}
+
+	/**
+	 * Fetch all pool accounts from the Token Swap Program
+	 */
+	export async function getPoolAccounts(connection: Connection): Promise<Array<{ pubkey: PublicKey; account: any }>> {
+		try {
+			const accounts = await connection.getProgramAccounts(TOKEN_SWAP_PROGRAM_ID, {
+				filters: [
+					{
+						dataSize: TokenSwapLayout.span // Only get accounts with correct data size
+					}
+				]
+			})
+			return accounts
+		} catch (error) {
+			console.error('Error fetching pool accounts:', error)
+			throw new Error('Failed to fetch pool accounts from onchain')
+		}
+	}
 
 /**
  * Parse raw pool account data into structured format

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import FooterMenu from '@/staticData/footer'
 import SocialMedia from '@/staticData/socialMedia'
 
-import ThemeImage from './ThemeImage'
+import ThemeImage from '../common/ThemeImage'
 
 export default function Footer() {
 	const topMobileMenu = FooterMenu.slice(0, 3)

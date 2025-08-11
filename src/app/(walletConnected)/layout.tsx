@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { CiWallet } from 'react-icons/ci'
 
-import ThemeImage from '@/components/layout/ThemeImage'
+import ThemeImage from '@/components/common/ThemeImage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useWalletListDialog } from '@/stores/walletDialog'

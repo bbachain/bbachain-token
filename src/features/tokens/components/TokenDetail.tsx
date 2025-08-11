@@ -5,7 +5,7 @@ import { AiOutlineInfoCircle } from 'react-icons/ai'
 import { IoMdClose } from 'react-icons/io'
 import { PiPencilSimpleLineLight } from 'react-icons/pi'
 
-import { CopyButton } from '@/components/layout/CopyButton'
+import { CopyButton } from '@/components/common/CopyButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipArrow, TooltipTrigger } from '@/components/ui/tooltip'

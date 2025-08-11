@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { CiWallet } from 'react-icons/ci'
 
-import { copyToClipboard } from '@/components/layout/CopyButton'
+import { copyToClipboard } from '@/components/common/CopyButton'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useIsMobile } from '@/hooks/isMobile'

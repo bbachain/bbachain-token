@@ -19,8 +19,21 @@ import { addBBAToPoolAccount, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrappi
 import { formatTokenToDaltons } from '@/lib/utils'
 import { isBBAPool, getBBAPositionInPool, isNativeBBA, getWBBAMintAddress } from '@/staticData/tokens'
 
+import { useGetCoinGeckoTokenPrice } from '../swap/services'
+import { getCoinGeckoId } from '../swap/utils'
+
+import { TransactionListProps } from './components/TransactionColumns'
 import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
-import { PoolData, TCreatePoolPayload, TCreatePoolResponse, TGetPoolsResponse } from './types'
+import {
+	MintInfo,
+	PoolData,
+	TCreatePoolPayload,
+	TCreatePoolResponse,
+	TGetPoolsResponse,
+	TGetPoolTransactionResponse,
+	TransactionData
+} from './types'
+import { processTransactionData } from './utils'
 
 // Enhanced retry configuration
 const RETRY_CONFIG = {
@@ -238,7 +251,7 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 			}
 		},
 		enabled: !!poolId,
-		staleTime: 30000, // 30 seconds
+		...CACHE_CONFIG,
 		retry: 2,
 		retryDelay: 1000
 	})
@@ -306,6 +319,71 @@ export const usePoolsBackgroundSync = () => {
 	})
 }
 
+export const useGetTransactionsByPoolId = ({
+	poolId,
+	baseMint,
+	quoteMint
+}: {
+	poolId: string
+	baseMint: MintInfo | undefined
+	quoteMint: MintInfo | undefined
+}) => {
+	const isValidParams = !!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
+
+	const baseUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: baseMint ? getCoinGeckoId(baseMint.address) : ''
+	})
+
+	const quoteUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: quoteMint ? getCoinGeckoId(quoteMint.address) : ''
+	})
+
+	const baseInitialPrice = baseUSDValue.data ?? 0
+	const quoteInitialPrice = quoteUSDValue.data ?? 0
+
+	const areTokenPricesReady = baseUSDValue.status === 'success' && quoteUSDValue.status === 'success'
+
+	return useQuery<TGetPoolTransactionResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, baseMint?.address, quoteMint?.address],
+		enabled: isValidParams && areTokenPricesReady,
+		...CACHE_CONFIG,
+		retry: 2,
+		retryDelay: 1000,
+		queryFn: async () => {
+			if (!baseMint || !quoteMint) throw new Error('Base and Quote mint should be selected')
+
+			try {
+				const { data } = await axios.get(`${ENDPOINTS.BBASCAN.GET_DATA_BY_ADDRESS}/${poolId}`)
+
+				const transactionData = data.transactions as TransactionData[]
+
+				console.log('Transaction count:', transactionData?.length)
+
+				const responseData = transactionData
+					.map((tx) => {
+						const parsedData = processTransactionData(tx, baseMint, quoteMint)
+						if (!parsedData) return null
+
+						const baseAmountInUSD = parsedData.baseAmount * baseInitialPrice
+						const quoteAmountInUSD = parsedData.quoteAmount * quoteInitialPrice
+
+						return {
+							...parsedData,
+							baseAmountInUSD,
+							quoteAmountInUSD
+						} as TransactionListProps
+					})
+					.filter((item): item is TransactionListProps => item !== null)
+
+				return { message: 'Successfully get transaction data', data: responseData }
+			} catch (error) {
+				console.error('Failed to fetch transactions:', error)
+				return { message: 'Failed to fetch transactions', data: [] }
+			}
+		}
+	})
+}
+
 // Create pool mutation remains the same but with better error handling
 export const useCreatePool = () => {
 	const { connection } = useConnection()
@@ -359,8 +437,8 @@ export const useCreatePool = () => {
 
 				console.log('✅ Pool validation passed')
 
+				let latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
-				const latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const baseMint = new PublicKey(payload.baseToken.address)
 				const quoteMint = new PublicKey(payload.quoteToken.address)
 
@@ -472,6 +550,7 @@ export const useCreatePool = () => {
 
 				console.log('⏳ LP mint transaction sent:', poolSig)
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				await confirmTransactionWithTimeout(connection, poolSig, latestBlockhash)
 				console.log('✅ LP token mint created successfully')
 
@@ -528,6 +607,7 @@ export const useCreatePool = () => {
 				console.log('Pool mint ', poolMint.publicKey.toBase58())
 				console.log('Token program id ', TOKEN_PROGRAM_ID.toBase58())
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const feeAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
 				const feeInfo = await connection.getAccountInfo(feeAccount)
 				if (!feeInfo) {
@@ -593,6 +673,7 @@ export const useCreatePool = () => {
 				// === BBA-AWARE Liquidity Transfer ===
 				console.log('💰 Preparing BBA-aware liquidity transfer...')
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				if (isBBAPoolPair) {
 					console.log('🪙 BBA Pool - Using special native token handling')
 
@@ -779,6 +860,7 @@ export const useCreatePool = () => {
 				await new Promise((resolve) => setTimeout(resolve, 2000))
 
 				// === Swap Initialization ===
+
 				const swapCurve = {
 					curveType: CurveType.ConstantProduct,
 					calculator: new Array(32).fill(0) // 32 bytes for curve parameters
@@ -908,6 +990,8 @@ export const useCreatePool = () => {
 				console.log('🏗️ Creating single transaction with create + initialize...')
 				const finalTx = new Transaction().add(createSwapAccountIx, swapIx)
 
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
+
 				// Set recent blockhash and fee payer
 				finalTx.recentBlockhash = latestBlockhash.blockhash
 				finalTx.feePayer = ownerAddress
@@ -946,6 +1030,10 @@ export const useCreatePool = () => {
 					feeAccount: feeAccount.toBase58(),
 					lpTokenAccount: poolTokenAccount.toBase58(),
 					signature: finalSig,
+					baseToken: payload.baseToken,
+					quoteToken: payload.quoteToken,
+					baseTokenAmount: Number(payload.baseTokenAmount),
+					quoteTokenAmount: Number(payload.quoteTokenAmount),
 					message: 'Pool created successfully!'
 				}
 			} catch (error) {
@@ -958,6 +1046,7 @@ export const useCreatePool = () => {
 			// Invalidate pools cache to refresh the list
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()] })
 		},
 		onError: (error) => {
 			console.error('❌ Pool creation failed:', error)
