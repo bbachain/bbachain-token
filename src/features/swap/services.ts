@@ -698,6 +698,8 @@ export const useExecuteSwap = () => {
 			let userInputTokenAccount: PublicKey
 			let userOutputTokenAccount: PublicKey
 			let needsUnwrapping = false
+			// Track whether we created a temporary WBBA ATA for BBA → Token swaps
+			let createdWBBAInputAccount = false
 			let preTxInstructions: any[] = []
 			let postTxInstructions: any[] = []
 
@@ -732,6 +734,7 @@ export const useExecuteSwap = () => {
 							NATIVE_MINT
 						)
 						preTxInstructions.push(createWBBAIx)
+						createdWBBAInputAccount = true
 					}
 
 					// Add instructions to transfer BBA and sync
@@ -745,6 +748,12 @@ export const useExecuteSwap = () => {
 
 					// For output, use standard token account
 					userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+
+					// If we created a temporary WBBA input ATA for this swap, close it after swap to reclaim rent
+					if (createdWBBAInputAccount) {
+						const closeWbbaInputIx = createCloseAccountInstruction(userInputTokenAccount, publicKey, publicKey)
+						postTxInstructions.push(closeWbbaInputIx)
+					}
 				} else if (isOutputBBA) {
 					// Token → BBA: Swap to WBBA then unwrap
 					console.log('💰 Token → BBA swap: Will receive WBBA and unwrap to BBA')
