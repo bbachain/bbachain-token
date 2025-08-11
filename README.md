@@ -55,5 +55,3 @@ Build the web app
 ```shell
 pnpm build
 ```
-
-Deploy #31

@@ -21,9 +21,9 @@ export enum ClusterNetwork {
 	Custom = 'custom'
 }
 
-// By default, we don't configure the mainnet-beta cluster
-// The endpoint provided by clusterApiUrl('mainnet-beta') does not allow access from the browser due to CORS restrictions
-// To use the mainnet-beta cluster, provide a custom endpoint
+// By default, we don't configure the mainnet cluster
+// The endpoint provided by clusterApiUrl('mainnet') does not allow access from the browser due to CORS restrictions
+// To use the mainnet cluster, provide a custom endpoint
 
 const developmentClusters: Cluster[] = [
 	{
