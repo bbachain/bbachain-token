@@ -312,15 +312,6 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 								inputAmount={fromAmount}
 								setInputAmount={handleFromAmountChange}
 							/>
-
-							<div className="flex justify-center">
-								<div className="bg-box-3 rounded-full p-2">
-									<svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-main-black">
-										<path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-									</svg>
-								</div>
-							</div>
-
 							<SwapItem
 								noTitle
 								type="to"
