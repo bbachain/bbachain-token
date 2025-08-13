@@ -2,6 +2,7 @@
 import { ColumnDef } from '@tanstack/react-table'
 import { TrendingUp, TrendingDown, Minus, Star } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { RxCaretSort } from 'react-icons/rx'
 
 import { Button } from '@/components/ui/button'
@@ -93,7 +94,17 @@ const getLiquidityHealthColor = (liquidity: number): string => {
 	return 'text-red-600 dark:text-red-400'
 }
 
-function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: MintInfo; swapFee: number }) {
+function TokenPairDisplay({
+	mintA,
+	mintB,
+	swapFee,
+	id
+}: {
+	mintA: MintInfo
+	mintB: MintInfo
+	swapFee: number
+	id: string
+}) {
 	return (
 		<div className="flex items-center w-full min-w-0">
 			{/* Star icon for favorites (like Raydium) */}
@@ -165,9 +176,11 @@ function TokenPairDisplay({ mintA, mintB, swapFee }: { mintA: MintInfo; mintB: M
 			{/* Token pair name and fee - Raydium style */}
 			<div className="flex flex-col min-w-0 flex-1">
 				<div className="flex items-center gap-2 mb-1">
-					<h4 className="text-sm text-main-black truncate">
-						{mintA.symbol}-{mintB.symbol}
-					</h4>
+					<Link href={`/liquidity-pools/detail/${id}`} className="truncate">
+						<h4 className="text-sm text-main-black hover:text-main-green transition-colors">
+							{mintA.symbol}-{mintB.symbol}
+						</h4>
+					</Link>
 				</div>
 				<div className="flex items-center gap-1">
 					<p
@@ -339,7 +352,12 @@ export const PoolListColumns: ColumnDef<PoolListProps>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="md:pl-6">
-				<TokenPairDisplay mintA={row.original.mintA} mintB={row.original.mintB} swapFee={row.original.swapFee} />
+				<TokenPairDisplay
+					mintA={row.original.mintA}
+					mintB={row.original.mintB}
+					swapFee={row.original.swapFee}
+					id={row.original.id}
+				/>
 			</div>
 		),
 		enableSorting: true,

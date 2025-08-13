@@ -105,7 +105,12 @@ export default function SwapItem({
 			</section>
 			<section className="w-full flex justify-between">
 				<p className="text-xs text-main-black">
-					Balance: {balance} {tokenProps.symbol}
+					Balance:{' '}
+					{balance.toLocaleString(undefined, {
+						minimumFractionDigits: 0,
+						maximumFractionDigits: 6
+					})}{' '}
+					{tokenProps.symbol}
 				</p>
 				<p className="text-dark-grey text-xs">
 					≈${' '}

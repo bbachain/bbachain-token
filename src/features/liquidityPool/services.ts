@@ -4,9 +4,18 @@ import {
 	createAssociatedTokenAccountInstruction,
 	getMinimumBalanceForRentExemptMint,
 	MINT_SIZE,
-	createInitializeMintInstruction
+	createInitializeMintInstruction,
+	getMint,
+	NATIVE_MINT,
+	createSyncNativeInstruction
 } from '@bbachain/spl-token'
-import { CurveType, createInitializeInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
+import {
+	CurveType,
+	createInitializeInstruction,
+	PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID,
+	createDepositAllTokenTypesInstruction,
+	TokenSwap
+} from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -1050,6 +1059,401 @@ export const useCreatePool = () => {
 		},
 		onError: (error) => {
 			console.error('❌ Pool creation failed:', error)
+		}
+	})
+}
+
+// Deposit liquidity to an existing pool using @bbachain/spl-token-swap library
+export const useDepositToPool = () => {
+	const { connection } = useConnection()
+	const { publicKey: ownerAddress, sendTransaction } = useWallet()
+
+	return useMutation<
+		{ signature: string },
+		Error,
+		{
+			pool: OnchainPoolData | PoolData
+			amountA: string // UI amount for mintA
+			amountB: string // UI amount for mintB
+			slippage?: number // percent, optional
+		}
+	>({
+		mutationKey: [SERVICES_KEY.POOL.DEPOSIT_LIQUIDITY, ownerAddress?.toBase58()],
+		mutationFn: async ({ pool, amountA, amountB, slippage = 1 }): Promise<{ signature: string }> => {
+			if (!ownerAddress) throw new Error('Wallet not connected')
+
+			console.log('🚀 Starting liquidity deposit using @bbachain/spl-token-swap library...')
+
+			// Validate inputs
+			const uiAmountA = parseFloat(amountA || '0')
+			const uiAmountB = parseFloat(amountB || '0')
+			if (uiAmountA <= 0 || uiAmountB <= 0) throw new Error('Enter valid amounts for both tokens')
+
+			console.log('📊 Deposit Parameters:', {
+				amountA: `${uiAmountA} ${pool.mintA.symbol}`,
+				amountB: `${uiAmountB} ${pool.mintB.symbol}`,
+				slippage: `${slippage}%`,
+				poolAddress: 'swapData' in pool ? pool.address : (pool as PoolData).id
+			})
+
+			// Get pool address and load swap state using library
+			const poolAddress = 'swapData' in pool ? pool.address : (pool as PoolData).id
+			const tokenSwapPubkey = new PublicKey(poolAddress)
+
+			console.log('📡 Loading token swap state from blockchain...')
+
+			// Load swap state directly from blockchain using library
+			const tokenSwapState = await TokenSwap.fromAccountAddress(connection, tokenSwapPubkey)
+
+			console.log('✅ Token swap state loaded:', {
+				tokenA: tokenSwapState.tokenA.toBase58(),
+				tokenB: tokenSwapState.tokenB.toBase58(),
+				poolMint: tokenSwapState.poolMint.toBase58(),
+				bumpSeed: tokenSwapState.bumpSeed,
+				fees: {
+					tradeFeeNum: tokenSwapState.fees.tradeFeeNumerator.toString(),
+					tradeFeeDenom: tokenSwapState.fees.tradeFeeDenominator.toString()
+				}
+			})
+
+			// Derive swap authority using bumpSeed from TokenSwap state (like the program does)
+			// Program uses: create_program_address(&[&my_info.to_bytes()[..32], &[bump_seed]], program_id)
+			const swapAuthority = PublicKey.createProgramAddressSync(
+				[tokenSwapPubkey.toBuffer(), Buffer.from([tokenSwapState.bumpSeed])],
+				TOKEN_SWAP_PROGRAM_ID
+			)
+
+			console.log('🔑 Derived swap authority with bumpSeed:', {
+				authority: swapAuthority.toBase58(),
+				bumpSeed: tokenSwapState.bumpSeed,
+				swapKey: tokenSwapPubkey.toBase58()
+			})
+
+			// Critical: Verify the authority matches what program expects
+			if ('swapData' in pool) {
+				const poolData = pool as OnchainPoolData
+				const expectedAuthority = new PublicKey(poolData.swapData.poolTokenProgramId)
+				console.log('🔍 Authority validation:', {
+					derivedAuthority: swapAuthority.toBase58(),
+					expectedFromPoolData: expectedAuthority.toBase58(),
+					matches: swapAuthority.equals(expectedAuthority)
+				})
+			}
+
+			// Get mint addresses from the swap state (authoritative source)
+			const mintA = new PublicKey(pool.mintA.address)
+			const mintB = new PublicKey(pool.mintB.address)
+
+			// 🪙 BBA Pool Detection and Handling
+			const isBBAPoolPair = isBBAPool(pool.mintA.address, pool.mintB.address)
+			const bbaPosition = getBBAPositionInPool(pool.mintA.address, pool.mintB.address)
+			const isBBABase = bbaPosition === 'base'
+			const isBBAQuote = bbaPosition === 'quote'
+
+			console.log('🪙 BBA Pool Analysis:', {
+				isBBAPool: isBBAPoolPair,
+				bbaPosition: bbaPosition,
+				mintA: pool.mintA.symbol,
+				mintB: pool.mintB.symbol,
+				mintAAddress: mintA.toBase58(),
+				mintBAddress: mintB.toBase58()
+			})
+
+			// For BBA pools, we need to use NATIVE_MINT for the BBA side
+			let effectiveMintA = mintA
+			let effectiveMintB = mintB
+
+			if (isBBAPoolPair) {
+				if (isBBABase) {
+					// BBA is token A, replace with NATIVE_MINT
+					effectiveMintA = NATIVE_MINT
+					console.log('🔄 Using NATIVE_MINT for token A (BBA)')
+				} else if (isBBAQuote) {
+					// BBA is token B, replace with NATIVE_MINT
+					effectiveMintB = NATIVE_MINT
+					console.log('🔄 Using NATIVE_MINT for token B (BBA)')
+				}
+			}
+
+			// Verify mints match the swap state (using effective mints for BBA)
+			const swapMintA = tokenSwapState.tokenAMint
+			const swapMintB = tokenSwapState.tokenBMint
+
+			console.log('🔍 Mint verification:', {
+				effectiveMintA: effectiveMintA.toBase58(),
+				effectiveMintB: effectiveMintB.toBase58(),
+				swapMintA: swapMintA.toBase58(),
+				swapMintB: swapMintB.toBase58(),
+				mintAMatches: effectiveMintA.equals(swapMintA),
+				mintBMatches: effectiveMintB.equals(swapMintB)
+			})
+
+			if (!effectiveMintA.equals(swapMintA) || !effectiveMintB.equals(swapMintB)) {
+				throw new Error('Pool mint addresses do not match swap state. Pool may be corrupted.')
+			}
+
+			// Convert UI amounts to smallest units (daltons)
+			const amountADaltons = formatTokenToDaltons(uiAmountA, pool.mintA.decimals)
+			const amountBDaltons = formatTokenToDaltons(uiAmountB, pool.mintB.decimals)
+
+			console.log('💰 Token amounts in daltons:', {
+				amountA: `${amountADaltons} daltons`,
+				amountB: `${amountBDaltons} daltons`
+			})
+
+			// Get user source token accounts (where tokens will be taken from)
+			// For BBA pools, use NATIVE_MINT for the BBA side
+			const sourceA = await getAssociatedTokenAddress(effectiveMintA, ownerAddress)
+			const sourceB = await getAssociatedTokenAddress(effectiveMintB, ownerAddress)
+
+			// Get user LP token account (where LP tokens will be deposited)
+			const userPoolAccount = await getAssociatedTokenAddress(tokenSwapState.poolMint, ownerAddress)
+
+			console.log('🏦 Account addresses:', {
+				sourceA: sourceA.toBase58(),
+				sourceB: sourceB.toBase58(),
+				userPoolAccount: userPoolAccount.toBase58(),
+				swapTokenA: tokenSwapState.tokenA.toBase58(),
+				swapTokenB: tokenSwapState.tokenB.toBase58()
+			})
+
+			// CRITICAL: Verify token accounts match between pool data and swap state
+			if ('swapData' in pool) {
+				const poolData = pool as OnchainPoolData
+				const poolTokenA = new PublicKey(poolData.swapData.tokenAccountA)
+				const poolTokenB = new PublicKey(poolData.swapData.tokenAccountB)
+
+				console.log('🔍 CRITICAL: Token account validation:', {
+					swapStateTokenA: tokenSwapState.tokenA.toBase58(),
+					swapStateTokenB: tokenSwapState.tokenB.toBase58(),
+					poolDataTokenA: poolTokenA.toBase58(),
+					poolDataTokenB: poolTokenB.toBase58(),
+					tokenAMatches: tokenSwapState.tokenA.equals(poolTokenA),
+					tokenBMatches: tokenSwapState.tokenB.equals(poolTokenB)
+				})
+
+				// Use swap state as authoritative source (it should match pool data)
+				if (!tokenSwapState.tokenA.equals(poolTokenA) || !tokenSwapState.tokenB.equals(poolTokenB)) {
+					console.warn('⚠️ WARNING: Token accounts mismatch between swap state and pool data!')
+				}
+			}
+
+			// Prepare transaction with required account creation instructions
+			const preInstructions: any[] = []
+
+			// Check if user token accounts exist, create if needed
+			const [userAccountAInfo, userAccountBInfo, userPoolAccountInfo] = await Promise.all([
+				connection.getAccountInfo(sourceA),
+				connection.getAccountInfo(sourceB),
+				connection.getAccountInfo(userPoolAccount)
+			])
+
+			if (!userAccountAInfo) {
+				console.log('📝 Creating user token A account...')
+				preInstructions.push(
+					createAssociatedTokenAccountInstruction(ownerAddress, sourceA, ownerAddress, effectiveMintA)
+				)
+			}
+			if (!userAccountBInfo) {
+				console.log('📝 Creating user token B account...')
+				preInstructions.push(
+					createAssociatedTokenAccountInstruction(ownerAddress, sourceB, ownerAddress, effectiveMintB)
+				)
+			}
+			if (!userPoolAccountInfo) {
+				console.log('📝 Creating user LP token account...')
+				preInstructions.push(
+					createAssociatedTokenAccountInstruction(ownerAddress, userPoolAccount, ownerAddress, tokenSwapState.poolMint)
+				)
+			}
+
+			// 🪙 BBA Wrapping Logic (Critical for BBA pools)
+			if (isBBAPoolPair) {
+				console.log('🪙 Handling BBA wrapping for liquidity deposit...')
+
+				if (isBBABase) {
+					// BBA is token A - need to wrap BBA to WBBA
+					console.log('💰 Wrapping BBA (token A) to WBBA for deposit...')
+					const requiredBBA = BigInt(amountADaltons)
+
+					// Check user BBA balance
+					const userBBABalance = await connection.getBalance(ownerAddress)
+					if (BigInt(userBBABalance) < requiredBBA) {
+						throw new Error(
+							`Insufficient BBA balance. Required: ${uiAmountA} BBA, Available: ${userBBABalance / 1e9} BBA`
+						)
+					}
+
+					// Transfer BBA to WBBA account and sync
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: ownerAddress,
+						toPubkey: sourceA,
+						daltons: Number(requiredBBA)
+					})
+					const syncBBAIx = createSyncNativeInstruction(sourceA)
+					preInstructions.push(transferBBAIx, syncBBAIx)
+
+					console.log(`✅ Added BBA wrapping instructions: ${requiredBBA} daltons`)
+				} else if (isBBAQuote) {
+					// BBA is token B - need to wrap BBA to WBBA
+					console.log('💰 Wrapping BBA (token B) to WBBA for deposit...')
+					const requiredBBA = BigInt(amountBDaltons)
+
+					// Check user BBA balance
+					const userBBABalance = await connection.getBalance(ownerAddress)
+					if (BigInt(userBBABalance) < requiredBBA) {
+						throw new Error(
+							`Insufficient BBA balance. Required: ${uiAmountB} BBA, Available: ${userBBABalance / 1e9} BBA`
+						)
+					}
+
+					// Transfer BBA to WBBA account and sync
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: ownerAddress,
+						toPubkey: sourceB,
+						daltons: Number(requiredBBA)
+					})
+					const syncBBAIx = createSyncNativeInstruction(sourceB)
+					preInstructions.push(transferBBAIx, syncBBAIx)
+
+					console.log(`✅ Added BBA wrapping instructions: ${requiredBBA} daltons`)
+				}
+			}
+
+			// Calculate optimal pool token amount based on current reserves
+			console.log('🧮 Calculating optimal pool token amount...')
+
+			// Get pool mint info to check current supply
+			const poolMintInfo = await getMint(connection, tokenSwapState.poolMint)
+			const totalSupply = BigInt(poolMintInfo.supply.toString())
+
+			// Get current token balances in the pool
+			const [poolAccountAInfo, poolAccountBInfo] = await Promise.all([
+				connection.getAccountInfo(tokenSwapState.tokenA),
+				connection.getAccountInfo(tokenSwapState.tokenB)
+			])
+
+			if (!poolAccountAInfo || !poolAccountBInfo) {
+				throw new Error('Unable to fetch pool token account information')
+			}
+
+			// Parse token account data to get current balances
+			const poolBalanceA = new BN(poolAccountAInfo.data.slice(64, 72), 'le')
+			const poolBalanceB = new BN(poolAccountBInfo.data.slice(64, 72), 'le')
+
+			console.log('💎 Current pool state:', {
+				totalSupply: totalSupply.toString(),
+				poolBalanceA: poolBalanceA.toString(),
+				poolBalanceB: poolBalanceB.toString()
+			})
+
+			// Calculate pool tokens to mint based on proportional deposit
+			// poolTokenAmount = min(amountA * totalSupply / poolBalanceA, amountB * totalSupply / poolBalanceB)
+			let poolTokenAmount: bigint
+
+			if (totalSupply === BigInt(0)) {
+				// Initial deposit - use geometric mean
+				poolTokenAmount = BigInt(Math.floor(Math.sqrt(Number(amountADaltons) * Number(amountBDaltons))))
+			} else {
+				// Subsequent deposits - maintain pool ratio
+				const tokensFromA = poolBalanceA.gt(new BN(0))
+					? (BigInt(amountADaltons) * totalSupply) / BigInt(poolBalanceA.toString())
+					: BigInt(0)
+				const tokensFromB = poolBalanceB.gt(new BN(0))
+					? (BigInt(amountBDaltons) * totalSupply) / BigInt(poolBalanceB.toString())
+					: BigInt(0)
+
+				poolTokenAmount = tokensFromA < tokensFromB ? tokensFromA : tokensFromB
+			}
+
+			// Apply slippage tolerance (reduce expected LP tokens for safety)
+			if (slippage > 0) {
+				const slippageFactor = 1 - slippage / 100
+				poolTokenAmount = BigInt(Math.floor(Number(poolTokenAmount) * slippageFactor))
+			}
+
+			// Maximum token amounts (add slippage buffer)
+			const slippageMultiplier = 1 + slippage / 100
+			const maximumTokenAAmount = BigInt(Math.ceil(Number(amountADaltons) * slippageMultiplier))
+			const maximumTokenBAmount = BigInt(Math.ceil(Number(amountBDaltons) * slippageMultiplier))
+
+			console.log('📊 Calculated amounts:', {
+				poolTokenAmount: poolTokenAmount.toString(),
+				maximumTokenAAmount: maximumTokenAAmount.toString(),
+				maximumTokenBAmount: maximumTokenBAmount.toString()
+			})
+
+			// Create deposit instruction using library
+			console.log('🔧 Creating deposit instruction...')
+			const depositInstruction = createDepositAllTokenTypesInstruction(
+				{
+					tokenSwap: tokenSwapPubkey,
+					authority: swapAuthority,
+					userTransferAuthority: ownerAddress,
+					sourceA,
+					sourceB,
+					intoA: tokenSwapState.tokenA,
+					intoB: tokenSwapState.tokenB,
+					poolMint: tokenSwapState.poolMint,
+					poolAccount: userPoolAccount,
+					tokenProgram: TOKEN_PROGRAM_ID
+				},
+				{
+					poolTokenAmount: new BN(poolTokenAmount.toString()),
+					maximumTokenAAmount: new BN(maximumTokenAAmount.toString()),
+					maximumTokenBAmount: new BN(maximumTokenBAmount.toString())
+				}
+			)
+
+			console.log('✅ Deposit instruction created successfully')
+
+			// Build and send transaction
+			const transaction = new Transaction()
+
+			// Add setup instructions first
+			preInstructions.forEach((ix) => transaction.add(ix))
+
+			// Add the deposit instruction
+			transaction.add(depositInstruction)
+
+			console.log('📡 Sending transaction...')
+			console.log('📋 Final transaction details:', {
+				instructionCount: transaction.instructions.length,
+				instructions: transaction.instructions.map((ix, index) => ({
+					index,
+					programId: ix.programId.toBase58(),
+					dataLength: ix.data.length,
+					accountCount: ix.keys.length
+				}))
+			})
+
+			const latestBlockhash = await connection.getLatestBlockhash('confirmed')
+
+			try {
+				const signature = await sendTransactionWithRetry(transaction, connection, sendTransaction, {
+					skipPreflight: false,
+					preflightCommitment: 'confirmed'
+				})
+				console.log('✅ Transaction sent successfully:', signature)
+
+				console.log('⏳ Confirming transaction...')
+				await confirmTransactionWithTimeout(connection, signature, latestBlockhash)
+
+				console.log('🎉 Deposit completed successfully!')
+				return { signature }
+			} catch (error: any) {
+				console.error('❌ Transaction failed:', error)
+
+				// Try to get more detailed error information
+				if (error.message?.includes('custom program error')) {
+					console.error('🔍 Custom program error detected - this is InvalidProgramAddress')
+					console.error('🔧 Debugging hints:')
+					console.error('   - Check if authority derivation is correct')
+					console.error('   - Verify token account addresses match swap state')
+					console.error('   - Ensure pool mint and accounts are valid')
+				}
+				throw error
+			}
 		}
 	})
 }
