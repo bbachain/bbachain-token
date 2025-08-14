@@ -1,19 +1,18 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { HiOutlineAdjustmentsHorizontal } from 'react-icons/hi2'
-import { IoCheckmarkCircle, IoWarningOutline } from 'react-icons/io5'
+import { IoCheckmarkCircle } from 'react-icons/io5'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import DepositSuccessDialog from '@/features/liquidityPool/components/DepositSuccessDialog'
 import LPSlippageDialog from '@/features/liquidityPool/components/LPSlippageDialog'
+import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
 import { useDepositToPool, useGetPoolById } from '@/features/liquidityPool/services'
 import { PoolData } from '@/features/liquidityPool/types'
 import SwapItem from '@/features/swap/components/SwapItem'
@@ -84,6 +83,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 	const [slippage, setSlippage] = useState<number>(1)
 	const [isSlippageDialogOpen, setIsSlippageDialogOpen] = useState<boolean>(false)
 	const [isCalculating, setIsCalculating] = useState<boolean>(false)
+	const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState<boolean>(false)
 	const [lastChangedField, setLastChangedField] = useState<'from' | 'to' | null>(null)
 	const [successData, setSuccessData] = useState<{
 		signature: string
@@ -194,7 +194,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 	}
 
 	const handleDeposit = async () => {
-		if (!poolDetailData) return
+		if (!poolDetailData || !canDeposit) return
 
 		try {
 			const result = await depositMutation.mutateAsync({
@@ -241,6 +241,12 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 		}
 	}
 
+	useEffect(() => {
+		if (depositMutation.isSuccess && depositMutation.data) {
+			setIsSuccessDialogOpen(true)
+		}
+	}, [depositMutation.data, depositMutation.isSuccess])
+
 	return (
 		<div className="w-full px-[15px]">
 			<Button
@@ -281,27 +287,6 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						{/* Validation Alerts */}
-						{hasInsufficientBalanceA && (
-							<Alert className="mb-4 border-red-200 bg-red-50">
-								<IoWarningOutline className="h-4 w-4 text-red-600" />
-								<AlertDescription className="text-red-700">
-									Insufficient {poolDetailData?.mintA.symbol} balance. Required: {fromAmount}, Available:{' '}
-									{userMintABalance}
-								</AlertDescription>
-							</Alert>
-						)}
-
-						{hasInsufficientBalanceB && (
-							<Alert className="mb-4 border-red-200 bg-red-50">
-								<IoWarningOutline className="h-4 w-4 text-red-600" />
-								<AlertDescription className="text-red-700">
-									Insufficient {poolDetailData?.mintB.symbol} balance. Required: {toAmount}, Available:{' '}
-									{userMintBBalance}
-								</AlertDescription>
-							</Alert>
-						)}
-
 						<div className="flex flex-col space-y-4">
 							<SwapItem
 								noTitle
@@ -341,9 +326,9 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						)}
 
 						{/* Total Deposit */}
-						<div className="p-3 my-4 text-sm flex justify-between items-center w-full rounded-lg border-2 border-hover-green bg-gradient-to-r from-green-50 to-emerald-50">
-							<h5 className="font-medium text-main-black">Total Deposit Value</h5>
-							<p className="font-semibold text-main-green text-lg">${(baseTokenPrice + quoteTokenPrice).toFixed(2)}</p>
+						<div className="p-2.5 my-4 text-sm flex justify-between items-center w-full rounded-[10px] bg-light-blue">
+							<h5 className="font-medium text-main-blue text-xs">Total Deposit Value</h5>
+							<p className="font-semibold text-main-black text-xs">${(baseTokenPrice + quoteTokenPrice).toFixed(2)}</p>
 						</div>
 
 						{/* Slippage Settings */}
@@ -366,18 +351,17 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						{/* Deposit Button */}
 						<Button
 							type="button"
+							size="lg"
 							className={cn(
-								'rounded-xl h-12 text-base font-semibold py-3 w-full transition-all',
-								canDeposit
-									? 'bg-main-green hover:bg-hover-green text-white shadow-lg hover:shadow-xl'
-									: 'bg-gray-300 text-gray-500 cursor-not-allowed'
+								'rounded-[26px] h-12 text-lg font-medium text-main-white py-3 w-full transition-all',
+								canDeposit ? 'bg-main-green hover:bg-hover-green ' : 'bg-light-grey'
 							)}
 							disabled={!canDeposit}
 							onClick={handleDeposit}
 						>
 							{depositMutation.isPending ? (
 								<div className="flex items-center gap-2">
-									<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+									<Loader2 className="animate-spin" />
 									Depositing...
 								</div>
 							) : !fromAmount || !toAmount ? (
@@ -515,20 +499,13 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 				/>
 
 				{successData && poolDetailData && (
-					<DepositSuccessDialog
-						isOpen={!!successData}
-						onClose={() => setSuccessData(null)}
-						signature={successData.signature}
-						pool={{
-							mintA: poolDetailData.mintA,
-							mintB: poolDetailData.mintB,
-							address: isPoolData(poolDetailData) ? (poolDetailData as any).id || '' : poolDetailData.address
-						}}
-						amounts={{
-							amountA: successData.amountA,
-							amountB: successData.amountB,
-							totalValue: successData.totalValue
-						}}
+					<LPSuccessDialog
+						isOpen={isSuccessDialogOpen}
+						onOpenChange={setIsSuccessDialogOpen}
+						title="Deposit Successful"
+						contents={['Your liquidity was added successfully', `Total deposit value $${successData.totalValue}`]}
+						linkText="View Position"
+						link={`https://explorer.bbachain.com/tx/${successData.signature}`}
 					/>
 				)}
 			</div>
