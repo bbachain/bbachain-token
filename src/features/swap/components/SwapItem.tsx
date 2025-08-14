@@ -33,7 +33,7 @@ export default function SwapItem({
 	setTokenProps,
 	setInputAmount
 }: SwapItemProps) {
-	const isBalanceNotEnough = type === 'from' && Number(inputAmount) > balance
+	const isBalanceNotEnough = Number(inputAmount) > balance
 	const isAmountPositive = Number(inputAmount) >= 0
 	const isInValid = isBalanceNotEnough || !isAmountPositive
 
@@ -95,9 +95,7 @@ export default function SwapItem({
 							Max
 						</Button>
 					)}
-					{type === 'from' && isBalanceNotEnough && (
-						<p className="text-error absolute right-0 top-7 text-[10px]">Balance is not enough</p>
-					)}
+					{isBalanceNotEnough && <p className="text-error absolute right-0 top-7 text-[10px]">Balance is not enough</p>}
 					{!isAmountPositive && (
 						<p className="text-error absolute right-0 top-7 text-[10px]">Amount can not be negative</p>
 					)}
@@ -105,7 +103,12 @@ export default function SwapItem({
 			</section>
 			<section className="w-full flex justify-between">
 				<p className="text-xs text-main-black">
-					Balance: {balance} {tokenProps.symbol}
+					Balance:{' '}
+					{balance.toLocaleString(undefined, {
+						minimumFractionDigits: 0,
+						maximumFractionDigits: 6
+					})}{' '}
+					{tokenProps.symbol}
 				</p>
 				<p className="text-dark-grey text-xs">
 					≈${' '}

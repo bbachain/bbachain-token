@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import Link from 'next/link'
 import { Dispatch, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -38,9 +37,14 @@ export default function LPSuccessDialog({
 					))}
 				</ul>
 				<DialogFooter className="flex flex-row items-center justify-between w-full">
-					<Link href={link} className="text-main-blue hover:text-main-green text-start w-full underline text-sm">
+					<a
+						href={link}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="text-main-blue hover:text-main-green text-start w-full underline text-sm"
+					>
 						{linkText}
-					</Link>
+					</a>
 					<DialogClose asChild>
 						<Button
 							className="bg-main-green w-[75px] h-7 hover:bg-hover-green rounded-[30px] text-sm text-main-white"

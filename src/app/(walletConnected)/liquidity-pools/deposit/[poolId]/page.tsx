@@ -1,24 +1,25 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { HiOutlineAdjustmentsHorizontal } from 'react-icons/hi2'
+import { IoCheckmarkCircle } from 'react-icons/io5'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Slider } from '@/components/ui/slider'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import LPSlippageDialog from '@/features/liquidityPool/components/LPSlippageDialog'
-import SelectTokenFarm from '@/features/liquidityPool/components/SelectTokenFarm'
-import TokenFarmItem from '@/features/liquidityPool/components/TokenFarmItem'
-import { useGetPoolById } from '@/features/liquidityPool/services'
-import { TTokenFarmProps, PoolData } from '@/features/liquidityPool/types'
+import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
+import { useDepositToPool, useGetPoolById } from '@/features/liquidityPool/services'
+import { PoolData } from '@/features/liquidityPool/types'
 import SwapItem from '@/features/swap/components/SwapItem'
-import { useGetTokenPrice, useGetUserBalanceByMint } from '@/features/swap/services'
+import { useGetUserBalanceByMint, useGetCoinGeckoTokenPrice } from '@/features/swap/services'
 import { TTokenProps } from '@/features/swap/types'
+import { getCoinGeckoId } from '@/features/swap/utils'
+import { cn } from '@/lib/utils'
 
 const initialTokeProps: TTokenProps = {
 	chainId: 101,
@@ -32,91 +33,39 @@ const initialTokeProps: TTokenProps = {
 	extensions: {}
 }
 
-const tokenFarmData: TTokenFarmProps[] = [
-	{
-		id: '1',
-		fromToken: {
-			chainId: 101,
-			address: 'abcd',
-			programId: 'abcd',
-			name: 'Binance Coin',
-			symbol: 'BNB',
-			logoURI: '/bnb-swap-icon.svg',
-			decimals: 6,
-			tags: [],
-			extensions: {}
-		},
-		toToken: {
-			chainId: 101,
-			address: 'efgh',
-			programId: 'abcd',
-			name: 'BBA Coin',
-			symbol: 'BBA',
-			logoURI: '/bba-swap-icon.svg',
-			decimals: 6,
-			tags: [],
-			extensions: {}
-		},
-		tvl: '$1,435.34',
-		apr: '0%'
-	},
-	{
-		id: '2',
-		fromToken: {
-			chainId: 101,
-			address: 'abcd',
-			programId: 'abcd',
-			name: 'Binance Coin',
-			symbol: 'BNB',
-			logoURI: '/bnb-swap-icon.svg',
-			decimals: 6,
-			tags: [],
-			extensions: {}
-		},
-		toToken: {
-			chainId: 101,
-			address: 'efgh',
-			programId: 'abcd',
-			name: 'BBA Coin',
-			symbol: 'BBA',
-			logoURI: '/bba-swap-icon.svg',
-			decimals: 6,
-			tags: [],
-			extensions: {}
-		},
-		tvl: '$2,547.00',
-		apr: '0.25%'
-	},
-	{
-		id: '3',
-		fromToken: {
-			chainId: 101,
-			address: 'abcd',
-			programId: 'abcd',
-			name: 'Binance Coin',
-			symbol: 'BNB',
-			logoURI: '/bnb-swap-icon.svg',
-			decimals: 6,
-			tags: [],
-			extensions: {}
-		},
-		toToken: {
-			chainId: 101,
-			address: 'efgh',
-			programId: 'abcd',
-			name: 'BBA Coin',
-			symbol: 'BBA',
-			logoURI: '/bba-swap-icon.svg',
-			decimals: 6,
-			tags: [],
-			extensions: {}
-		},
-		tvl: '$11,400.50',
-		apr: '0.69%'
-	}
-]
+// Helper function to calculate optimal amount B from amount A
+const calculateOptimalAmountB = (
+	amountA: string,
+	reserveA: bigint,
+	reserveB: bigint,
+	decimalsA: number,
+	decimalsB: number
+): string => {
+	if (!amountA || Number(amountA) === 0 || reserveA === BigInt(0)) return ''
 
-const farmAmountOptions = [25, 50, 75, 100] as const
+	const amountADaltons = BigInt(Math.floor(Number(amountA) * Math.pow(10, decimalsA)))
+	const amountBDaltons = (amountADaltons * reserveB) / reserveA
+	const amountB = Number(amountBDaltons) / Math.pow(10, decimalsB)
+
+	return amountB.toFixed(6)
+}
+
+// Helper function to calculate optimal amount A from amount B
+const calculateOptimalAmountA = (
+	amountB: string,
+	reserveA: bigint,
+	reserveB: bigint,
+	decimalsA: number,
+	decimalsB: number
+): string => {
+	if (!amountB || Number(amountB) === 0 || reserveB === BigInt(0)) return ''
+
+	const amountBDaltons = BigInt(Math.floor(Number(amountB) * Math.pow(10, decimalsB)))
+	const amountADaltons = (amountBDaltons * reserveA) / reserveB
+	const amountA = Number(amountADaltons) / Math.pow(10, decimalsA)
+
+	return amountA.toFixed(6)
+}
 
 // Helper function to check if data is PoolData type
 const isPoolData = (data: any): data is PoolData => {
@@ -131,26 +80,172 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 
 	const [fromAmount, setFromAmount] = useState<string>('')
 	const [toAmount, setToAmount] = useState<string>('')
-	const [farmAmount, setFarmAmount] = useState<string>('')
-	const [farmAmountPercentage, setFarmAmountPercentage] = useState<number>(0)
-	const [selectedFarmTokenId, setSelectedFarmTokenId] = useState<string>(tokenFarmData[0].id)
 	const [slippage, setSlippage] = useState<number>(1)
 	const [isSlippageDialogOpen, setIsSlippageDialogOpen] = useState<boolean>(false)
-
-	const selectedFarmToken = tokenFarmData.find((t) => t.id === selectedFarmTokenId)
+	const [isCalculating, setIsCalculating] = useState<boolean>(false)
+	const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState<boolean>(false)
+	const [lastChangedField, setLastChangedField] = useState<'from' | 'to' | null>(null)
+	const [successData, setSuccessData] = useState<{
+		signature: string
+		amountA: string
+		amountB: string
+		totalValue: string
+	} | null>(null)
 
 	const getMintABalance = useGetUserBalanceByMint({ mintAddress: poolDetailData?.mintA.address ?? '' })
 	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: poolDetailData?.mintB.address ?? '' })
-	const getMintATokenPrice = useGetTokenPrice({ mintAddress: poolDetailData?.mintA.address ?? '' })
-	const getMintBTokenPrice = useGetTokenPrice({ mintAddress: poolDetailData?.mintB.address ?? '' })
+	// Get token prices from CoinGecko
+	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
+		coinGeckoId: poolDetailData?.mintA.address ? getCoinGeckoId(poolDetailData.mintA.address) : undefined
+	})
+	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
+		coinGeckoId: poolDetailData?.mintB.address ? getCoinGeckoId(poolDetailData.mintB.address) : undefined
+	})
 
-	const mintABalance = getMintABalance.data ? getMintABalance.data.balance : 0
-	const mintBBalance = getMintBBalance.data ? getMintBBalance.data.balance : 0
-	const mintAInitialPrice = getMintATokenPrice.data ? getMintATokenPrice.data.usdRate : 0
-	const mintBInitialPrice = getMintBTokenPrice.data ? getMintBTokenPrice.data.usdRate : 0
+	// Convert balance from daltons to UI units using token decimals
+	const mintABalance =
+		getMintABalance.data && poolDetailData
+			? getMintABalance.data.balance / Math.pow(10, poolDetailData.mintA.decimals)
+			: 0
+	const mintBBalance =
+		getMintBBalance.data && poolDetailData
+			? getMintBBalance.data.balance / Math.pow(10, poolDetailData.mintB.decimals)
+			: 0
 
-	const baseTokenPrice = Number(fromAmount) > 0 ? Number(fromAmount) * mintAInitialPrice : 0
-	const quoteTokenPrice = Number(toAmount) > 0 ? Number(toAmount) * mintBInitialPrice : 0
+	// Get unit prices from CoinGecko API
+	const mintAUnitPrice = getMintATokenPrice.data ?? 0
+	const mintBUnitPrice = getMintBTokenPrice.data ?? 0
+
+	// Calculate total USD values for current input amounts
+	const baseTokenPrice = Number(fromAmount) > 0 ? Number(fromAmount) * mintAUnitPrice : 0
+	const quoteTokenPrice = Number(toAmount) > 0 ? Number(toAmount) * mintBUnitPrice : 0
+
+	const depositMutation = useDepositToPool()
+
+	// Auto-calculate optimal ratio
+	useEffect(() => {
+		if (!poolDetailData || isCalculating) return
+
+		const pool = isPoolData(poolDetailData) ? poolDetailData : (poolDetailData as any)
+
+		let reserveA: bigint, reserveB: bigint
+
+		if (isPoolData(poolDetailData)) {
+			reserveA = BigInt(Math.floor(poolDetailData.mintAmountA * Math.pow(10, poolDetailData.mintA.decimals)))
+			reserveB = BigInt(Math.floor(poolDetailData.mintAmountB * Math.pow(10, poolDetailData.mintB.decimals)))
+		} else {
+			reserveA = pool.reserveA || BigInt(0)
+			reserveB = pool.reserveB || BigInt(0)
+		}
+
+		if (reserveA === BigInt(0) || reserveB === BigInt(0)) return
+
+		setIsCalculating(true)
+
+		if (lastChangedField === 'from' && fromAmount) {
+			const optimalB = calculateOptimalAmountB(
+				fromAmount,
+				reserveA,
+				reserveB,
+				poolDetailData.mintA.decimals,
+				poolDetailData.mintB.decimals
+			)
+			if (optimalB !== toAmount) {
+				setToAmount(optimalB)
+			}
+		} else if (lastChangedField === 'to' && toAmount) {
+			const optimalA = calculateOptimalAmountA(
+				toAmount,
+				reserveA,
+				reserveB,
+				poolDetailData.mintA.decimals,
+				poolDetailData.mintB.decimals
+			)
+			if (optimalA !== fromAmount) {
+				setFromAmount(optimalA)
+			}
+		}
+
+		setIsCalculating(false)
+	}, [fromAmount, toAmount, poolDetailData, lastChangedField, isCalculating])
+
+	// Validation - use same converted balances as display
+	const userMintABalance = mintABalance
+	const userMintBBalance = mintBBalance
+	const hasInsufficientBalanceA = Number(fromAmount) > userMintABalance
+	const hasInsufficientBalanceB = Number(toAmount) > userMintBBalance
+
+	const canDeposit =
+		!!poolDetailData &&
+		Number(fromAmount) > 0 &&
+		Number(toAmount) > 0 &&
+		!hasInsufficientBalanceA &&
+		!hasInsufficientBalanceB &&
+		!depositMutation.isPending
+
+	const handleFromAmountChange = (value: string) => {
+		setFromAmount(value)
+		setLastChangedField('from')
+	}
+
+	const handleToAmountChange = (value: string) => {
+		setToAmount(value)
+		setLastChangedField('to')
+	}
+
+	const handleDeposit = async () => {
+		if (!poolDetailData || !canDeposit) return
+
+		try {
+			const result = await depositMutation.mutateAsync({
+				pool: isPoolData(poolDetailData)
+					? {
+							address: (poolDetailData as any).id || '',
+							programId: poolDetailData.programId,
+							swapData: {} as any,
+							mintA: poolDetailData.mintA,
+							mintB: poolDetailData.mintB,
+							tokenAccountA: '',
+							tokenAccountB: '',
+							reserveA: BigInt(Math.floor(poolDetailData.mintAmountA * Math.pow(10, poolDetailData.mintA.decimals))),
+							reserveB: BigInt(Math.floor(poolDetailData.mintAmountB * Math.pow(10, poolDetailData.mintB.decimals))),
+							feeRate: poolDetailData.feeRate,
+							tvl: poolDetailData.tvl,
+							volume24h: poolDetailData.day?.volume ?? 0,
+							fees24h: poolDetailData.day?.volumeFee ?? 0,
+							apr24h: poolDetailData.day?.apr ?? 0
+						}
+					: poolDetailData,
+				amountA: fromAmount,
+				amountB: toAmount,
+				slippage
+			})
+
+			// Show success dialog with transaction details
+			setSuccessData({
+				signature: result.signature,
+				amountA: fromAmount,
+				amountB: toAmount,
+				totalValue: (baseTokenPrice + quoteTokenPrice).toFixed(2)
+			})
+
+			setFromAmount('')
+			setToAmount('')
+
+			// Refresh balances
+			getMintABalance.refetch()
+			getMintBBalance.refetch()
+			getPoolByIdQuery.refetch()
+		} catch (error: any) {
+			toast.error(error.message || 'Failed to deposit liquidity')
+		}
+	}
+
+	useEffect(() => {
+		if (depositMutation.isSuccess && depositMutation.data) {
+			setIsSuccessDialogOpen(true)
+		}
+	}, [depositMutation.data, depositMutation.isSuccess])
 
 	return (
 		<div className="w-full px-[15px]">
@@ -163,151 +258,123 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 				<h4>Back</h4>
 			</Button>
 			<div className="flex justify-center md:flex-row md:space-x-[30px] md:space-y-0 space-x-0 flex-col space-y-6 items-center">
-				<Card className="md:w-[500px] h-full w-full border-hover-green border-[1px] rounded-[12px] p-6 drop-shadow-lg">
-					<CardContent className="p-0">
-						<Tabs defaultValue="add-liquidity">
-							<TabsList className="bg-light-green p-0 w-full h-8 mb-[18px]">
-								<TabsTrigger
-									className="w-full h-full bg-transparent text-sm text-light-grey font-normal pt-1 hover:bg-main-green hover:text-main-white  focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
-									value="add-liquidity"
-								>
-									Add Liquidity
-								</TabsTrigger>
-								<TabsTrigger
-									className="w-full h-full bg-transparent text-sm text-light-grey font-normal pt-1 hover:bg-main-green hover:text-main-white  focus-visible:bg-main-green focus-visible:text-main-white data-[state=active]:bg-main-green data-[state=active]:text-main-white data-[state=active]:rounded-[4px]"
-									value="stake-liquidity"
-								>
-									Stake Liquidity
-								</TabsTrigger>
-							</TabsList>
-							<TabsContent className="w-full" value="add-liquidity">
-								<div className="flex flex-col md:space-y-8 space-y-3">
-									<SwapItem
-										noTitle
-										type="from"
-										tokenProps={poolDetailData?.mintA ?? initialTokeProps}
-										balance={mintABalance}
-										price={baseTokenPrice}
-										inputAmount={fromAmount}
-										setInputAmount={setFromAmount}
-									/>
-									<SwapItem
-										noTitle
-										type="to"
-										tokenProps={poolDetailData?.mintB ?? initialTokeProps}
-										balance={mintBBalance}
-										price={quoteTokenPrice}
-										inputAmount={toAmount}
-										setInputAmount={setToAmount}
-									/>
+				<Card className="md:w-[500px] h-full w-full border-hover-green border-[1px] rounded-[12px] drop-shadow-lg">
+					<CardHeader className="pb-4">
+						<CardTitle className="text-xl font-semibold text-main-black flex items-center gap-3">
+							<div className="flex items-center -space-x-2">
+								<Image
+									src={poolDetailData?.mintA.logoURI || '/icon-placeholder.svg'}
+									width={24}
+									height={24}
+									className="rounded-full border-2 border-white"
+									alt={`${poolDetailData?.mintA.symbol} icon`}
+									onError={(e) => {
+										e.currentTarget.src = '/icon-placeholder.svg'
+									}}
+								/>
+								<Image
+									src={poolDetailData?.mintB.logoURI || '/icon-placeholder.svg'}
+									width={24}
+									height={24}
+									className="rounded-full border-2 border-white"
+									alt={`${poolDetailData?.mintB.symbol} icon`}
+									onError={(e) => {
+										e.currentTarget.src = '/icon-placeholder.svg'
+									}}
+								/>
+							</div>
+							Add Liquidity to {poolDetailData?.mintA.symbol}-{poolDetailData?.mintB.symbol}
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="flex flex-col space-y-4">
+							<SwapItem
+								noTitle
+								type="from"
+								tokenProps={poolDetailData?.mintA ?? initialTokeProps}
+								balance={userMintABalance}
+								price={mintAUnitPrice}
+								inputAmount={fromAmount}
+								setInputAmount={handleFromAmountChange}
+							/>
+							<SwapItem
+								noTitle
+								type="to"
+								tokenProps={poolDetailData?.mintB ?? initialTokeProps}
+								balance={userMintBBalance}
+								price={mintBUnitPrice}
+								inputAmount={toAmount}
+								setInputAmount={handleToAmountChange}
+							/>
+						</div>
+
+						{/* Pool Ratio Info */}
+						{poolDetailData && fromAmount && toAmount && (
+							<div className="mt-4 p-3 bg-box-3 rounded-lg">
+								<h5 className="text-sm font-medium text-main-black mb-2">Pool Ratio</h5>
+								<div className="flex text-xs text-dark-grey items-center justify-between">
+									<span>
+										1 {poolDetailData.mintA.symbol} = {(Number(toAmount) / Number(fromAmount)).toFixed(6)}{' '}
+										{poolDetailData.mintB.symbol}
+									</span>
+									<span>
+										1 {poolDetailData.mintB.symbol} = {(Number(fromAmount) / Number(toAmount)).toFixed(6)}{' '}
+										{poolDetailData.mintA.symbol}
+									</span>
 								</div>
-								<div className="p-2.5 my-[18px] text-xs h-8 flex justify-between items-center w-full rounded-[10px] border-2 border-dark-grey">
-									<h5 className="text-dark-grey">Total Deposit</h5>
-									<p className="text-main-black">$0.00</p>
+							</div>
+						)}
+
+						{/* Total Deposit */}
+						<div className="p-2.5 my-4 text-sm flex justify-between items-center w-full rounded-[10px] bg-light-blue">
+							<h5 className="font-medium text-main-blue text-xs">Total Deposit Value</h5>
+							<p className="font-semibold text-main-black text-xs">${(baseTokenPrice + quoteTokenPrice).toFixed(2)}</p>
+						</div>
+
+						{/* Slippage Settings */}
+						<div className="flex mb-4 w-full items-center justify-between">
+							<div className="text-xs text-main-black">
+								<span className="font-medium">Pool Share: </span>
+								<span className="text-dark-grey">
+									~{(((baseTokenPrice + quoteTokenPrice) / (poolDetailData?.tvl || 1)) * 100).toFixed(4)}%
+								</span>
+							</div>
+							<Button
+								onClick={() => setIsSlippageDialogOpen(true)}
+								className="min-w-16 bg-box hover:bg-box-2 h-8 text-xs text-main-black rounded-lg flex items-center gap-1"
+							>
+								<HiOutlineAdjustmentsHorizontal />
+								{slippage}% slippage
+							</Button>
+						</div>
+
+						{/* Deposit Button */}
+						<Button
+							type="button"
+							size="lg"
+							className={cn(
+								'rounded-[26px] h-12 text-lg font-medium text-main-white py-3 w-full transition-all',
+								canDeposit ? 'bg-main-green hover:bg-hover-green ' : 'bg-light-grey'
+							)}
+							disabled={!canDeposit}
+							onClick={handleDeposit}
+						>
+							{depositMutation.isPending ? (
+								<div className="flex items-center gap-2">
+									<Loader2 className="animate-spin" />
+									Depositing...
 								</div>
-								<div className="flex mb-[18px] w-full items-center justify-between">
-									<section className="flex text-xs text-main-black items-center space-x-[3px]">
-										<p>1 BNB</p>
-										<span className="text-dark-grey">≈</span>
-										<p>2.8989 USDT</p>
-									</section>
-									<Button
-										onClick={() => setIsSlippageDialogOpen(true)}
-										className="min-w-14 bg-box hover:bg-box-2 h-[18px] text-xs text-main-black rounded-[4px]"
-									>
-										<HiOutlineAdjustmentsHorizontal />
-										{slippage}
-									</Button>
+							) : !fromAmount || !toAmount ? (
+								'Enter Amounts'
+							) : hasInsufficientBalanceA || hasInsufficientBalanceB ? (
+								'Insufficient Balance'
+							) : (
+								<div className="flex items-center gap-2">
+									<IoCheckmarkCircle className="w-5 h-5" />
+									Deposit Liquidity
 								</div>
-								<Button
-									type="button"
-									className="rounded-[48px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green"
-								>
-									Enter Token Amount
-								</Button>
-							</TabsContent>
-							<TabsContent value="stake-liquidity" className="flex flex-col space-y-[18px]">
-								<div>
-									<section className="flex w-full mb-3 justify-between items-center">
-										<h3 className="text-lg font-medium text-main-black">Select Farm</h3>
-										<Button
-											onClick={() => setIsSlippageDialogOpen(true)}
-											className="min-w-14 bg-box hover:bg-box-2 h-[18px] text-xs text-main-black rounded-[4px]"
-										>
-											<HiOutlineAdjustmentsHorizontal />
-											{slippage}
-										</Button>
-									</section>
-									<SelectTokenFarm
-										selectedTokenId={selectedFarmTokenId}
-										setSelectedTokenId={setSelectedFarmTokenId}
-										data={tokenFarmData}
-									/>
-								</div>
-								<div>
-									<h3 className="text-lg mb-3 font-medium text-main-black">Stake Liquidity</h3>
-									<TokenFarmItem
-										selectedTokenFarm={selectedFarmToken}
-										inputAmount={farmAmount}
-										setInputAmount={setFarmAmount}
-									/>
-								</div>
-								<div className="flex flex-col space-y-2.5">
-									<section className="w-full flex items-center justify-between">
-										<h3 className="text-lg text-main-black">Amount</h3>
-										<div className="flex space-x-2.5">
-											{farmAmountOptions.map((amount) => (
-												<Button
-													key={amount}
-													onClick={() => setFarmAmountPercentage(amount)}
-													className="w-[38px] h-[18px] bg-box hover:bg-box-2 rounded-[4px] text-main-black text-xs"
-												>{`${amount}%`}</Button>
-											))}
-										</div>
-									</section>
-									<section className="flex space-x-2.5 justify-between">
-										<Slider
-											defaultValue={[farmAmountPercentage]}
-											value={[farmAmountPercentage]}
-											onValueChange={(number) => setFarmAmountPercentage(number[0])}
-											max={100}
-											step={1}
-										/>
-										<div className="md:p-[6px] p-1 w-32 h-[30px] flex items-center rounded-[4px] border-2 border-light-grey">
-											<section className="flex w-full items-center">
-												<Input
-													className="w-full max-w-[35px] text-main-black text-center !p-0 h-full remove-arrow-input !text-base border-0 outline-none focus-visible:ring-0"
-													type="number"
-													placeholder="Custom"
-													value={farmAmountPercentage}
-													min={0}
-													max={100}
-													onChange={(e) => {
-														const value = Number(e.target.value)
-														// Limit value between 0 and 100
-														setFarmAmountPercentage(Math.min(100, Math.max(0, value)))
-													}}
-												/>
-												<p className="text-base text-light-grey">%</p>
-											</section>
-											<Button
-												variant="ghost"
-												className="px-[3px] h-[20px] text-main-green text-base"
-												onClick={() => setFarmAmountPercentage(100)}
-											>
-												Max
-											</Button>
-										</div>
-									</section>
-								</div>
-								<Button
-									type="button"
-									className="rounded-[48px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green"
-								>
-									Enter Token Amount
-								</Button>
-							</TabsContent>
-						</Tabs>
+							)}
+						</Button>
 					</CardContent>
 				</Card>
 				<div className="flex md:w-auto w-full flex-col md:space-y-[30px] space-y-3">
@@ -430,6 +497,17 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 					maxSlippage={slippage}
 					setMaxSlippage={setSlippage}
 				/>
+
+				{successData && poolDetailData && (
+					<LPSuccessDialog
+						isOpen={isSuccessDialogOpen}
+						onOpenChange={setIsSuccessDialogOpen}
+						title="Deposit Successful"
+						contents={['Your liquidity was added successfully', `Total deposit value $${successData.totalValue}`]}
+						linkText="View Position"
+						link={`https://explorer.bbachain.com/tx/${successData.signature}`}
+					/>
+				)}
 			</div>
 		</div>
 	)

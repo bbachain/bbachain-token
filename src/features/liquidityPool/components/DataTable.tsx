@@ -819,6 +819,7 @@ export function DataTable<TData, TValue>({
 												<div className="flex justify-end gap-2">
 													<Link
 														href={`/swap?from=${(row.original as PoolListProps).mintA.address}&to=${(row.original as PoolListProps).mintB.address}`}
+														onClick={(e) => e.stopPropagation()}
 														className={cn(
 															buttonVariants({ variant: 'outline', size: 'lg' }),
 															'h-7 w-[49.5px] rounded-[13px] py-1.5 text-xs font-medium border-main-green text-main-green hover:bg-main-green hover:text-white transition-colors'
@@ -828,6 +829,7 @@ export function DataTable<TData, TValue>({
 													</Link>
 													<Link
 														href={`/liquidity-pools/deposit/${id}`}
+														onClick={(e) => e.stopPropagation()}
 														className={cn(
 															buttonVariants({ variant: 'default', size: 'lg' }),
 															'h-7 w-[75px] rounded-[13px] py-1.5 text-xs font-medium bg-main-green hover:bg-hover-green text-white'
