@@ -138,6 +138,8 @@ export default function Swap() {
 		slippage: maxSlippage
 	})
 
+	const isSwapQuoteLoading = swapQuoteQuery.isLoading || swapQuoteQuery.isRefetching
+
 	// Check if swap is possible
 	const canSwapQuery = useCanSwap(fromTokenProps.address, toTokenProps.address)
 
@@ -163,7 +165,7 @@ export default function Swap() {
 			inputAmountValid: amountIn && Number(amountIn) > 0,
 			fromToken: fromTokenProps.symbol,
 			toToken: toTokenProps.symbol,
-			swapQuoteLoading: swapQuoteQuery.isLoading,
+			swapQuoteLoading: swapQuoteQuery.isLoading || swapQuoteQuery.isRefetching,
 			swapQuoteError: swapQuoteQuery.error,
 			swapQuoteData: swapQuoteQuery.data,
 			canSwap: canSwapQuery.data,
@@ -331,7 +333,7 @@ export default function Swap() {
 						</p>
 
 						{/* Loading state for quote */}
-						{swapQuoteQuery.isLoading && (
+						{isSwapQuoteLoading && (
 							<p className="text-xs text-blue-600 flex items-center gap-2">
 								<Loader2 className="w-3 h-3 animate-spin" />
 								Calculating best price...
@@ -406,7 +408,7 @@ export default function Swap() {
 
 				<CardFooter className="pt-[18px] !px-0 !pb-0">
 					<Button
-						disabled={!isValid || swapQuoteQuery.isLoading || executeSwapMutation.isPending}
+						disabled={!isValid || isSwapQuoteLoading || executeSwapMutation.isPending}
 						type="button"
 						onClick={handleSwap}
 						className={cn(
@@ -414,10 +416,10 @@ export default function Swap() {
 							!isValid && 'hover:cursor-not-allowed'
 						)}
 					>
-						{(swapQuoteQuery.isLoading || executeSwapMutation.isPending) && <Loader2 className="animate-spin mr-2" />}
+						{(isSwapQuoteLoading || executeSwapMutation.isPending) && <Loader2 className="animate-spin mr-2" />}
 						{executeSwapMutation.isPending
 							? 'Swapping...'
-							: swapQuoteQuery.isLoading
+							: isSwapQuoteLoading
 								? 'Computing...'
 								: !hasValidTokenPair
 									? 'Select Different Tokens'
