@@ -1,7 +1,7 @@
 'use client'
 import { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
 import Image from 'next/image'
+import { RxCaretSort } from 'react-icons/rx'
 import Moment from 'react-moment'
 
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,7 @@ export const TokenListColumns: ColumnDef<TokenListProps>[] = [
 				onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 			>
 				Token
-				<ArrowUpDown className="ml-2 h-4 w-4" />
+				<RxCaretSort className="ml-2 !h-6 !w-6" />
 			</Button>
 		),
 		cell: ({ row }) => (
@@ -48,7 +48,7 @@ export const TokenListColumns: ColumnDef<TokenListProps>[] = [
 				onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 			>
 				Token Supply
-				<ArrowUpDown className="ml-2 h-4 w-4" />
+				<RxCaretSort className="ml-2 !h-6 !w-6" />
 			</Button>
 		)
 	},
@@ -61,7 +61,7 @@ export const TokenListColumns: ColumnDef<TokenListProps>[] = [
 				onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 			>
 				Created Date
-				<ArrowUpDown className="ml-2 h-4 w-4" />
+				<RxCaretSort className="ml-2 !h-6 !w-6" />
 			</Button>
 		),
 		cell: ({ row }) => {
