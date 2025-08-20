@@ -14,7 +14,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		symbol: 'BBA',
 		coinGeckoId: 'bbachain',
 		address: '',
-		logoURI: '/bba_logo.svg',
+		logoURI: 'https://s2.coinmarketcap.com/static/img/coins/64x64/34568.png',
 		decimals: 9,
 		isNative: true,
 		tags: ['native']
@@ -24,7 +24,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		symbol: 'WBBA',
 		coinGeckoId: 'bbachain',
 		address: NATIVE_MINT.toBase58(),
-		logoURI: '/bba_logo.svg',
+		logoURI: 'https://s2.coinmarketcap.com/static/img/coins/64x64/34568.png',
 		decimals: 9,
 		isNative: false,
 		tags: ['wrapped', 'native']
