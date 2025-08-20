@@ -1,3 +1,4 @@
+import { Loader2 } from 'lucide-react'
 import { Dispatch, SetStateAction } from 'react'
 import toast from 'react-hot-toast'
 import { FaArrowDownLong, FaArrowRightLong } from 'react-icons/fa6'
@@ -15,6 +16,7 @@ interface WrapContentProps {
 	inputAmount: string
 	setInputAmount: Dispatch<SetStateAction<string>>
 	isInvalid: boolean
+	isLoading: boolean
 	onAction: () => void
 }
 
@@ -26,6 +28,7 @@ export default function WrapContent({
 	inputAmount,
 	setInputAmount,
 	isInvalid,
+	isLoading,
 	onAction
 }: WrapContentProps) {
 	const isMobile = useIsMobile()
@@ -71,10 +74,11 @@ export default function WrapContent({
 			<Button
 				size="lg"
 				className="rounded-[26px] bg-main-green hover:bg-hover-green h-12 w-full font-medium text-lg text-main-white"
-				disabled={isInvalid}
+				disabled={isInvalid || isLoading}
 				type="button"
 				onClick={isInvalid ? () => toast.error('Invalid input') : onAction}
 			>
+				{isLoading && <Loader2 className="animate-spin" />}
 				{base === 'BBA' ? 'Wrap' : 'Unwrap'} {base}{' '}
 				<span>
 					<FaArrowRightLong />

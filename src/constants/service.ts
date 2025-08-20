@@ -49,7 +49,9 @@ const POOL_SERVICE_KEY = {
 } as const
 
 const WRAPPING_SERVICE_KEY = {
-	GET_WBBA_BALANCE: 'get-wbba-balance'
+	GET_WBBA_BALANCE: 'get-wbba-balance',
+	WRAP_BBA: 'wrap-bba',
+	UNWRAP_WBBA: 'unwrap-wbba'
 } as const
 
 const SERVICES_KEY = {

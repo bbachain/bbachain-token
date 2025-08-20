@@ -1,28 +1,47 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 
 import { balanceFormater } from '@/components/common/WalletButton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import WrapBalanceItem from '@/features/wrapping/components/WrapBalanceItem'
 import WrapContent from '@/features/wrapping/components/WrapContentCard'
-import { useGetWBBABalance } from '@/features/wrapping/services'
+import { useGetWBBABalance, useUnwrapBBA, useWrapBBA } from '@/features/wrapping/services'
 import { useGetBalance } from '@/services/wallet'
 import StaticTokens from '@/staticData/tokens'
 
 export default function Wrapping() {
+	const wrapBBAMutation = useWrapBBA()
+	const unwrapWBBAMutation = useUnwrapBBA()
 	const getBBABalance = useGetBalance()
 	const getWBBABalance = useGetWBBABalance()
 	const BBABalance = balanceFormater(getBBABalance.data ?? 0)
 	const WBBABalance = (getWBBABalance.data?.balance ?? 0) / Math.pow(10, StaticTokens[0].decimals)
 	const [inputAmount, setInputAmount] = useState<string>('')
-	const [currentBase, setCurrentBase] = useState<'WBBA' | 'BBA'>('BBA')
 
 	const isAmountPositive = Number(inputAmount) >= 0
 
 	const generalInvalid = inputAmount === '' || Number(inputAmount) <= 0 || !isAmountPositive
 	const isWrapInvalid = generalInvalid || Number(inputAmount) > BBABalance
 	const isUnwrapInvalid = generalInvalid || Number(inputAmount) > WBBABalance
+
+	const onWrapBBA = () => wrapBBAMutation.mutate({ amount: Number(inputAmount) })
+	const onUnwrapWBBA = () => unwrapWBBAMutation.mutate({ amount: Number(inputAmount) })
+
+	useEffect(() => {
+		if (wrapBBAMutation.isSuccess && wrapBBAMutation.data) {
+			setInputAmount('')
+			toast.success(wrapBBAMutation.data.message)
+		}
+	}, [wrapBBAMutation.data, wrapBBAMutation.isSuccess])
+
+	useEffect(() => {
+		if (unwrapWBBAMutation.isSuccess && unwrapWBBAMutation.data) {
+			setInputAmount('')
+			toast.success(unwrapWBBAMutation.data.message)
+		}
+	}, [unwrapWBBAMutation.data, unwrapWBBAMutation.isSuccess])
 
 	return (
 		<div className="xl:w-5/6 md:w-11/12 mx-auto md:px-0 px-[15px] flex flex-col md:space-y-14 space-y-6">
@@ -43,13 +62,7 @@ export default function Wrapping() {
 				/>
 			</section>
 			<section className="border border-main-green rounded-[12px] md:py-8 md:px-6 px-3 py-3">
-				<Tabs
-					defaultValue="wrap"
-					onValueChange={(val) => {
-						setInputAmount('')
-						setCurrentBase(val as 'WBBA' | 'BBA')
-					}}
-				>
+				<Tabs defaultValue="wrap" onValueChange={() => setInputAmount('')}>
 					<TabsList className="flex md:w-80 w-full mb-[18px] rounded-md bg-light-green p-0">
 						<TabsTrigger
 							value="wrap"
@@ -83,7 +96,8 @@ export default function Wrapping() {
 							inputAmount={inputAmount}
 							setInputAmount={setInputAmount}
 							isInvalid={isWrapInvalid}
-							onAction={() => console.log('action')}
+							isLoading={wrapBBAMutation.isPending}
+							onAction={onWrapBBA}
 						/>
 					</TabsContent>
 					<TabsContent value="unwrap">
@@ -95,7 +109,8 @@ export default function Wrapping() {
 							inputAmount={inputAmount}
 							setInputAmount={setInputAmount}
 							isInvalid={isUnwrapInvalid}
-							onAction={() => console.log('action')}
+							isLoading={unwrapWBBAMutation.isPending}
+							onAction={onUnwrapWBBA}
 						/>
 					</TabsContent>
 				</Tabs>
