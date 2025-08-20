@@ -4,7 +4,8 @@ import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
 import { MintInfo } from '@/features/liquidityPool/types'
 
 export type ExtendedMintInfo = MintInfo & {
-	coinGeckoId?: string
+	coinGeckoId?: string;
+	isNative: boolean;
 }
 
 const StaticTokens: ExtendedMintInfo[] = [
@@ -26,7 +27,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		logoURI: '/bba_logo.svg',
 		decimals: 9,
 		isNative: false,
-		tags: ['native']
+		tags: ['wrapped', 'native']
 	},
 	{
 		name: 'Tether USD',
