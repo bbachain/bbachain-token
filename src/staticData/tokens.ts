@@ -12,9 +12,20 @@ const StaticTokens: ExtendedMintInfo[] = [
 		name: 'BBA Coin',
 		symbol: 'BBA',
 		coinGeckoId: 'bbachain',
+		address: '',
+		logoURI: '/bba_logo.svg',
+		decimals: 9,
+		isNative: true,
+		tags: ['native']
+	},
+	{
+		name: 'Wrapped BBA',
+		symbol: 'WBBA',
+		coinGeckoId: 'bbachain',
 		address: NATIVE_MINT.toBase58(),
 		logoURI: '/bba_logo.svg',
 		decimals: 9,
+		isNative: false,
 		tags: ['native']
 	},
 	{
@@ -24,6 +35,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
 		logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
 		decimals: 6,
+		isNative: false,
 		tags: ['stablecoin']
 	},
 	{
@@ -33,6 +45,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		address: '2pCnkCrLZt4BTfsqABJpQCrynZZbtoqYmq86CusP4FbS',
 		logoURI: 'https://ipfs.io/ipfs/Qmd5CCuusYMDW7KDaed9x2LyeHesdzfthQg43gUuGgmbPD',
 		decimals: 6,
+		isNative: false,
 		tags: ['meme']
 	}
 ]
