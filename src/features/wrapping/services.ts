@@ -15,7 +15,7 @@ import StaticTokens from '@/staticData/tokens'
 
 import { TGetUserBalanceData } from '../swap/types'
 
-import { TWrapPayload, TWrapResponse } from './types'
+import { TUnwrapResponse, TWrapPayload, TWrapResponse } from './types'
 
 export function useGetWBBABalance() {
 	const { publicKey: ownerAddress } = useWallet()
@@ -100,7 +100,7 @@ export function useUnwrapBBA() {
 	const { connection } = useConnection()
 	const queryClient = useQueryClient()
 
-	return useMutation<TWrapResponse, Error, TWrapPayload>({
+	return useMutation<TUnwrapResponse, Error, TWrapPayload>({
 		mutationKey: [SERVICES_KEY.WRAPPING.UNWRAP_WBBA],
 		mutationFn: async (payload) => {
 			if (!ownerAddress) throw new Error('No wallet connected')
@@ -119,38 +119,51 @@ export function useUnwrapBBA() {
 				})
 
 				const isUnwrapAll = payload.amount === Number(formattedWBBABalance)
+				const signatures: string[] = []
 
-				if (isUnwrapAll) {
-					// 🔹 CASE 1: Unwrap all (close ATA)
+				{
 					console.log('🔓 Closing WBBA account (unwrap all)...')
-					const closeIx = createCloseAccountInstruction(wbbaAccount, ownerAddress, ownerAddress)
-					unwrapTxInstructions.push(closeIx)
-				} else {
-					// 🔹 CASE 2: Unwrap partial
-					const unwrapWBBADaltons = bbaTodaltons(payload.amount)
-
-					console.log(`🔓 Unwrapping partial ${payload.amount} BBA...`)
-
-					// transfer lamports from WBBA ATA back to wallet
-					const transferIx = SystemProgram.transfer({
-						fromPubkey: wbbaAccount,
-						toPubkey: ownerAddress,
-						daltons: unwrapWBBADaltons
-					})
-
-					// sync ATA balance
-					const syncIx = createSyncNativeInstruction(wbbaAccount)
-
-					unwrapTxInstructions.push(transferIx, syncIx)
+					const closeAccountIx = createCloseAccountInstruction(
+						wbbaAccount,
+						ownerAddress,
+						ownerAddress
+					)
+					const closeAccountTx = new Transaction().add(closeAccountIx)
+					const closeAccountSig = await sendTransaction(closeAccountTx, connection)
+					signatures.push(closeAccountSig)
+					await connection.confirmTransaction(closeAccountSig, 'confirmed')
 				}
 
-				const tx = new Transaction().add(...unwrapTxInstructions)
+				if (!isUnwrapAll) {
+					// 🔹 CASE Unwrap partial
+					const leftOverWBBAAmounts = Number(formattedWBBABalance) - payload.amount
+					const leftOverWBBADaltons = bbaTodaltons(leftOverWBBAAmounts)
 
-				const signature = await sendTransaction(tx, connection)
+					const createWBBAIx = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						wbbaAccount,
+						ownerAddress,
+						NATIVE_MINT
+					)
+					unwrapTxInstructions.push(createWBBAIx)
+
+					// transfer left over WBBA daltons back from BBA to WBBA
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: ownerAddress,
+						toPubkey: wbbaAccount,
+						daltons: leftOverWBBADaltons
+					})
+					const syncBBAIx = createSyncNativeInstruction(wbbaAccount)
+					unwrapTxInstructions.push(transferBBAIx, syncBBAIx)
+
+					const tx = new Transaction().add(...unwrapTxInstructions)
+					const unwrapSignature = await sendTransaction(tx, connection)
+					signatures.push(unwrapSignature)
+				}
 
 				return {
 					message: `Successfully unwrapped ${payload.amount} WBBA to ${payload.amount} BBA`,
-					signature
+					signatures
 				}
 			} catch (err: any) {
 				console.error('❌ Unwrap BBA failed:', err)

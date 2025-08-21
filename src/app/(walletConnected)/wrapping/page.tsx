@@ -54,11 +54,15 @@ export default function Wrapping() {
 				</h5>
 			</section>
 			<section className="flex justify-between md:flex-row md:space-x-6 flex-col md:space-y-0 space-y-3 w-full items-center">
-				<WrapBalanceItem type="BBA" balance={BBABalance ?? 0} isLoading={getBBABalance.isLoading} />
+				<WrapBalanceItem
+					type="BBA"
+					balance={BBABalance ?? 0}
+					isLoading={getBBABalance.isLoading || getBBABalance.isRefetching}
+				/>
 				<WrapBalanceItem
 					type="WBBA"
 					balance={WBBABalance ?? 0}
-					isLoading={getWBBABalance.isLoading}
+					isLoading={getWBBABalance.isLoading || getWBBABalance.isRefetching}
 				/>
 			</section>
 			<section className="border border-main-green rounded-[12px] md:py-8 md:px-6 px-3 py-3">

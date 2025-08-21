@@ -7,3 +7,7 @@ export type TWrapPayload = {
 export type TWrapResponse = TSuccessMessage & {
 	signature: string
 }
+
+export type TUnwrapResponse = TSuccessMessage & {
+	signatures: string[]
+}
