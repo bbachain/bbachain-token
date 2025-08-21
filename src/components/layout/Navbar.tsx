@@ -154,7 +154,7 @@ export default function Navbar() {
 	useEffect(() => setMounted(true), [])
 
 	return (
-		<nav className="2xl:px-24 md:px-20 py-3.5  flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
+		<nav className="2xl:px-24 xl:px-10 md:px-20 py-3.5  flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
 			<div className="flex items-center md:space-x-5 lg:space-x-[35px]">
 				<Link href="/">
 					<ThemeImage

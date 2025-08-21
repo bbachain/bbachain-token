@@ -42,6 +42,10 @@ const NavMenu: NavMenuProps[] = [
 		]
 	},
 	{
+		name: 'Wrapping',
+		href: '/wrapping'
+	},
+	{
 		name: 'Swap',
 		href: '/swap'
 	},
