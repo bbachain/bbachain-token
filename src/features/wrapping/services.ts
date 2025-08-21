@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import SERVICES_KEY from '@/constants/service'
 import { bbaTodaltons } from '@/lib/bbaWrapping'
+import StaticTokens from '@/staticData/tokens'
 
 import { TGetUserBalanceData } from '../swap/types'
 
@@ -97,6 +98,7 @@ export function useWrapBBA() {
 export function useUnwrapBBA() {
 	const { publicKey: ownerAddress, sendTransaction } = useWallet()
 	const { connection } = useConnection()
+	const queryClient = useQueryClient()
 
 	return useMutation<TWrapResponse, Error, TWrapPayload>({
 		mutationKey: [SERVICES_KEY.WRAPPING.UNWRAP_WBBA],
@@ -109,8 +111,14 @@ export function useUnwrapBBA() {
 				// get WBBA ATA
 				const wbbaAccount = await getAssociatedTokenAddress(NATIVE_MINT, ownerAddress)
 				const balanceAmount = await connection.getTokenAccountBalance(wbbaAccount)
+				const wbbaBalance =
+					Number(balanceAmount.value.amount) / Math.pow(10, StaticTokens[0].decimals)
+				const formattedWBBABalance = wbbaBalance.toLocaleString(undefined, {
+					minimumFractionDigits: 0,
+					maximumFractionDigits: 6
+				})
 
-				const isUnwrapAll = payload.amount === Number(balanceAmount.value.amount)
+				const isUnwrapAll = payload.amount === Number(formattedWBBABalance)
 
 				if (isUnwrapAll) {
 					// 🔹 CASE 1: Unwrap all (close ATA)
@@ -148,6 +156,14 @@ export function useUnwrapBBA() {
 				console.error('❌ Unwrap BBA failed:', err)
 				throw new Error(err.message || 'Failed to unwrap BBA')
 			}
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+			})
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.WRAPPING.GET_WBBA_BALANCE, ownerAddress?.toBase58()]
+			})
 		}
 	})
 }
