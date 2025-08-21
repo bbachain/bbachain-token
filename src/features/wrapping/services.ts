@@ -136,8 +136,8 @@ export function useUnwrapBBA() {
 
 				if (!isUnwrapAll) {
 					// 🔹 CASE Unwrap partial
-					const leftOverWBBAAmounts = Number(formattedWBBABalance) - payload.amount
-					const leftOverWBBADaltons = bbaTodaltons(leftOverWBBAAmounts)
+					const remainingWBBAAmounts = Number(formattedWBBABalance) - payload.amount
+					const remainingWBBADaltons = bbaTodaltons(remainingWBBAAmounts)
 
 					const createWBBAIx = createAssociatedTokenAccountInstruction(
 						ownerAddress,
@@ -151,7 +151,7 @@ export function useUnwrapBBA() {
 					const transferBBAIx = SystemProgram.transfer({
 						fromPubkey: ownerAddress,
 						toPubkey: wbbaAccount,
-						daltons: leftOverWBBADaltons
+						daltons: remainingWBBADaltons
 					})
 					const syncBBAIx = createSyncNativeInstruction(wbbaAccount)
 					unwrapTxInstructions.push(transferBBAIx, syncBBAIx)
