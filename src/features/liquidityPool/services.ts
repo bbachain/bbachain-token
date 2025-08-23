@@ -7,7 +7,8 @@ import {
 	createInitializeMintInstruction,
 	getMint,
 	NATIVE_MINT,
-	createSyncNativeInstruction
+	createSyncNativeInstruction,
+	createApproveInstruction
 } from '@bbachain/spl-token'
 import {
 	CurveType,
@@ -735,12 +736,19 @@ export const useCreatePool = () => {
 						console.log('💰 BBA/Token pool (BBA as base)')
 
 						// Check BBA balance (native daltons)
-						const userBBABalance = await connection.getBalance(ownerAddress)
-						const requiredBBA = bbaTodaltons(liquidityBaseAmount)
-
-						if (userBBABalance < requiredBBA) {
+						const userWBBATokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, ownerAddress)
+						console.log('ini lewat bang')
+						const userWBBAInfo = await connection.getAccountInfo(userWBBATokenAccount)
+						if (!userWBBAInfo) {
 							throw new Error(
-								`Insufficient BBA balance. Required: ${liquidityBaseAmount} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+								'WBBA token account not found. Please ensure you have the required tokens.'
+							)
+						}
+
+						const userWBBABalance = new BN(userWBBAInfo.data.slice(64, 72), 'le')
+						if (userWBBABalance.lt(new BN(baseAmountDaltons))) {
+							throw new Error(
+								`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userWBBABalance.div(new BN(1000000)).toString()}`
 							)
 						}
 
@@ -761,19 +769,16 @@ export const useCreatePool = () => {
 							)
 						}
 
-						// Transfer BBA to pool (using special BBA handling)
-						console.log('🔄 Transferring BBA to pool account...')
-						const transferBBAIx = SystemProgram.transfer({
-							fromPubkey: ownerAddress,
-							toPubkey: swapTokenAAccount,
-							daltons: requiredBBA
-						})
-
-						const { createSyncNativeInstruction } = await import('@bbachain/spl-token')
-						const syncBBAIx = createSyncNativeInstruction(swapTokenAAccount)
-
 						// Transfer quote token (standard SPL transfer)
 						const { createTransferInstruction } = await import('@bbachain/spl-token')
+
+						const transferBBAIx = createTransferInstruction(
+							userWBBATokenAccount,
+							swapTokenAAccount,
+							ownerAddress,
+							baseAmountDaltons
+						)
+
 						const transferQuoteIx = createTransferInstruction(
 							userQuoteTokenAccount,
 							swapTokenBAccount,
@@ -781,8 +786,17 @@ export const useCreatePool = () => {
 							quoteAmountDaltons
 						)
 
+						console.log('re-check', {
+							swapTokenA: swapTokenAAccount.toBase58(),
+							wbbaTokenAccount: userWBBATokenAccount.toBase58(),
+							wbbaDaltons: baseAmountDaltons,
+							wbbaAmount: baseAmount
+						})
+
 						// Combine all transfers
-						const liquidityTx = new Transaction().add(transferBBAIx, syncBBAIx, transferQuoteIx)
+						const liquidityTx = new Transaction().add(transferBBAIx, transferQuoteIx)
+
+						console.log('this causes error')
 						const liquiditySig = await sendTransactionWithRetry(
 							liquidityTx,
 							connection,

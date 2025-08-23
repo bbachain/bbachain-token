@@ -1,46 +1,25 @@
 import * as BufferLayout from '@bbachain/buffer-layout'
 import {
 	getAssociatedTokenAddress,
-	createAssociatedTokenAccountInstruction,
 	TOKEN_PROGRAM_ID,
 	NATIVE_MINT,
-	createApproveInstruction,
-	createSyncNativeInstruction,
-	createCloseAccountInstruction,
-	ASSOCIATED_TOKEN_PROGRAM_ID
+	createApproveInstruction
 } from '@bbachain/spl-token'
 import {
 	createSwapInstruction,
 	PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID
 } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import {
-	PublicKey,
-	Transaction,
-	SystemProgram,
-	Keypair,
-	TransactionInstruction
-} from '@bbachain/web3.js'
+import { PublicKey, Transaction, TransactionInstruction } from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
 import { TGetTokensResponse } from '@/app/api/tokens/route'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
-import {
-	wrapBBAtoWBBA,
-	unwrapWBBAtoBBA,
-	createTokenAccountManual,
-	bbaTodaltons,
-	daltonsToBBA
-} from '@/lib/bbaWrapping'
+import { bbaTodaltons } from '@/lib/bbaWrapping'
 import { getTokenAccounts2 } from '@/lib/tokenAccount'
-import {
-	isNativeBBA,
-	getWBBAMintAddress,
-	isBBAPool,
-	getBBAPositionInPool
-} from '@/staticData/tokens'
+import { isNativeBBA } from '@/staticData/tokens'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from '../liquidityPool/onchain'
 import { TGetTokenDataResponse, TGetTokenResponse } from '../tokens/types'
