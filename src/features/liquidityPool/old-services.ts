@@ -1,0 +1,852 @@
+// development temporary file
+
+import {
+	TOKEN_PROGRAM_ID,
+	getAssociatedTokenAddress,
+	createAssociatedTokenAccountInstruction,
+	getMinimumBalanceForRentExemptMint,
+	MINT_SIZE,
+	createInitializeMintInstruction,
+	getMint,
+	NATIVE_MINT,
+	createSyncNativeInstruction
+} from '@bbachain/spl-token'
+import {
+	CurveType,
+	createInitializeInstruction,
+	PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID,
+	createDepositAllTokenTypesInstruction,
+	TokenSwap
+} from '@bbachain/spl-token-swap'
+import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
+import BN from 'bn.js'
+
+import ENDPOINTS from '@/constants/endpoint'
+import SERVICES_KEY from '@/constants/service'
+import { addBBAToPoolAccount, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
+import { formatTokenToDaltons } from '@/lib/utils'
+import {
+	isBBAPool,
+	getBBAPositionInPool,
+	isNativeBBA,
+	getWBBAMintAddress
+} from '@/staticData/tokens'
+
+import { useGetCoinGeckoTokenPrice } from '../swap/services'
+import { getCoinGeckoId } from '../swap/utils'
+
+import { TransactionListProps } from './components/TransactionColumns'
+import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
+import {
+	MintInfo,
+	PoolData,
+	TCreatePoolPayload,
+	TCreatePoolResponse,
+	TGetPoolsResponse,
+	TGetPoolTransactionResponse,
+	TransactionData
+} from './types'
+import { processTransactionData } from './utils'
+
+// Enhanced retry configuration
+const RETRY_CONFIG = {
+	attempts: 3,
+	delay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+	retryCondition: (error: any) => {
+		// Retry on network errors, timeouts, and 5xx errors
+		return !error.response || error.response.status >= 500 || error.code === 'NETWORK_ERROR'
+	}
+}
+
+// Transaction helper with retry and delay
+const sendTransactionWithRetry = async (
+	transaction: Transaction,
+	connection: Connection,
+	sendTransaction: any,
+	options?: { signers?: any[]; skipPreflight?: boolean; preflightCommitment?: string }
+) => {
+	for (let attempt = 1; attempt <= RETRY_CONFIG.attempts; attempt++) {
+		try {
+			console.log(`📤 Sending transaction (attempt ${attempt}/${RETRY_CONFIG.attempts})...`)
+
+			const signature = await sendTransaction(transaction, connection, options)
+			console.log(`✅ Transaction sent successfully:`, signature)
+
+			return signature
+		} catch (error: any) {
+			console.error(`❌ Transaction attempt ${attempt} failed:`, error)
+
+			if (attempt === RETRY_CONFIG.attempts || !RETRY_CONFIG.retryCondition(error)) {
+				throw error
+			}
+
+			// Wait before retry
+			const delay = RETRY_CONFIG.delay(attempt - 1)
+			console.log(`⏳ Waiting ${delay}ms before retry...`)
+			await new Promise((resolve) => setTimeout(resolve, delay))
+		}
+	}
+}
+
+// Confirmation helper with timeout
+const confirmTransactionWithTimeout = async (
+	connection: Connection,
+	signature: string,
+	latestBlockhash: any,
+	timeoutMs = 30000
+) => {
+	console.log(`⏳ Confirming transaction: ${signature}`)
+
+	const timeoutPromise = new Promise((_, reject) => {
+		setTimeout(() => reject(new Error('Transaction confirmation timeout')), timeoutMs)
+	})
+
+	const confirmPromise = connection.confirmTransaction(
+		{ signature, ...latestBlockhash },
+		'confirmed'
+	)
+
+	const confirmation: any = await Promise.race([confirmPromise, timeoutPromise])
+
+	if (confirmation.value?.err) {
+		throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
+	}
+
+	console.log(`✅ Transaction confirmed: ${signature}`)
+	return confirmation
+}
+
+// Cache configuration
+const CACHE_CONFIG = {
+	staleTime: 60000, // 1 minute - data is considered fresh
+	gcTime: 300000, // 5 minutes - data stays in cache (renamed from cacheTime)
+	refetchInterval: 300000, // Auto-refetch every 5 minutes
+	refetchOnWindowFocus: true,
+	refetchOnMount: true,
+	refetchOnReconnect: true
+}
+
+// Create pool mutation remains the same but with better error handling
+export const useCreatePool = () => {
+	const { connection } = useConnection()
+	const { publicKey: ownerAddress, sendTransaction, signTransaction } = useWallet()
+	const queryClient = useQueryClient()
+
+	return useMutation<TCreatePoolResponse, Error, TCreatePoolPayload>({
+		mutationKey: [SERVICES_KEY.POOL.CREATE_POOL, ownerAddress?.toBase58()],
+		mutationFn: async (payload) => {
+			if (!ownerAddress) {
+				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
+			}
+
+			if (!signTransaction) {
+				throw new Error('Wallet does not support transaction signing.')
+			}
+
+			console.log('🚀 Starting BBAChain Liquidity Pool creation process...')
+			console.log('📊 Pool Configuration:', {
+				baseToken: `${payload.baseToken.symbol} (${payload.baseToken.address})`,
+				quoteToken: `${payload.quoteToken.symbol} (${payload.quoteToken.address})`,
+				feeTier: `${payload.feeTier}%`,
+				initialPrice: `${payload.initialPrice} ${payload.baseToken.symbol} per ${payload.quoteToken.symbol}`,
+				baseAmount: `${payload.baseTokenAmount} ${payload.baseToken.symbol}`,
+				quoteAmount: `${payload.quoteTokenAmount} ${payload.quoteToken.symbol}`,
+				programId: TOKEN_SWAP_PROGRAM_ID.toBase58()
+			})
+
+			try {
+				// Validate pool creation requirements
+				console.log('🔍 Validating pool creation requirements...')
+
+				// Check if tokens are different
+				if (payload.baseToken.address === payload.quoteToken.address) {
+					throw new Error('Base and quote tokens must be different')
+				}
+
+				// Check if amounts are valid
+				const baseAmount = parseFloat(payload.baseTokenAmount)
+				const quoteAmount = parseFloat(payload.quoteTokenAmount)
+
+				if (baseAmount <= 0 || quoteAmount <= 0) {
+					throw new Error('Token amounts must be greater than zero')
+				}
+
+				// Check if initial price is valid
+				const initialPrice = parseFloat(payload.initialPrice)
+				if (initialPrice <= 0) {
+					throw new Error('Initial price must be greater than zero')
+				}
+
+				console.log('✅ Pool validation passed')
+
+				let latestBlockhash = await connection.getLatestBlockhash('confirmed')
+				const daltons = await getMinimumBalanceForRentExemptMint(connection)
+				const baseMint = new PublicKey(payload.baseToken.address)
+				const quoteMint = new PublicKey(payload.quoteToken.address)
+
+				// === BBA Pool Detection ===
+				const isBBAPoolPair = isBBAPool(payload.baseToken.address, payload.quoteToken.address)
+				const bbaPosition = getBBAPositionInPool(
+					payload.baseToken.address,
+					payload.quoteToken.address
+				)
+				const isBBABase = bbaPosition === 'base'
+				const isBBAQuote = bbaPosition === 'quote'
+
+				console.log('🔑 Token mint addresses:', {
+					baseMint: baseMint.toBase58(),
+					quoteMint: quoteMint.toBase58(),
+					isBBAPool: isBBAPoolPair,
+					bbaPosition: bbaPosition,
+					requiresSpecialHandling: isBBAPoolPair
+				})
+
+				if (isBBAPoolPair) {
+					console.log('🪙 BBA Pool detected - will use special handling for native token wrapping')
+				}
+
+				const tokenSwap = Keypair.generate()
+				const [authority, bumpSeed] = PublicKey.findProgramAddressSync(
+					[tokenSwap.publicKey.toBuffer()],
+					TOKEN_SWAP_PROGRAM_ID
+				)
+
+				console.log('🔑 Authority Derivation:', {
+					tokenSwap: tokenSwap.publicKey.toBase58(),
+					authority: authority.toBase58(),
+					bumpSeed,
+					programId: TOKEN_SWAP_PROGRAM_ID.toBase58()
+				})
+
+				console.log('authority ', authority.toBase58())
+
+				// Create swap's token A account (owned by authority)
+				const swapTokenAAccount = await getAssociatedTokenAddress(baseMint, authority, true)
+				console.log('🏦 Swap Token A Account:', swapTokenAAccount.toBase58())
+				const baseTokenInfo = await connection.getAccountInfo(swapTokenAAccount)
+
+				if (!baseTokenInfo) {
+					console.log('📝 Creating swap token A account...')
+					const ix = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						swapTokenAAccount,
+						authority,
+						baseMint
+					)
+					const tx = new Transaction().add(ix)
+					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
+					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
+					console.log('✅ Swap Token A account created:', sig)
+
+					// Add delay to prevent wallet extension race condition
+					console.log('⏳ Waiting 2 seconds before next transaction...')
+					await new Promise((resolve) => setTimeout(resolve, 2000))
+				}
+
+				// Create swap's token B account (owned by authority)
+				const swapTokenBAccount = await getAssociatedTokenAddress(quoteMint, authority, true)
+				console.log('🏦 Swap Token B Account:', swapTokenBAccount.toBase58())
+				const quoteTokenInfo = await connection.getAccountInfo(swapTokenBAccount)
+				if (!quoteTokenInfo) {
+					console.log('📝 Creating swap token B account...')
+					const ix = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						swapTokenBAccount,
+						authority,
+						quoteMint
+					)
+					const tx = new Transaction().add(ix)
+					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
+					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
+					console.log('✅ Swap Token B account created:', sig)
+
+					// Add delay to prevent wallet extension race condition
+					console.log('⏳ Waiting 2 seconds before next transaction...')
+					await new Promise((resolve) => setTimeout(resolve, 2000))
+				}
+
+				// === Create LP token mint ===
+				console.log('🏭 Creating LP token mint...')
+				const poolMint = Keypair.generate()
+
+				console.log('🔑 Generated LP token mint:', poolMint.publicKey.toBase58())
+
+				// Step 1: Create mint account (only requires poolMint signature)
+				const createMintIx = SystemProgram.createAccount({
+					fromPubkey: ownerAddress,
+					newAccountPubkey: poolMint.publicKey,
+					space: MINT_SIZE,
+					daltons,
+					programId: TOKEN_PROGRAM_ID
+				})
+
+				// Step 2: Initialize mint with TEMPORARY authority (owner), will transfer later
+				const initMintIx = createInitializeMintInstruction(
+					poolMint.publicKey,
+					2,
+					ownerAddress,
+					null
+				)
+
+				// Step 3: Create user's LP token account
+				const poolTokenAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
+				const ataIx = createAssociatedTokenAccountInstruction(
+					ownerAddress,
+					poolTokenAccount,
+					ownerAddress,
+					poolMint.publicKey
+				)
+
+				// Create transaction using sendTransaction with signers (BBA wallet compatible approach)
+				console.log('📝 Creating LP mint transaction with temporary authority...')
+				const createPoolTx = new Transaction().add(createMintIx, initMintIx, ataIx)
+
+				// Use sendTransaction which can handle additional signers
+				const poolSig = await sendTransactionWithRetry(createPoolTx, connection, sendTransaction, {
+					signers: [poolMint], // Pass poolMint as additional signer
+					skipPreflight: false,
+					preflightCommitment: 'confirmed'
+				})
+
+				console.log('⏳ LP mint transaction sent:', poolSig)
+
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
+				await confirmTransactionWithTimeout(connection, poolSig, latestBlockhash)
+				console.log('✅ LP token mint created successfully')
+
+				// Add delay to prevent wallet extension race condition
+				console.log('⏳ Waiting 2 seconds before transferring authority...')
+				await new Promise((resolve) => setTimeout(resolve, 2000))
+
+				// === CRITICAL: Transfer Pool Mint Authority to Swap Authority ===
+				console.log('🔄 Transferring pool mint authority to swap authority...')
+				const { createSetAuthorityInstruction, AuthorityType } = await import('@bbachain/spl-token')
+
+				const setAuthorityIx = createSetAuthorityInstruction(
+					poolMint.publicKey,
+					ownerAddress, // Current authority
+					AuthorityType.MintTokens,
+					authority // New authority (swap authority)
+				)
+
+				const transferAuthorityTx = new Transaction().add(setAuthorityIx)
+				const transferSig = await sendTransactionWithRetry(
+					transferAuthorityTx,
+					connection,
+					sendTransaction
+				)
+				await confirmTransactionWithTimeout(connection, transferSig, latestBlockhash)
+				console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
+
+				// Add delay to prevent wallet extension race condition
+				console.log('⏳ Waiting 2 seconds before next transaction...')
+				await new Promise((resolve) => setTimeout(resolve, 2000))
+
+				// === Enhanced Fee Configuration ===
+				const feeTierMap: Record<string, { numerator: number; denominator: number }> = {
+					'0.01': { numerator: 1, denominator: 10000 }, // 0.01%
+					'0.05': { numerator: 5, denominator: 10000 }, // 0.05%
+					'0.1': { numerator: 1, denominator: 1000 }, // 0.1%
+					'0.25': { numerator: 25, denominator: 10000 }, // 0.25%
+					'0.3': { numerator: 3, denominator: 1000 }, // 0.3%
+					'1': { numerator: 1, denominator: 100 } // 1%
+				}
+				const feeConfig = feeTierMap[payload.feeTier]
+				if (!feeConfig) {
+					throw new Error(
+						`Invalid fee tier: ${payload.feeTier}%. Supported tiers: ${Object.keys(feeTierMap).join(', ')}%`
+					)
+				}
+
+				console.log('💰 Pool fee configuration:', {
+					tier: `${payload.feeTier}%`,
+					numerator: feeConfig.numerator,
+					denominator: feeConfig.denominator
+				})
+
+				console.log('token swap ', tokenSwap.publicKey.toBase58())
+				console.log('authority ', authority.toBase58())
+				console.log('token A ', swapTokenAAccount.toBase58())
+				console.log('token B ', swapTokenBAccount.toBase58())
+				console.log('Pool mint ', poolMint.publicKey.toBase58())
+				console.log('Token program id ', TOKEN_PROGRAM_ID.toBase58())
+
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
+				const feeAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
+				const feeInfo = await connection.getAccountInfo(feeAccount)
+				if (!feeInfo) {
+					const feeIx = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						feeAccount,
+						ownerAddress,
+						poolMint.publicKey
+					)
+					const tx = new Transaction().add(feeIx)
+					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
+					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
+					console.log('✅ Fee account created:', sig)
+
+					// Add delay to prevent wallet extension race condition
+					console.log('⏳ Waiting 2 seconds before next transaction...')
+					await new Promise((resolve) => setTimeout(resolve, 2000))
+				}
+
+				// Verify all accounts exist before initialization
+				console.log('🔍 Verifying all required accounts exist...')
+				const [baseInfo, quoteInfo, poolInfo, feeUpdatedInfo] = await Promise.all([
+					connection.getAccountInfo(swapTokenAAccount),
+					connection.getAccountInfo(swapTokenBAccount),
+					connection.getAccountInfo(poolMint.publicKey),
+					connection.getAccountInfo(feeAccount)
+				])
+
+				console.log('📋 Account Verification:', {
+					swapTokenAAccount: !!baseInfo,
+					swapTokenBAccount: !!quoteInfo,
+					poolMint: !!poolInfo,
+					feeAccount: !!feeUpdatedInfo,
+					allExist: !!(baseInfo && quoteInfo && poolInfo && feeUpdatedInfo)
+				})
+
+				if (!baseInfo || !quoteInfo || !poolInfo || !feeUpdatedInfo) {
+					throw new Error(
+						'Some required accounts do not exist. Cannot proceed with pool initialization.'
+					)
+				}
+
+				// === CRITICAL: Deposit Initial Liquidity ===
+				console.log('💰 Adding initial liquidity to pool token accounts...')
+
+				// Convert amounts to proper decimals (assuming 6 decimals for both tokens)
+				// Calculate quote amount from initial price: baseAmount / initialPrice
+				const liquidityBaseAmount = parseFloat(payload.baseTokenAmount)
+				const liquidityInitialPrice = parseFloat(payload.initialPrice) // SHIB per USDT
+				const liquidityQuoteAmount = liquidityBaseAmount / liquidityInitialPrice // USDT amount
+
+				const baseAmountDaltons = formatTokenToDaltons(liquidityBaseAmount, 6)
+				const quoteAmountDaltons = formatTokenToDaltons(liquidityQuoteAmount, 6)
+
+				console.log('💰 Initial Liquidity Amounts:', {
+					baseAmount: payload.baseTokenAmount,
+					calculatedQuoteAmount: liquidityQuoteAmount,
+					initialPrice: liquidityInitialPrice,
+					baseAmountDaltons,
+					quoteAmountDaltons,
+					swapTokenAAccount: swapTokenAAccount.toBase58(),
+					swapTokenBAccount: swapTokenBAccount.toBase58()
+				})
+
+				// === BBA-AWARE Liquidity Transfer ===
+				console.log('💰 Preparing BBA-aware liquidity transfer...')
+
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
+				if (isBBAPoolPair) {
+					console.log('🪙 BBA Pool - Using special native token handling')
+
+					// === BBA Pool Logic ===
+					if (isBBABase) {
+						// BBA is base token, other token is quote
+						console.log('💰 BBA/Token pool (BBA as base)')
+
+						// Check BBA balance (native daltons)
+						const userBBABalance = await connection.getBalance(ownerAddress)
+						const requiredBBA = bbaTodaltons(liquidityBaseAmount)
+
+						if (userBBABalance < requiredBBA) {
+							throw new Error(
+								`Insufficient BBA balance. Required: ${liquidityBaseAmount} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+							)
+						}
+
+						// Check quote token balance
+						const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
+						const userQuoteInfo = await connection.getAccountInfo(userQuoteTokenAccount)
+
+						if (!userQuoteInfo) {
+							throw new Error(
+								'Quote token account not found. Please ensure you have the required tokens.'
+							)
+						}
+
+						const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
+						if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
+							throw new Error(
+								`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
+							)
+						}
+
+						// Transfer BBA to pool (using special BBA handling)
+						console.log('🔄 Transferring BBA to pool account...')
+						const transferBBAIx = SystemProgram.transfer({
+							fromPubkey: ownerAddress,
+							toPubkey: swapTokenAAccount,
+							daltons: requiredBBA
+						})
+
+						const { createSyncNativeInstruction } = await import('@bbachain/spl-token')
+						const syncBBAIx = createSyncNativeInstruction(swapTokenAAccount)
+
+						// Transfer quote token (standard SPL transfer)
+						const { createTransferInstruction } = await import('@bbachain/spl-token')
+						const transferQuoteIx = createTransferInstruction(
+							userQuoteTokenAccount,
+							swapTokenBAccount,
+							ownerAddress,
+							quoteAmountDaltons
+						)
+
+						// Combine all transfers
+						const liquidityTx = new Transaction().add(transferBBAIx, syncBBAIx, transferQuoteIx)
+						const liquiditySig = await sendTransactionWithRetry(
+							liquidityTx,
+							connection,
+							sendTransaction
+						)
+						await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
+						console.log('✅ BBA/Token liquidity transferred to pool accounts:', liquiditySig)
+					} else if (isBBAQuote) {
+						// Token is base, BBA is quote
+						console.log('💰 Token/BBA pool (BBA as quote)')
+
+						// Check base token balance
+						const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
+						const userBaseInfo = await connection.getAccountInfo(userBaseTokenAccount)
+
+						if (!userBaseInfo) {
+							throw new Error(
+								'Base token account not found. Please ensure you have the required tokens.'
+							)
+						}
+
+						const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
+						if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
+							throw new Error(
+								`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
+							)
+						}
+
+						// Check BBA balance (native daltons)
+						const userBBABalance = await connection.getBalance(ownerAddress)
+						const requiredBBA = bbaTodaltons(liquidityQuoteAmount)
+
+						if (userBBABalance < requiredBBA) {
+							throw new Error(
+								`Insufficient BBA balance. Required: ${liquidityQuoteAmount} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+							)
+						}
+
+						// Transfer base token (standard SPL transfer)
+						const { createTransferInstruction } = await import('@bbachain/spl-token')
+						const transferBaseIx = createTransferInstruction(
+							userBaseTokenAccount,
+							swapTokenAAccount,
+							ownerAddress,
+							baseAmountDaltons
+						)
+
+						// Transfer BBA to pool (using special BBA handling)
+						console.log('🔄 Transferring BBA to pool account...')
+						const transferBBAIx = SystemProgram.transfer({
+							fromPubkey: ownerAddress,
+							toPubkey: swapTokenBAccount,
+							daltons: requiredBBA
+						})
+
+						const { createSyncNativeInstruction } = await import('@bbachain/spl-token')
+						const syncBBAIx = createSyncNativeInstruction(swapTokenBAccount)
+
+						// Combine all transfers
+						const liquidityTx = new Transaction().add(transferBaseIx, transferBBAIx, syncBBAIx)
+						const liquiditySig = await sendTransactionWithRetry(
+							liquidityTx,
+							connection,
+							sendTransaction
+						)
+						await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
+						console.log('✅ Token/BBA liquidity transferred to pool accounts:', liquiditySig)
+					}
+				} else {
+					// === Standard Token/Token Pool Logic ===
+					console.log('🔄 Standard token/token pool - using SPL transfers')
+
+					// First verify we have enough user balance
+					const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
+					const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
+
+					// Check user balances
+					const [userBaseInfo, userQuoteInfo] = await Promise.all([
+						connection.getAccountInfo(userBaseTokenAccount),
+						connection.getAccountInfo(userQuoteTokenAccount)
+					])
+
+					if (!userBaseInfo || !userQuoteInfo) {
+						throw new Error(
+							'User token accounts not found. Please ensure you have the required tokens.'
+						)
+					}
+
+					// Parse user balances
+					const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
+					const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
+
+					console.log('👤 User Token Balances:', {
+						baseBalance: userBaseBalance.toString(),
+						quoteBalance: userQuoteBalance.toString(),
+						baseBalanceFormatted:
+							userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
+						quoteBalanceFormatted:
+							userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
+						requiredBase: baseAmountDaltons,
+						requiredQuote: quoteAmountDaltons
+					})
+
+					// Verify sufficient balance
+					if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
+						throw new Error(
+							`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
+						)
+					}
+
+					if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
+						throw new Error(
+							`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
+						)
+					}
+
+					// Transfer from user to pool accounts (standard SPL)
+					const { createTransferInstruction } = await import('@bbachain/spl-token')
+
+					const transferBaseIx = createTransferInstruction(
+						userBaseTokenAccount,
+						swapTokenAAccount,
+						ownerAddress,
+						baseAmountDaltons
+					)
+
+					const transferQuoteIx = createTransferInstruction(
+						userQuoteTokenAccount,
+						swapTokenBAccount,
+						ownerAddress,
+						quoteAmountDaltons
+					)
+
+					// Send initial liquidity transfer
+					const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
+					const liquiditySig = await sendTransactionWithRetry(
+						liquidityTx,
+						connection,
+						sendTransaction
+					)
+					await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
+					console.log('✅ Standard token liquidity transferred to pool accounts:', liquiditySig)
+				}
+
+				// Add delay to prevent wallet extension race condition
+				console.log('⏳ Waiting 2 seconds before swap initialization...')
+				await new Promise((resolve) => setTimeout(resolve, 2000))
+
+				// === Swap Initialization ===
+
+				const swapCurve = {
+					curveType: CurveType.ConstantProduct,
+					calculator: new Array(32).fill(0) // 32 bytes for curve parameters
+				}
+
+				const fees = {
+					tradeFeeNumerator: new BN(feeConfig.numerator),
+					tradeFeeDenominator: new BN(feeConfig.denominator),
+					ownerTradeFeeNumerator: new BN(0),
+					ownerTradeFeeDenominator: new BN(0),
+					ownerWithdrawFeeNumerator: new BN(0),
+					ownerWithdrawFeeDenominator: new BN(0),
+					hostFeeNumerator: new BN(0),
+					hostFeeDenominator: new BN(0)
+				}
+
+				console.log('🔧 Creating token swap instruction using @bbachain/spl-token-swap...')
+
+				// Create the token swap initialization instruction with all required accounts
+				console.log('🔧 Preparing swap initialization accounts...')
+				console.log('📋 Account Details:', {
+					tokenSwap: tokenSwap.publicKey.toBase58(),
+					authority: authority.toBase58(),
+					tokenA: swapTokenAAccount.toBase58(),
+					tokenB: swapTokenBAccount.toBase58(),
+					poolMint: poolMint.publicKey.toBase58(),
+					feeAccount: feeAccount.toBase58(),
+					destination: poolTokenAccount.toBase58(),
+					tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
+					// Also log the mint addresses for debugging
+					mintA: baseMint.toBase58(),
+					mintB: quoteMint.toBase58()
+				})
+
+				// Use library function for exact BBAChain compatibility
+				console.log('🔧 Using @bbachain/spl-token-swap createInitializeInstruction...')
+
+				const swapIx = createInitializeInstruction(
+					{
+						tokenSwap: tokenSwap.publicKey,
+						authority: authority,
+						tokenA: swapTokenAAccount,
+						tokenB: swapTokenBAccount,
+						poolMint: poolMint.publicKey,
+						feeAccount,
+						destination: poolTokenAccount,
+						tokenProgram: TOKEN_PROGRAM_ID
+					},
+					{
+						fees,
+						swapCurve
+					}
+				)
+
+				console.log('📋 Library Instruction Analysis:', {
+					programId: swapIx.programId.toBase58(),
+					dataLength: swapIx.data.length,
+					accountCount: swapIx.keys.length,
+					firstDataBytes: Array.from(swapIx.data.slice(0, 10))
+						.map((b) => `0x${b.toString(16).padStart(2, '0')}`)
+						.join(' '),
+					fees: {
+						tradeFeeNum: fees.tradeFeeNumerator.toString(),
+						tradeFeeDenom: fees.tradeFeeDenominator.toString()
+					},
+					bumpSeed: bumpSeed,
+					// Complete instruction data dump for analysis
+					completeDataHex: Array.from(swapIx.data)
+						.map((b) => `0x${b.toString(16).padStart(2, '0')}`)
+						.join(' ')
+				})
+
+				console.log('🔍 Library-Generated Account List:', {
+					accountCount: swapIx.keys.length,
+					accounts: swapIx.keys.map(
+						(key, index) =>
+							`${index}. ${key.pubkey.toBase58()} (signer: ${key.isSigner}, writable: ${key.isWritable})`
+					)
+				})
+
+				console.log('✅ Token swap instruction created successfully')
+				console.log('📋 Swap Instruction Details:', {
+					tokenSwap: tokenSwap.publicKey.toBase58(),
+					authority: authority.toBase58(),
+					tokenA: swapTokenAAccount.toBase58(),
+					tokenB: swapTokenBAccount.toBase58(),
+					poolMint: poolMint.publicKey.toBase58(),
+					feeAccount: feeAccount.toBase58(),
+					destination: poolTokenAccount.toBase58(),
+					curveType: 'ConstantProduct',
+					tradeFee: `${feeConfig.numerator}/${feeConfig.denominator}`
+				})
+
+				// Log the instruction keys for debugging
+				console.log(
+					'🔍 Instruction accounts:',
+					swapIx.keys.map((key, index) => ({
+						index,
+						pubkey: key.pubkey.toBase58(),
+						isSigner: key.isSigner,
+						isWritable: key.isWritable
+					}))
+				)
+
+				// === Create TokenSwap Account + Initialize in Single Transaction ===
+				console.log('🏗️ Creating TokenSwap account and initializing...')
+				// Import TokenSwapLayout to get exact span
+				const { TokenSwapLayout } = await import('./onchain')
+				const tokenSwapAccountSize = TokenSwapLayout.span // Use exact layout span instead of hardcoded 324
+				console.log('📏 TokenSwap account size from layout:', tokenSwapAccountSize)
+				const swapAccountDaltons =
+					await connection.getMinimumBalanceForRentExemption(tokenSwapAccountSize)
+
+				const createSwapAccountIx = SystemProgram.createAccount({
+					fromPubkey: ownerAddress,
+					newAccountPubkey: tokenSwap.publicKey,
+					space: tokenSwapAccountSize,
+					daltons: swapAccountDaltons,
+					programId: TOKEN_SWAP_PROGRAM_ID
+				})
+
+				console.log('📋 Transaction Instructions:', {
+					createAccount: 'Create TokenSwap account',
+					initialize: 'Initialize TokenSwap',
+					totalInstructions: 2
+				})
+
+				// === Single Transaction Approach (Matching Working Test) ===
+				console.log('🏗️ Creating single transaction with create + initialize...')
+				const finalTx = new Transaction().add(createSwapAccountIx, swapIx)
+
+				latestBlockhash = await connection.getLatestBlockhash('confirmed')
+
+				// Set recent blockhash and fee payer
+				finalTx.recentBlockhash = latestBlockhash.blockhash
+				finalTx.feePayer = ownerAddress
+
+				console.log('📋 Final Transaction Analysis:', {
+					instructionCount: finalTx.instructions.length,
+					estimatedFee: 'Will be calculated by wallet',
+					signers: [ownerAddress.toBase58(), tokenSwap.publicKey.toBase58()],
+					recentBlockhash: latestBlockhash.blockhash.slice(0, 8) + '...'
+				})
+
+				// === IMPORTANT: Use sendTransaction with additional signers ===
+				console.log('📝 Sending final transaction with BBA wallet...')
+				const finalSig = await sendTransactionWithRetry(finalTx, connection, sendTransaction, {
+					signers: [tokenSwap], // Additional signer required
+					skipPreflight: false,
+					preflightCommitment: 'confirmed'
+				})
+
+				console.log('⏳ Final transaction sent:', finalSig)
+
+				// Wait for confirmation
+				const confirmation: any = await confirmTransactionWithTimeout(
+					connection,
+					finalSig,
+					latestBlockhash
+				)
+
+				if (confirmation.value?.err) {
+					throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
+				}
+
+				console.log('✅ TokenSwap created and initialized successfully!')
+				console.log('🎉 Pool creation completed successfully!')
+
+				// Return data in the expected format
+				return {
+					tokenSwap: tokenSwap.publicKey.toBase58(),
+					poolMint: poolMint.publicKey.toBase58(),
+					feeAccount: feeAccount.toBase58(),
+					lpTokenAccount: poolTokenAccount.toBase58(),
+					signature: finalSig,
+					baseToken: payload.baseToken,
+					quoteToken: payload.quoteToken,
+					baseTokenAmount: Number(payload.baseTokenAmount),
+					quoteTokenAmount: Number(payload.quoteTokenAmount),
+					message: 'Pool created successfully!'
+				}
+			} catch (error) {
+				console.error('❌ Pool creation failed:', error)
+				throw error
+			}
+		},
+		onSuccess: (result) => {
+			console.log('✅ Pool creation successful')
+			// Invalidate pools cache to refresh the list
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+			})
+		},
+		onError: (error) => {
+			console.error('❌ Pool creation failed:', error)
+		}
+	})
+}

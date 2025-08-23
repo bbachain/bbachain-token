@@ -710,8 +710,14 @@ export const useCreatePool = () => {
 				const liquidityInitialPrice = parseFloat(payload.initialPrice) // SHIB per USDT
 				const liquidityQuoteAmount = liquidityBaseAmount / liquidityInitialPrice // USDT amount
 
-				const baseAmountDaltons = formatTokenToDaltons(liquidityBaseAmount, 6)
-				const quoteAmountDaltons = formatTokenToDaltons(liquidityQuoteAmount, 6)
+				const baseAmountDaltons = formatTokenToDaltons(
+					liquidityBaseAmount,
+					payload.baseToken.decimals
+				)
+				const quoteAmountDaltons = formatTokenToDaltons(
+					liquidityQuoteAmount,
+					payload.quoteToken.decimals
+				)
 
 				console.log('💰 Initial Liquidity Amounts:', {
 					baseAmount: payload.baseTokenAmount,
@@ -727,219 +733,80 @@ export const useCreatePool = () => {
 				console.log('💰 Preparing BBA-aware liquidity transfer...')
 
 				latestBlockhash = await connection.getLatestBlockhash('confirmed')
-				if (isBBAPoolPair) {
-					console.log('🪙 BBA Pool - Using special native token handling')
 
-					// === BBA Pool Logic ===
-					if (isBBABase) {
-						// BBA is base token, other token is quote
-						console.log('💰 BBA/Token pool (BBA as base)')
+				// === Standard Token/Token Pool Logic and WBBA as WBBA is SPL ===
+				console.log('🔄 Standard token/token pool - using SPL transfers')
 
-						// Check BBA balance (native daltons)
-						const userWBBATokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, ownerAddress)
-						console.log('ini lewat bang')
-						const userWBBAInfo = await connection.getAccountInfo(userWBBATokenAccount)
-						if (!userWBBAInfo) {
-							throw new Error(
-								'WBBA token account not found. Please ensure you have the required tokens.'
-							)
-						}
+				// First verify we have enough user balance
+				const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
+				const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
 
-						const userWBBABalance = new BN(userWBBAInfo.data.slice(64, 72), 'le')
-						if (userWBBABalance.lt(new BN(baseAmountDaltons))) {
-							throw new Error(
-								`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userWBBABalance.div(new BN(1000000)).toString()}`
-							)
-						}
+				// Check user balances
+				const [userBaseInfo, userQuoteInfo] = await Promise.all([
+					connection.getAccountInfo(userBaseTokenAccount),
+					connection.getAccountInfo(userQuoteTokenAccount)
+				])
 
-						// Check quote token balance
-						const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
-						const userQuoteInfo = await connection.getAccountInfo(userQuoteTokenAccount)
-
-						if (!userQuoteInfo) {
-							throw new Error(
-								'Quote token account not found. Please ensure you have the required tokens.'
-							)
-						}
-
-						const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
-						if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
-							throw new Error(
-								`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
-							)
-						}
-
-						// Transfer quote token (standard SPL transfer)
-						const { createTransferInstruction } = await import('@bbachain/spl-token')
-
-						const transferBBAIx = createTransferInstruction(
-							userWBBATokenAccount,
-							swapTokenAAccount,
-							ownerAddress,
-							baseAmountDaltons
-						)
-
-						const transferQuoteIx = createTransferInstruction(
-							userQuoteTokenAccount,
-							swapTokenBAccount,
-							ownerAddress,
-							quoteAmountDaltons
-						)
-
-						console.log('re-check', {
-							swapTokenA: swapTokenAAccount.toBase58(),
-							wbbaTokenAccount: userWBBATokenAccount.toBase58(),
-							wbbaDaltons: baseAmountDaltons,
-							wbbaAmount: baseAmount
-						})
-
-						// Combine all transfers
-						const liquidityTx = new Transaction().add(transferBBAIx, transferQuoteIx)
-
-						console.log('this causes error')
-						const liquiditySig = await sendTransactionWithRetry(
-							liquidityTx,
-							connection,
-							sendTransaction
-						)
-						await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
-						console.log('✅ BBA/Token liquidity transferred to pool accounts:', liquiditySig)
-					} else if (isBBAQuote) {
-						// Token is base, BBA is quote
-						console.log('💰 Token/BBA pool (BBA as quote)')
-
-						// Check base token balance
-						const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
-						const userBaseInfo = await connection.getAccountInfo(userBaseTokenAccount)
-
-						if (!userBaseInfo) {
-							throw new Error(
-								'Base token account not found. Please ensure you have the required tokens.'
-							)
-						}
-
-						const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
-						if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
-							throw new Error(
-								`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
-							)
-						}
-
-						// Check BBA balance (native daltons)
-						const userBBABalance = await connection.getBalance(ownerAddress)
-						const requiredBBA = bbaTodaltons(liquidityQuoteAmount)
-
-						if (userBBABalance < requiredBBA) {
-							throw new Error(
-								`Insufficient BBA balance. Required: ${liquidityQuoteAmount} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
-							)
-						}
-
-						// Transfer base token (standard SPL transfer)
-						const { createTransferInstruction } = await import('@bbachain/spl-token')
-						const transferBaseIx = createTransferInstruction(
-							userBaseTokenAccount,
-							swapTokenAAccount,
-							ownerAddress,
-							baseAmountDaltons
-						)
-
-						// Transfer BBA to pool (using special BBA handling)
-						console.log('🔄 Transferring BBA to pool account...')
-						const transferBBAIx = SystemProgram.transfer({
-							fromPubkey: ownerAddress,
-							toPubkey: swapTokenBAccount,
-							daltons: requiredBBA
-						})
-
-						const { createSyncNativeInstruction } = await import('@bbachain/spl-token')
-						const syncBBAIx = createSyncNativeInstruction(swapTokenBAccount)
-
-						// Combine all transfers
-						const liquidityTx = new Transaction().add(transferBaseIx, transferBBAIx, syncBBAIx)
-						const liquiditySig = await sendTransactionWithRetry(
-							liquidityTx,
-							connection,
-							sendTransaction
-						)
-						await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
-						console.log('✅ Token/BBA liquidity transferred to pool accounts:', liquiditySig)
-					}
-				} else {
-					// === Standard Token/Token Pool Logic ===
-					console.log('🔄 Standard token/token pool - using SPL transfers')
-
-					// First verify we have enough user balance
-					const userBaseTokenAccount = await getAssociatedTokenAddress(baseMint, ownerAddress)
-					const userQuoteTokenAccount = await getAssociatedTokenAddress(quoteMint, ownerAddress)
-
-					// Check user balances
-					const [userBaseInfo, userQuoteInfo] = await Promise.all([
-						connection.getAccountInfo(userBaseTokenAccount),
-						connection.getAccountInfo(userQuoteTokenAccount)
-					])
-
-					if (!userBaseInfo || !userQuoteInfo) {
-						throw new Error(
-							'User token accounts not found. Please ensure you have the required tokens.'
-						)
-					}
-
-					// Parse user balances
-					const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
-					const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
-
-					console.log('👤 User Token Balances:', {
-						baseBalance: userBaseBalance.toString(),
-						quoteBalance: userQuoteBalance.toString(),
-						baseBalanceFormatted:
-							userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
-						quoteBalanceFormatted:
-							userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
-						requiredBase: baseAmountDaltons,
-						requiredQuote: quoteAmountDaltons
-					})
-
-					// Verify sufficient balance
-					if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
-						throw new Error(
-							`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
-						)
-					}
-
-					if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
-						throw new Error(
-							`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
-						)
-					}
-
-					// Transfer from user to pool accounts (standard SPL)
-					const { createTransferInstruction } = await import('@bbachain/spl-token')
-
-					const transferBaseIx = createTransferInstruction(
-						userBaseTokenAccount,
-						swapTokenAAccount,
-						ownerAddress,
-						baseAmountDaltons
+				if (!userBaseInfo || !userQuoteInfo) {
+					throw new Error(
+						'User token accounts not found. Please ensure you have the required tokens.'
 					)
-
-					const transferQuoteIx = createTransferInstruction(
-						userQuoteTokenAccount,
-						swapTokenBAccount,
-						ownerAddress,
-						quoteAmountDaltons
-					)
-
-					// Send initial liquidity transfer
-					const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
-					const liquiditySig = await sendTransactionWithRetry(
-						liquidityTx,
-						connection,
-						sendTransaction
-					)
-					await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
-					console.log('✅ Standard token liquidity transferred to pool accounts:', liquiditySig)
 				}
+
+				// Parse user balances
+				const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
+				const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
+
+				console.log('👤 User Token Balances:', {
+					baseBalance: userBaseBalance.toString(),
+					quoteBalance: userQuoteBalance.toString(),
+					baseBalanceFormatted:
+						userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
+					quoteBalanceFormatted:
+						userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
+					requiredBase: baseAmountDaltons,
+					requiredQuote: quoteAmountDaltons
+				})
+
+				// Verify sufficient balance
+				if (userBaseBalance.lt(new BN(baseAmountDaltons))) {
+					throw new Error(
+						`Insufficient ${payload.baseToken.symbol} balance. Required: ${liquidityBaseAmount}, Available: ${userBaseBalance.div(new BN(1000000)).toString()}`
+					)
+				}
+
+				if (userQuoteBalance.lt(new BN(quoteAmountDaltons))) {
+					throw new Error(
+						`Insufficient ${payload.quoteToken.symbol} balance. Required: ${liquidityQuoteAmount}, Available: ${userQuoteBalance.div(new BN(1000000)).toString()}`
+					)
+				}
+
+				// Transfer from user to pool accounts (standard SPL)
+				const { createTransferInstruction } = await import('@bbachain/spl-token')
+
+				const transferBaseIx = createTransferInstruction(
+					userBaseTokenAccount,
+					swapTokenAAccount,
+					ownerAddress,
+					baseAmountDaltons
+				)
+
+				const transferQuoteIx = createTransferInstruction(
+					userQuoteTokenAccount,
+					swapTokenBAccount,
+					ownerAddress,
+					quoteAmountDaltons
+				)
+
+				// Send initial liquidity transfer
+				const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
+				const liquiditySig = await sendTransactionWithRetry(
+					liquidityTx,
+					connection,
+					sendTransaction
+				)
+				await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
+				console.log('✅ Standard token liquidity transferred to pool accounts:', liquiditySig)
 
 				// Add delay to prevent wallet extension race condition
 				console.log('⏳ Waiting 2 seconds before swap initialization...')
