@@ -26,7 +26,12 @@ import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
 import { addBBAToPoolAccount, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
 import { formatTokenToDaltons } from '@/lib/utils'
-import { isBBAPool, getBBAPositionInPool, isNativeBBA, getWBBAMintAddress } from '@/staticData/tokens'
+import {
+	isBBAPool,
+	getBBAPositionInPool,
+	isNativeBBA,
+	getWBBAMintAddress
+} from '@/staticData/tokens'
 
 import { useGetCoinGeckoTokenPrice } from '../swap/services'
 import { getCoinGeckoId } from '../swap/utils'
@@ -97,7 +102,10 @@ const confirmTransactionWithTimeout = async (
 		setTimeout(() => reject(new Error('Transaction confirmation timeout')), timeoutMs)
 	})
 
-	const confirmPromise = connection.confirmTransaction({ signature, ...latestBlockhash }, 'confirmed')
+	const confirmPromise = connection.confirmTransaction(
+		{ signature, ...latestBlockhash },
+		'confirmed'
+	)
 
 	const confirmation: any = await Promise.race([confirmPromise, timeoutPromise])
 
@@ -172,7 +180,10 @@ export const useGetPools = () => {
 				console.error('❌ Error fetching pools:', error)
 
 				// Try to return cached data if available
-				const cachedData = queryClient.getQueryData([SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint])
+				const cachedData = queryClient.getQueryData([
+					SERVICES_KEY.POOL.GET_POOLS,
+					connection.rpcEndpoint
+				])
 				if (cachedData) {
 					console.log('📋 Returning cached data due to fetch error')
 					return cachedData as { message: string; data: OnchainPoolData[] }
@@ -200,7 +211,8 @@ export const useGetPoolStats = () => {
 			const totalLiquidity = pools.reduce((sum, pool) => sum + pool.tvl, 0)
 			const totalVolume = pools.reduce((sum, pool) => sum + pool.volume24h, 0)
 			const totalFees = pools.reduce((sum, pool) => sum + pool.fees24h, 0)
-			const averageAPR = pools.length > 0 ? pools.reduce((sum, pool) => sum + pool.apr24h, 0) / pools.length : 0
+			const averageAPR =
+				pools.length > 0 ? pools.reduce((sum, pool) => sum + pool.apr24h, 0) / pools.length : 0
 
 			const topPoolsByLiquidity = [...pools].sort((a, b) => b.tvl - a.tvl).slice(0, 10)
 
@@ -337,7 +349,8 @@ export const useGetTransactionsByPoolId = ({
 	baseMint: MintInfo | undefined
 	quoteMint: MintInfo | undefined
 }) => {
-	const isValidParams = !!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
+	const isValidParams =
+		!!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
 
 	const baseUSDValue = useGetCoinGeckoTokenPrice({
 		coinGeckoId: baseMint ? getCoinGeckoId(baseMint.address) : ''
@@ -350,10 +363,16 @@ export const useGetTransactionsByPoolId = ({
 	const baseInitialPrice = baseUSDValue.data ?? 0
 	const quoteInitialPrice = quoteUSDValue.data ?? 0
 
-	const areTokenPricesReady = baseUSDValue.status === 'success' && quoteUSDValue.status === 'success'
+	const areTokenPricesReady =
+		baseUSDValue.status === 'success' && quoteUSDValue.status === 'success'
 
 	return useQuery<TGetPoolTransactionResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, baseMint?.address, quoteMint?.address],
+		queryKey: [
+			SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
+			poolId,
+			baseMint?.address,
+			quoteMint?.address
+		],
 		enabled: isValidParams && areTokenPricesReady,
 		...CACHE_CONFIG,
 		retry: 2,
@@ -453,7 +472,10 @@ export const useCreatePool = () => {
 
 				// === BBA Pool Detection ===
 				const isBBAPoolPair = isBBAPool(payload.baseToken.address, payload.quoteToken.address)
-				const bbaPosition = getBBAPositionInPool(payload.baseToken.address, payload.quoteToken.address)
+				const bbaPosition = getBBAPositionInPool(
+					payload.baseToken.address,
+					payload.quoteToken.address
+				)
 				const isBBABase = bbaPosition === 'base'
 				const isBBAQuote = bbaPosition === 'quote'
 
@@ -491,7 +513,12 @@ export const useCreatePool = () => {
 
 				if (!baseTokenInfo) {
 					console.log('📝 Creating swap token A account...')
-					const ix = createAssociatedTokenAccountInstruction(ownerAddress, swapTokenAAccount, authority, baseMint)
+					const ix = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						swapTokenAAccount,
+						authority,
+						baseMint
+					)
 					const tx = new Transaction().add(ix)
 					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
 					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
@@ -508,7 +535,12 @@ export const useCreatePool = () => {
 				const quoteTokenInfo = await connection.getAccountInfo(swapTokenBAccount)
 				if (!quoteTokenInfo) {
 					console.log('📝 Creating swap token B account...')
-					const ix = createAssociatedTokenAccountInstruction(ownerAddress, swapTokenBAccount, authority, quoteMint)
+					const ix = createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						swapTokenBAccount,
+						authority,
+						quoteMint
+					)
 					const tx = new Transaction().add(ix)
 					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
 					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
@@ -535,7 +567,12 @@ export const useCreatePool = () => {
 				})
 
 				// Step 2: Initialize mint with TEMPORARY authority (owner), will transfer later
-				const initMintIx = createInitializeMintInstruction(poolMint.publicKey, 2, ownerAddress, null)
+				const initMintIx = createInitializeMintInstruction(
+					poolMint.publicKey,
+					2,
+					ownerAddress,
+					null
+				)
 
 				// Step 3: Create user's LP token account
 				const poolTokenAccount = await getAssociatedTokenAddress(poolMint.publicKey, ownerAddress)
@@ -579,7 +616,11 @@ export const useCreatePool = () => {
 				)
 
 				const transferAuthorityTx = new Transaction().add(setAuthorityIx)
-				const transferSig = await sendTransactionWithRetry(transferAuthorityTx, connection, sendTransaction)
+				const transferSig = await sendTransactionWithRetry(
+					transferAuthorityTx,
+					connection,
+					sendTransaction
+				)
 				await confirmTransactionWithTimeout(connection, transferSig, latestBlockhash)
 				console.log('✅ Pool mint authority transferred to swap authority:', transferSig)
 
@@ -654,7 +695,9 @@ export const useCreatePool = () => {
 				})
 
 				if (!baseInfo || !quoteInfo || !poolInfo || !feeUpdatedInfo) {
-					throw new Error('Some required accounts do not exist. Cannot proceed with pool initialization.')
+					throw new Error(
+						'Some required accounts do not exist. Cannot proceed with pool initialization.'
+					)
 				}
 
 				// === CRITICAL: Deposit Initial Liquidity ===
@@ -706,7 +749,9 @@ export const useCreatePool = () => {
 						const userQuoteInfo = await connection.getAccountInfo(userQuoteTokenAccount)
 
 						if (!userQuoteInfo) {
-							throw new Error('Quote token account not found. Please ensure you have the required tokens.')
+							throw new Error(
+								'Quote token account not found. Please ensure you have the required tokens.'
+							)
 						}
 
 						const userQuoteBalance = new BN(userQuoteInfo.data.slice(64, 72), 'le')
@@ -738,7 +783,11 @@ export const useCreatePool = () => {
 
 						// Combine all transfers
 						const liquidityTx = new Transaction().add(transferBBAIx, syncBBAIx, transferQuoteIx)
-						const liquiditySig = await sendTransactionWithRetry(liquidityTx, connection, sendTransaction)
+						const liquiditySig = await sendTransactionWithRetry(
+							liquidityTx,
+							connection,
+							sendTransaction
+						)
 						await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
 						console.log('✅ BBA/Token liquidity transferred to pool accounts:', liquiditySig)
 					} else if (isBBAQuote) {
@@ -750,7 +799,9 @@ export const useCreatePool = () => {
 						const userBaseInfo = await connection.getAccountInfo(userBaseTokenAccount)
 
 						if (!userBaseInfo) {
-							throw new Error('Base token account not found. Please ensure you have the required tokens.')
+							throw new Error(
+								'Base token account not found. Please ensure you have the required tokens.'
+							)
 						}
 
 						const userBaseBalance = new BN(userBaseInfo.data.slice(64, 72), 'le')
@@ -792,7 +843,11 @@ export const useCreatePool = () => {
 
 						// Combine all transfers
 						const liquidityTx = new Transaction().add(transferBaseIx, transferBBAIx, syncBBAIx)
-						const liquiditySig = await sendTransactionWithRetry(liquidityTx, connection, sendTransaction)
+						const liquiditySig = await sendTransactionWithRetry(
+							liquidityTx,
+							connection,
+							sendTransaction
+						)
 						await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
 						console.log('✅ Token/BBA liquidity transferred to pool accounts:', liquiditySig)
 					}
@@ -811,7 +866,9 @@ export const useCreatePool = () => {
 					])
 
 					if (!userBaseInfo || !userQuoteInfo) {
-						throw new Error('User token accounts not found. Please ensure you have the required tokens.')
+						throw new Error(
+							'User token accounts not found. Please ensure you have the required tokens.'
+						)
 					}
 
 					// Parse user balances
@@ -821,8 +878,10 @@ export const useCreatePool = () => {
 					console.log('👤 User Token Balances:', {
 						baseBalance: userBaseBalance.toString(),
 						quoteBalance: userQuoteBalance.toString(),
-						baseBalanceFormatted: userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
-						quoteBalanceFormatted: userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
+						baseBalanceFormatted:
+							userBaseBalance.div(new BN(1000000)).toString() + ` ${payload.baseToken.symbol}`,
+						quoteBalanceFormatted:
+							userQuoteBalance.div(new BN(1000000)).toString() + ` ${payload.quoteToken.symbol}`,
 						requiredBase: baseAmountDaltons,
 						requiredQuote: quoteAmountDaltons
 					})
@@ -859,7 +918,11 @@ export const useCreatePool = () => {
 
 					// Send initial liquidity transfer
 					const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
-					const liquiditySig = await sendTransactionWithRetry(liquidityTx, connection, sendTransaction)
+					const liquiditySig = await sendTransactionWithRetry(
+						liquidityTx,
+						connection,
+						sendTransaction
+					)
 					await confirmTransactionWithTimeout(connection, liquiditySig, latestBlockhash)
 					console.log('✅ Standard token liquidity transferred to pool accounts:', liquiditySig)
 				}
@@ -945,7 +1008,8 @@ export const useCreatePool = () => {
 				console.log('🔍 Library-Generated Account List:', {
 					accountCount: swapIx.keys.length,
 					accounts: swapIx.keys.map(
-						(key, index) => `${index}. ${key.pubkey.toBase58()} (signer: ${key.isSigner}, writable: ${key.isWritable})`
+						(key, index) =>
+							`${index}. ${key.pubkey.toBase58()} (signer: ${key.isSigner}, writable: ${key.isWritable})`
 					)
 				})
 
@@ -979,7 +1043,8 @@ export const useCreatePool = () => {
 				const { TokenSwapLayout } = await import('./onchain')
 				const tokenSwapAccountSize = TokenSwapLayout.span // Use exact layout span instead of hardcoded 324
 				console.log('📏 TokenSwap account size from layout:', tokenSwapAccountSize)
-				const swapAccountDaltons = await connection.getMinimumBalanceForRentExemption(tokenSwapAccountSize)
+				const swapAccountDaltons =
+					await connection.getMinimumBalanceForRentExemption(tokenSwapAccountSize)
 
 				const createSwapAccountIx = SystemProgram.createAccount({
 					fromPubkey: ownerAddress,
@@ -1023,7 +1088,11 @@ export const useCreatePool = () => {
 				console.log('⏳ Final transaction sent:', finalSig)
 
 				// Wait for confirmation
-				const confirmation: any = await confirmTransactionWithTimeout(connection, finalSig, latestBlockhash)
+				const confirmation: any = await confirmTransactionWithTimeout(
+					connection,
+					finalSig,
+					latestBlockhash
+				)
 
 				if (confirmation.value?.err) {
 					throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
@@ -1055,7 +1124,9 @@ export const useCreatePool = () => {
 			// Invalidate pools cache to refresh the list
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()] })
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+			})
 		},
 		onError: (error) => {
 			console.error('❌ Pool creation failed:', error)
@@ -1079,7 +1150,12 @@ export const useDepositToPool = () => {
 		}
 	>({
 		mutationKey: [SERVICES_KEY.POOL.DEPOSIT_LIQUIDITY, ownerAddress?.toBase58()],
-		mutationFn: async ({ pool, amountA, amountB, slippage = 1 }): Promise<{ signature: string }> => {
+		mutationFn: async ({
+			pool,
+			amountA,
+			amountB,
+			slippage = 1
+		}): Promise<{ signature: string }> => {
 			if (!ownerAddress) throw new Error('Wallet not connected')
 
 			console.log('🚀 Starting liquidity deposit using @bbachain/spl-token-swap library...')
@@ -1233,7 +1309,10 @@ export const useDepositToPool = () => {
 				})
 
 				// Use swap state as authoritative source (it should match pool data)
-				if (!tokenSwapState.tokenA.equals(poolTokenA) || !tokenSwapState.tokenB.equals(poolTokenB)) {
+				if (
+					!tokenSwapState.tokenA.equals(poolTokenA) ||
+					!tokenSwapState.tokenB.equals(poolTokenB)
+				) {
 					console.warn('⚠️ WARNING: Token accounts mismatch between swap state and pool data!')
 				}
 			}
@@ -1251,19 +1330,34 @@ export const useDepositToPool = () => {
 			if (!userAccountAInfo) {
 				console.log('📝 Creating user token A account...')
 				preInstructions.push(
-					createAssociatedTokenAccountInstruction(ownerAddress, sourceA, ownerAddress, effectiveMintA)
+					createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						sourceA,
+						ownerAddress,
+						effectiveMintA
+					)
 				)
 			}
 			if (!userAccountBInfo) {
 				console.log('📝 Creating user token B account...')
 				preInstructions.push(
-					createAssociatedTokenAccountInstruction(ownerAddress, sourceB, ownerAddress, effectiveMintB)
+					createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						sourceB,
+						ownerAddress,
+						effectiveMintB
+					)
 				)
 			}
 			if (!userPoolAccountInfo) {
 				console.log('📝 Creating user LP token account...')
 				preInstructions.push(
-					createAssociatedTokenAccountInstruction(ownerAddress, userPoolAccount, ownerAddress, tokenSwapState.poolMint)
+					createAssociatedTokenAccountInstruction(
+						ownerAddress,
+						userPoolAccount,
+						ownerAddress,
+						tokenSwapState.poolMint
+					)
 				)
 			}
 
@@ -1353,7 +1447,9 @@ export const useDepositToPool = () => {
 
 			if (totalSupply === BigInt(0)) {
 				// Initial deposit - use geometric mean
-				poolTokenAmount = BigInt(Math.floor(Math.sqrt(Number(amountADaltons) * Number(amountBDaltons))))
+				poolTokenAmount = BigInt(
+					Math.floor(Math.sqrt(Number(amountADaltons) * Number(amountBDaltons)))
+				)
 			} else {
 				// Subsequent deposits - maintain pool ratio
 				const tokensFromA = poolBalanceA.gt(new BN(0))

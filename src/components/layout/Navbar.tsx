@@ -17,7 +17,14 @@ import CustomWalletButton from '../common/WalletButton'
 import { useCluster } from '../providers/ClusterProvider'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion'
 import { Button } from '../ui/button'
-import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '../ui/drawer'
+import {
+	Drawer,
+	DrawerClose,
+	DrawerContent,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerTrigger
+} from '../ui/drawer'
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -56,7 +63,10 @@ function MobileMenuDrawer() {
 					<RxHamburgerMenu />
 				</Button>
 			</DrawerTrigger>
-			<DrawerContent aria-describedby={undefined} className="h-screen rounded-none top-0 mt-0 right-0 left-auto w-4/6">
+			<DrawerContent
+				aria-describedby={undefined}
+				className="h-screen rounded-none top-0 mt-0 right-0 left-auto w-4/6"
+			>
 				<DrawerHeader className="p-0 m-0">
 					<DrawerTitle></DrawerTitle>
 					<DrawerClose asChild>

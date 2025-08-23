@@ -7,10 +7,17 @@ import { AiOutlineQuestionCircle } from 'react-icons/ai'
 import { IoSearchOutline } from 'react-icons/io5'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogClose
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { ExtendedMintInfo } from '@/staticData/tokens'
 
 import { useGetAvailableTokens } from '../services'
 import { TTokenProps } from '../types'
@@ -54,7 +61,11 @@ export default function TokenListDialog({
 	}, [search])
 
 	// Use the enhanced API hook with search
-	const { data: tokensResponse, isLoading, error } = useGetAvailableTokens(debouncedSearch.trim() || undefined)
+	const {
+		data: tokensResponse,
+		isLoading,
+		error
+	} = useGetAvailableTokens(debouncedSearch.trim() || undefined)
 
 	const tokens = tokensResponse?.data || []
 
@@ -85,7 +96,9 @@ export default function TokenListDialog({
 	}
 
 	// Filter out already selected token from the opposite side
-	const filteredTokens = tokens.filter((token: TTokenProps) => {
+	const filteredTokens = tokens.filter((token: ExtendedMintInfo) => {
+		if (token.isNative) return false
+
 		if (type === 'from' && selectedTo) {
 			return token.address !== selectedTo.address
 		}
@@ -158,7 +171,9 @@ export default function TokenListDialog({
 						{!isLoading && !error && filteredTokens.length === 0 && (
 							<div className="flex flex-col items-center justify-center h-24 w-full space-y-2">
 								<p className="text-sm text-gray-500">No tokens found</p>
-								{search && <p className="text-xs text-gray-400">Try searching for a different term</p>}
+								{search && (
+									<p className="text-xs text-gray-400">Try searching for a different term</p>
+								)}
 							</div>
 						)}
 
@@ -205,9 +220,13 @@ export default function TokenListDialog({
 													{/* Token Info */}
 													<div className="flex flex-col space-y-0.5 items-start">
 														<div className="flex items-center space-x-2">
-															<h5 className="text-sm font-medium text-start text-main-black">{token.symbol}</h5>
+															<h5 className="text-sm font-medium text-start text-main-black">
+																{token.symbol}
+															</h5>
 															{token.tags?.includes('stablecoin') && (
-																<span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded">Stable</span>
+																<span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded">
+																	Stable
+																</span>
 															)}
 															{token.tags?.includes('native') && (
 																<span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-800 rounded">

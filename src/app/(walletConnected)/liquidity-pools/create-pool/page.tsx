@@ -1,7 +1,15 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronDown, ArrowLeft, ArrowRight, Info, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import {
+	ChevronDown,
+	ArrowLeft,
+	ArrowRight,
+	Info,
+	Loader2,
+	CheckCircle,
+	AlertCircle
+} from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -12,10 +20,30 @@ import { IoSettings } from 'react-icons/io5'
 
 import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle
+} from '@/components/ui/card'
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem
+} from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
@@ -93,7 +121,9 @@ function TokenSelectionCard({
 }) {
 	return (
 		<div className="space-y-2">
-			<label className={cn('text-sm md:text-lg', error ? 'text-error' : 'text-main-black')}>{label}</label>
+			<label className={cn('text-sm md:text-lg', error ? 'text-error' : 'text-main-black')}>
+				{label}
+			</label>
 			<Button
 				type="button"
 				variant="outline"
@@ -173,7 +203,9 @@ export default function CreatePool() {
 
 	// BBA Pool Detection
 	const isBBAPoolPair =
-		selectedBaseToken && selectedQuoteToken ? isBBAPool(selectedBaseToken.address, selectedQuoteToken.address) : false
+		selectedBaseToken && selectedQuoteToken
+			? isBBAPool(selectedBaseToken.address, selectedQuoteToken.address)
+			: false
 	const bbaPosition =
 		selectedBaseToken && selectedQuoteToken
 			? getBBAPositionInPool(selectedBaseToken.address, selectedQuoteToken.address)
@@ -182,8 +214,10 @@ export default function CreatePool() {
 		selectedBaseToken && selectedQuoteToken
 			? requiresBBAWrapping(selectedBaseToken.address, selectedQuoteToken.address)
 			: false
-	const bbaToken = bbaPosition === 'base' ? selectedBaseToken : bbaPosition === 'quote' ? selectedQuoteToken : null
-	const nonBBAToken = bbaPosition === 'base' ? selectedQuoteToken : bbaPosition === 'quote' ? selectedBaseToken : null
+	const bbaToken =
+		bbaPosition === 'base' ? selectedBaseToken : bbaPosition === 'quote' ? selectedQuoteToken : null
+	const nonBBAToken =
+		bbaPosition === 'base' ? selectedQuoteToken : bbaPosition === 'quote' ? selectedBaseToken : null
 
 	// Balance queries
 	const getMintABalance = useGetUserBalanceByMint({
@@ -205,8 +239,12 @@ export default function CreatePool() {
 	const mintBInitialPrice = getMintBTokenPrice.data || 0
 
 	// Format balances with proper decimals for display
-	const formattedMintABalance = selectedBaseToken ? formatTokenBalance(mintABalance, selectedBaseToken.decimals) : 0
-	const formattedMintBBalance = selectedQuoteToken ? formatTokenBalance(mintBBalance, selectedQuoteToken.decimals) : 0
+	const formattedMintABalance = selectedBaseToken
+		? formatTokenBalance(mintABalance, selectedBaseToken.decimals)
+		: 0
+	const formattedMintBBalance = selectedQuoteToken
+		? formatTokenBalance(mintBBalance, selectedQuoteToken.decimals)
+		: 0
 
 	// Calculated values
 	const baseTokenAmount = form.watch('baseTokenAmount')
@@ -410,7 +448,9 @@ export default function CreatePool() {
 
 			<div className="text-center flex flex-col space-y-3 ">
 				<h1 className="md:text-[45px] text-xl font-bold text-main-black">Create Liquidity Pool</h1>
-				<p className="text-xs md:text-lg text-dark-grey">Create a new liquidity pool for token trading on BBAChain</p>
+				<p className="text-xs md:text-lg text-dark-grey">
+					Create a new liquidity pool for token trading on BBAChain
+				</p>
 			</div>
 
 			<Form {...form}>
@@ -450,8 +490,14 @@ export default function CreatePool() {
 										name="feeTier"
 										render={({ field }) => (
 											<FormItem>
-												<FormLabel className="text-sm md:text-lg text-main-black font-normal">Fee Tier</FormLabel>
-												<Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+												<FormLabel className="text-sm md:text-lg text-main-black font-normal">
+													Fee Tier
+												</FormLabel>
+												<Select
+													onValueChange={field.onChange}
+													defaultValue={field.value}
+													value={field.value}
+												>
 													<FormControl>
 														<SelectTrigger className="h-12 md:h-14 hover:border-hover-green rounded-lg md:rounded-xl border-2 border-strokes">
 															<SelectValue placeholder="Select fee tier" />
@@ -483,22 +529,23 @@ export default function CreatePool() {
 													!
 												</div>
 												<div className="flex-1 text-main-black">
-													<h4 className="text-sm md:text-base font-semibold mb-1">BBA Native Token Pool</h4>
+													<h4 className="text-sm md:text-base font-semibold mb-1">
+														WBBA Token Pool
+													</h4>
 													<p className="text-xs md:text-sm  mb-2">
-														You&apos;re creating a pool with BBA (native token). This requires special handling:
+														You&apos;re creating a pool with WBBA (native token). This requires
+														special handling:
 													</p>
 													<ul className="text-xs md:text-sm  space-y-1">
 														<li className="flex items-center space-x-2">
 															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
-															<span>BBA will be automatically wrapped to WBBA for the pool</span>
+															<span>Make sure you have converted enough BBA amount to WBBA</span>
 														</li>
 														<li className="flex items-center space-x-2">
 															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
-															<span>Recommended fee tier: 0.3% for BBA/{nonBBAToken?.symbol} pairs</span>
-														</li>
-														<li className="flex items-center space-x-2">
-															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
-															<span>Pool will use NATIVE_MINT for WBBA representation</span>
+															<span>
+																Recommended fee tier: 0.3% for WBBA/{nonBBAToken?.symbol} pairs
+															</span>
 														</li>
 													</ul>
 												</div>
@@ -529,11 +576,15 @@ export default function CreatePool() {
 												<div>
 													<h3 className="text-sm md:text-base font-semibold text-main-black">
 														{selectedBaseToken.symbol}/{selectedQuoteToken.symbol}
-														{isBBAPoolPair && <span className="ml-1 text-orange-600 text-xs">(Native)</span>}
+														{isBBAPoolPair && (
+															<span className="ml-1 text-orange-600 text-xs">(Native)</span>
+														)}
 													</h3>
 													<p className="text-xs md:text-sm text-gray-600">
 														Fee: {form.watch('feeTier')}%
-														{isBBAPoolPair && <span className="ml-1 text-orange-600">(BBA Pool)</span>}
+														{isBBAPoolPair && (
+															<span className="ml-1 text-orange-600">(BBA Pool)</span>
+														)}
 													</p>
 												</div>
 											</div>
@@ -588,7 +639,9 @@ export default function CreatePool() {
 										<label className="text-sm md:text-lg font-normal">Price Range</label>
 										<Tabs
 											defaultValue="full-range"
-											onValueChange={(value) => form.setValue('rangeType', value as 'full-range' | 'custom-range')}
+											onValueChange={(value) =>
+												form.setValue('rangeType', value as 'full-range' | 'custom-range')
+											}
 										>
 											<TabsList className="bg-light-green px-3 py-1.5 w-full h-10 mb-[18px]">
 												<TabsTrigger
@@ -608,7 +661,9 @@ export default function CreatePool() {
 												<div className="bg-light-blue border-2 border-main-blue rounded-lg md:rounded-xl p-3 md:p-4">
 													<div className="flex items-center space-x-2 text-main-black">
 														<Info className="w-4 h-4 text-main-blue md:w-5 md:h-5 " />
-														<span className="text-sm md:text-base font-medium">Full Range Selected</span>
+														<span className="text-sm md:text-base font-medium">
+															Full Range Selected
+														</span>
 													</div>
 													<p className="text-xs md:text-sm text-main-black mt-1">
 														Your liquidity will be active across all price ranges (0 to ∞)
@@ -622,7 +677,9 @@ export default function CreatePool() {
 														name="minInitialPrice"
 														render={({ field }) => (
 															<FormItem>
-																<FormLabel className="text-sm md:text-base font-normal">Min Price</FormLabel>
+																<FormLabel className="text-sm md:text-base font-normal">
+																	Min Price
+																</FormLabel>
 																<FormControl>
 																	<Input
 																		{...field}
@@ -641,7 +698,9 @@ export default function CreatePool() {
 														name="maxInitialPrice"
 														render={({ field }) => (
 															<FormItem>
-																<FormLabel className="text-sm md:text-base font-normal">Max Price</FormLabel>
+																<FormLabel className="text-sm md:text-base font-normal">
+																	Max Price
+																</FormLabel>
 																<FormControl>
 																	<Input
 																		{...field}
@@ -704,7 +763,9 @@ export default function CreatePool() {
 
 									{/* Deposit Summary */}
 									<div className="border-2 border-dark-grey rounded-lg md:rounded-xl p-3 md:p-4 space-y-2 md:space-y-3">
-										<h4 className="text-sm md:text-base font-medium text-main-black">Deposit Summary</h4>
+										<h4 className="text-sm md:text-base font-medium text-main-black">
+											Deposit Summary
+										</h4>
 										<div className="space-y-1 md:space-y-2 text-xs md:text-sm">
 											<div className="flex justify-between">
 												<span className="text-gray-600 dark:text-gray-400">Total Value:</span>
@@ -746,7 +807,9 @@ export default function CreatePool() {
 													<h3 className="text-base md:text-lg font-semibold text-main-black">
 														{selectedBaseToken?.symbol}/{selectedQuoteToken?.symbol}
 													</h3>
-													<p className="text-xs md:text-sm text-light-grey">Fee: {form.watch('feeTier')}%</p>
+													<p className="text-xs md:text-sm text-light-grey">
+														Fee: {form.watch('feeTier')}%
+													</p>
 												</div>
 											</div>
 											<div className="text-left md:text-right">
@@ -760,7 +823,9 @@ export default function CreatePool() {
 										{/* Pool Stats Preview */}
 										<div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mt-4">
 											<div className="bg-box-3 border border-box-2 rounded-lg p-3 text-center">
-												<p className="text-main-black md:text-sm text-xs font-normal">Initial TVL</p>
+												<p className="text-main-black md:text-sm text-xs font-normal">
+													Initial TVL
+												</p>
 												<p className="text-sm md:text-base font-semibold text-main-black">
 													${totalDepositValue.toFixed(2)}
 												</p>
@@ -771,7 +836,9 @@ export default function CreatePool() {
 											</div>
 											<div className="bg-box-3 border border-box-2 rounded-lg p-3 text-center col-span-2 md:col-span-1">
 												<p className="text-main-black md:text-sm text-xs font-normal">Swap Fee</p>
-												<p className="text-sm md:text-base font-semibold text-main-black">{form.watch('feeTier')}%</p>
+												<p className="text-sm md:text-base font-semibold text-main-black">
+													{form.watch('feeTier')}%
+												</p>
 											</div>
 										</div>
 									</div>
@@ -786,13 +853,17 @@ export default function CreatePool() {
 											</h4>
 											<div className="space-y-2 md:space-y-3">
 												<div className="flex justify-between items-center">
-													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Initial Price:</h5>
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+														Initial Price:
+													</h5>
 													<p className="text-xs text-main-black md:text-sm font-medium text-right max-w-[60%] break-words">
 														{form.watch('initialPrice')} {exchangeRate}
 													</p>
 												</div>
 												<div className="flex justify-between items-center">
-													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Price Range:</h5>
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+														Price Range:
+													</h5>
 													<p className="text-xs text-main-black md:text-sm font-medium">
 														{form.watch('rangeType') === 'custom-range'
 															? `${form.watch('minInitialPrice')} - ${form.watch('maxInitialPrice')}`
@@ -800,14 +871,20 @@ export default function CreatePool() {
 													</p>
 												</div>
 												<div className="flex justify-between items-center">
-													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee:</h5>
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+														Trading Fee:
+													</h5>
 													<p className="text-xs text-main-black md:text-sm font-medium">
 														{form.watch('feeTier')}% per trade
 													</p>
 												</div>
 												<div className="flex justify-between items-center">
-													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Pool Type:</h5>
-													<p className="text-xs text-main-black md:text-sm font-medium">Constant Product (x*y=k)</p>
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+														Pool Type:
+													</h5>
+													<p className="text-xs text-main-black md:text-sm font-medium">
+														Constant Product (x*y=k)
+													</p>
 												</div>
 											</div>
 										</div>
@@ -835,12 +912,16 @@ export default function CreatePool() {
 															alt={selectedBaseToken?.symbol}
 														/>
 														<div>
-															<p className="text-xs md:text-sm font-medium">{selectedBaseToken?.symbol}</p>
+															<p className="text-xs md:text-sm font-medium">
+																{selectedBaseToken?.symbol}
+															</p>
 															<p className="text-xs text-gray-500">{selectedBaseToken?.name}</p>
 														</div>
 													</div>
 													<div className="text-right">
-														<p className="text-xs md:text-sm font-semibold">{baseTokenAmount} tokens</p>
+														<p className="text-xs md:text-sm font-semibold">
+															{baseTokenAmount} tokens
+														</p>
 														<p className="text-xs text-gray-500">${baseTokenPrice.toFixed(2)}</p>
 													</div>
 												</div>
@@ -854,12 +935,16 @@ export default function CreatePool() {
 															alt={selectedQuoteToken?.symbol}
 														/>
 														<div>
-															<p className="text-xs md:text-sm font-medium">{selectedQuoteToken?.symbol}</p>
+															<p className="text-xs md:text-sm font-medium">
+																{selectedQuoteToken?.symbol}
+															</p>
 															<p className="text-xs text-gray-500">{selectedQuoteToken?.name}</p>
 														</div>
 													</div>
 													<div className="text-right">
-														<p className="text-xs md:text-sm font-semibold">{quoteTokenAmount} tokens</p>
+														<p className="text-xs md:text-sm font-semibold">
+															{quoteTokenAmount} tokens
+														</p>
 														<p className="text-xs text-gray-500">${quoteTokenPrice.toFixed(2)}</p>
 													</div>
 												</div>
@@ -874,7 +959,9 @@ export default function CreatePool() {
 											</h4>
 											<div className="space-y-2">
 												<div className="flex justify-between items-center">
-													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Trading Fee Revenue:</h5>
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+														Trading Fee Revenue:
+													</h5>
 													<p className="text-xs text-main-black md:text-sm font-medium">
 														{form.watch('feeTier')}% per trade
 													</p>
@@ -888,17 +975,27 @@ export default function CreatePool() {
 													</p>
 												</div>
 												<div className="flex justify-between items-center">
-													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Est. Daily Fees:</h5>
+													<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+														Est. Daily Fees:
+													</h5>
 													<p className="text-xs text-main-black md:text-sm font-medium">
-														${((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100).toFixed(4)}
+														$
+														{(
+															(totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) /
+															100
+														).toFixed(4)}
 													</p>
 												</div>
 												<div className="pt-2 border-t border-green-200 dark:border-green-700">
 													<div className="flex justify-between items-center">
-														<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Est. Annual APR:</h5>
+														<h5 className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+															Est. Annual APR:
+														</h5>
 														<p className="text-xs text-main-black md:text-sm font-medium">
 															{(
-																((((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) / 100) * 365) /
+																((((totalDepositValue * 0.01 * parseFloat(form.watch('feeTier'))) /
+																	100) *
+																	365) /
 																	totalDepositValue) *
 																100
 															).toFixed(2)}
@@ -919,8 +1016,9 @@ export default function CreatePool() {
 													Important Notice
 												</h4>
 												<p className="text-xs md:text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-													Creating a liquidity pool involves risk. Token prices can fluctuate, and you may experience
-													impermanent loss. Please ensure you understand the risks before proceeding.
+													Creating a liquidity pool involves risk. Token prices can fluctuate, and
+													you may experience impermanent loss. Please ensure you understand the
+													risks before proceeding.
 												</p>
 											</div>
 										</div>
@@ -944,7 +1042,9 @@ export default function CreatePool() {
 								<Button
 									type="button"
 									onClick={onNext}
-									disabled={createPoolMutation.isPending || (currentStep === 3 && !form.formState.isValid)}
+									disabled={
+										createPoolMutation.isPending || (currentStep === 3 && !form.formState.isValid)
+									}
 									className="flex items-center rounded-[26px] space-x-2 py-1 px-3 h-10 max-w-36 w-full text-sm md:text-base bg-main-green hover:bg-hover-green disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{createPoolMutation.isPending ? (
@@ -977,9 +1077,13 @@ export default function CreatePool() {
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
 				type={typeItem}
-				selectedFrom={selectedBaseToken ? convertMintInfoToTTokenProps(selectedBaseToken) : defaultTokenProps}
+				selectedFrom={
+					selectedBaseToken ? convertMintInfoToTTokenProps(selectedBaseToken) : defaultTokenProps
+				}
 				setSelectedFrom={onSelectBaseTokenWrapper}
-				selectedTo={selectedQuoteToken ? convertMintInfoToTTokenProps(selectedQuoteToken) : defaultTokenProps}
+				selectedTo={
+					selectedQuoteToken ? convertMintInfoToTTokenProps(selectedQuoteToken) : defaultTokenProps
+				}
 				setSelectedTo={onSelectQuoteTokenWrapper}
 			/>
 
