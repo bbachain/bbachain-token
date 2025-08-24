@@ -3,21 +3,29 @@ import {
 	getAssociatedTokenAddress,
 	TOKEN_PROGRAM_ID,
 	NATIVE_MINT,
-	createApproveInstruction
+	createApproveInstruction,
+	createAssociatedTokenAccountInstruction,
+	createSyncNativeInstruction,
+	createCloseAccountInstruction
 } from '@bbachain/spl-token'
 import {
 	createSwapInstruction,
 	PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID
 } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { PublicKey, Transaction, TransactionInstruction } from '@bbachain/web3.js'
+import {
+	PublicKey,
+	SystemProgram,
+	Transaction,
+	type TransactionInstruction
+} from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
 import { TGetTokensResponse } from '@/app/api/tokens/route'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
-import { bbaTodaltons } from '@/lib/bbaWrapping'
+import { bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
 import { getTokenAccounts2 } from '@/lib/tokenAccount'
 import { isNativeBBA } from '@/staticData/tokens'
 
@@ -731,17 +739,118 @@ export const useExecuteSwap = () => {
 				requiresWrapping: isBBASwap
 			})
 
-			const preTxInstructions: TransactionInstruction[] = []
-			const postTxInstructions: TransactionInstruction[] = []
+			let userInputTokenAccount: PublicKey
+			let userOutputTokenAccount: PublicKey
+			let needsUnwrapping = false
+			// Track whether we created a temporary WBBA ATA for BBA → Token swaps
+			let createdWBBAInputAccount = false
+			let preTxInstructions: TransactionInstruction[] = []
+			let postTxInstructions: TransactionInstruction[] = []
 
-			const userInputTokenAccount = await getAssociatedTokenAddress(
-				new PublicKey(inputMint),
-				publicKey
-			)
-			const userOutputTokenAccount = await getAssociatedTokenAddress(
-				new PublicKey(outputMint),
-				publicKey
-			)
+			if (isBBASwap) {
+				console.log('🪙 BBA swap detected - using WBBA for native BBA')
+
+				if (isInputBBA) {
+					// BBA → Token: Use WBBA account for input
+					console.log('💰 BBA → Token swap: Using WBBA account for input')
+
+					// Check BBA balance
+					const userBBABalance = await connection.getBalance(publicKey)
+					const requiredBBA = bbaTodaltons(inputAmountNumber)
+
+					if (userBBABalance < requiredBBA) {
+						throw new Error(
+							`Insufficient BBA balance. Required: ${inputAmountNumber} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+						)
+					}
+
+					// Use WBBA (NATIVE_MINT) associated token account
+					userInputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
+
+					// Create WBBA account if it doesn't exist and fund it
+					const wbbaAccountInfo = await connection.getAccountInfo(userInputTokenAccount)
+					if (!wbbaAccountInfo) {
+						console.log('📝 Creating WBBA account and funding with BBA...')
+						const createWBBAIx = createAssociatedTokenAccountInstruction(
+							publicKey,
+							userInputTokenAccount,
+							publicKey,
+							NATIVE_MINT
+						)
+						preTxInstructions.push(createWBBAIx)
+						createdWBBAInputAccount = true
+					}
+
+					// Add instructions to transfer BBA and sync
+					const transferBBAIx = SystemProgram.transfer({
+						fromPubkey: publicKey,
+						toPubkey: userInputTokenAccount,
+						daltons: requiredBBA
+					})
+					const syncBBAIx = createSyncNativeInstruction(userInputTokenAccount)
+					preTxInstructions.push(transferBBAIx, syncBBAIx)
+
+					// For output, use standard token account
+					userOutputTokenAccount = await getAssociatedTokenAddress(
+						new PublicKey(outputMint),
+						publicKey
+					)
+
+					// If we created a temporary WBBA input ATA for this swap, close it after swap to reclaim rent
+					if (createdWBBAInputAccount) {
+						const closeWbbaInputIx = createCloseAccountInstruction(
+							userInputTokenAccount,
+							publicKey,
+							publicKey
+						)
+						postTxInstructions.push(closeWbbaInputIx)
+					}
+				} else if (isOutputBBA) {
+					// Token → BBA: Swap to WBBA then unwrap
+					console.log('💰 Token → BBA swap: Will receive WBBA and unwrap to BBA')
+
+					// For input, use standard token account
+					userInputTokenAccount = await getAssociatedTokenAddress(
+						new PublicKey(inputMint),
+						publicKey
+					)
+
+					// For output, use WBBA (NATIVE_MINT) associated token account
+					userOutputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
+
+					// Create WBBA account if it doesn't exist
+					const wbbaAccountInfo = await connection.getAccountInfo(userOutputTokenAccount)
+					if (!wbbaAccountInfo) {
+						console.log('📝 Creating WBBA account for output...')
+						const createWBBAIx = createAssociatedTokenAccountInstruction(
+							publicKey,
+							userOutputTokenAccount,
+							publicKey,
+							NATIVE_MINT
+						)
+						preTxInstructions.push(createWBBAIx)
+					}
+
+					// Add instruction to unwrap WBBA to BBA after swap
+					needsUnwrapping = true
+					const closeWBBAIx = createCloseAccountInstruction(
+						userOutputTokenAccount,
+						publicKey,
+						publicKey
+					)
+					postTxInstructions.push(closeWBBAIx)
+				} else {
+					throw new Error('Unexpected BBA swap state')
+				}
+			} else {
+				// Standard token/token swap
+				console.log('🔄 Standard token/token swap')
+				userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
+				userOutputTokenAccount = await getAssociatedTokenAddress(
+					new PublicKey(outputMint),
+					publicKey
+				)
+			}
 
 			// Get pool info from BBA Chain
 			const poolInfo = pool.swapData
