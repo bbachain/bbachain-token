@@ -27,7 +27,7 @@ import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
 import { bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
 import { getTokenAccounts2 } from '@/lib/tokenAccount'
-import { isNativeBBA } from '@/staticData/tokens'
+import { ExtendedMintInfo, isNativeBBA } from '@/staticData/tokens'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from '../liquidityPool/onchain'
 import { TGetTokenDataResponse, TGetTokenResponse } from '../tokens/types'
@@ -195,6 +195,18 @@ export const useGetUserBalanceByMint = ({ mintAddress }: { mintAddress: string }
 			if (!ownerAddress) throw new Error('No wallet connected')
 
 			try {
+				// Import the native BBA detection function
+				const { isNativeBBA } = await import('@/staticData/tokens')
+
+				// Handle native BBA token differently
+				if (isNativeBBA(mintAddress)) {
+					console.log('🪙 Fetching native BBA balance...')
+					const balance = await connection.getBalance(ownerAddress)
+					console.log('💰 Native BBA balance:', balance, 'daltons')
+					return { balance }
+				}
+
+				// Handle SPL tokens (existing logic)
 				console.log('🪙 Fetching SPL token balance for:', mintAddress)
 				const mint = new PublicKey(mintAddress)
 				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
@@ -588,7 +600,8 @@ export const useGetAvailableTokens = (searchQuery?: string) => {
 				hasData: !!response.data?.data
 			})
 
-			return response.data
+			const data = response.data.data as ExtendedMintInfo[]
+			return data
 		},
 		staleTime: 60000, // 1 minute
 		enabled: true

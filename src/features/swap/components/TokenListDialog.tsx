@@ -67,8 +67,7 @@ export default function TokenListDialog({
 		error
 	} = useGetAvailableTokens(debouncedSearch.trim() || undefined)
 
-	const tokens = tokensResponse?.data || []
-
+	const tokens: ExtendedMintInfo[] = tokensResponse ?? []
 	const selectedToken = () => {
 		switch (type) {
 			case 'from':

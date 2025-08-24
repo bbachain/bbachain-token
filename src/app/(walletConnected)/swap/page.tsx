@@ -29,6 +29,9 @@ import { getCoinGeckoId } from '@/features/swap/utils'
 import { cn } from '@/lib/utils'
 import StaticTokens from '@/staticData/tokens'
 
+const initialBaseToken = StaticTokens[1]
+const initialQuoteToken = StaticTokens[2]
+
 export default function Swap() {
 	/**
 	 * Enhanced Swap Page with URL Parameter Support
@@ -44,8 +47,8 @@ export default function Swap() {
 	const searchParams = useSearchParams()
 	const router = useRouter()
 	const [amountIn, setAmountIn] = useState<string>('')
-	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(StaticTokens[1])
-	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(StaticTokens[2])
+	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseToken)
+	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteToken)
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
 	const [maxSlippage, setMaxSlippage] = useState<number>(0.5)
 	const [timeLimit, setTimeLimit] = useState<string>('0')

@@ -530,22 +530,26 @@ export default function CreatePool() {
 												</div>
 												<div className="flex-1 text-main-black">
 													<h4 className="text-sm md:text-base font-semibold mb-1">
-														WBBA Token Pool
+														BBA Native Token Pool
 													</h4>
 													<p className="text-xs md:text-sm  mb-2">
-														You&apos;re creating a pool with WBBA (native token). This requires
+														You&apos;re creating a pool with BBA (native token). This requires
 														special handling:
 													</p>
 													<ul className="text-xs md:text-sm  space-y-1">
 														<li className="flex items-center space-x-2">
 															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
-															<span>Make sure you have converted enough BBA amount to WBBA</span>
+															<span>BBA will be automatically wrapped to WBBA for the pool</span>
 														</li>
 														<li className="flex items-center space-x-2">
 															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
 															<span>
-																Recommended fee tier: 0.3% for WBBA/{nonBBAToken?.symbol} pairs
+																Recommended fee tier: 0.3% for BBA/{nonBBAToken?.symbol} pairs
 															</span>
+														</li>
+														<li className="flex items-center space-x-2">
+															<span className="w-1.5 h-1.5 bg-main-black rounded-full"></span>
+															<span>Pool will use NATIVE_MINT for WBBA representation</span>
 														</li>
 													</ul>
 												</div>
