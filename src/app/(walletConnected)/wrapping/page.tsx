@@ -10,6 +10,7 @@ import WrapContent from '@/features/wrapping/components/WrapContentCard'
 import { useGetWBBABalance, useUnwrapBBA, useWrapBBA } from '@/features/wrapping/services'
 import { useGetBalance } from '@/services/wallet'
 import StaticTokens from '@/staticData/tokens'
+import { useErrorDialog } from '@/stores/errorDialog'
 
 export default function Wrapping() {
 	const wrapBBAMutation = useWrapBBA()
@@ -25,6 +26,7 @@ export default function Wrapping() {
 	const generalInvalid = inputAmount === '' || Number(inputAmount) <= 0 || !isAmountPositive
 	const isWrapInvalid = generalInvalid || Number(inputAmount) > BBABalance
 	const isUnwrapInvalid = generalInvalid || Number(inputAmount) > WBBABalance
+	const { openErrorDialog } = useErrorDialog()
 
 	const onWrapBBA = () => wrapBBAMutation.mutate({ amount: Number(inputAmount) })
 	const onUnwrapWBBA = () => unwrapWBBAMutation.mutate({ amount: Number(inputAmount) })
@@ -42,6 +44,26 @@ export default function Wrapping() {
 			toast.success(unwrapWBBAMutation.data.message)
 		}
 	}, [unwrapWBBAMutation.data, unwrapWBBAMutation.isSuccess])
+
+	useEffect(() => {
+		if (wrapBBAMutation.isError && wrapBBAMutation.error) {
+			openErrorDialog({
+				title: 'Failed to wrap BBA',
+				description: wrapBBAMutation.error.message
+			})
+			console.error('Failed to wrap BBA ', wrapBBAMutation.error.message)
+		}
+	}, [wrapBBAMutation.isError, wrapBBAMutation.error, openErrorDialog])
+
+	useEffect(() => {
+		if (unwrapWBBAMutation.isError && unwrapWBBAMutation.error) {
+			openErrorDialog({
+				title: 'Failed to unwrap WBBA',
+				description: unwrapWBBAMutation.error.message
+			})
+			console.error('Failed to unwrap WBBA ', unwrapWBBAMutation.error.message)
+		}
+	}, [unwrapWBBAMutation.isError, unwrapWBBAMutation.error, openErrorDialog])
 
 	return (
 		<div className="xl:w-5/6 md:w-11/12 mx-auto md:px-0 px-[15px] flex flex-col md:space-y-14 space-y-6">
