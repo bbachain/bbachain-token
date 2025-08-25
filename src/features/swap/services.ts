@@ -1,26 +1,33 @@
 import * as BufferLayout from '@bbachain/buffer-layout'
 import {
 	getAssociatedTokenAddress,
-	createAssociatedTokenAccountInstruction,
 	TOKEN_PROGRAM_ID,
 	NATIVE_MINT,
 	createApproveInstruction,
+	createAssociatedTokenAccountInstruction,
 	createSyncNativeInstruction,
-	createCloseAccountInstruction,
-	ASSOCIATED_TOKEN_PROGRAM_ID
+	createCloseAccountInstruction
 } from '@bbachain/spl-token'
-import { createSwapInstruction, PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
+import {
+	createSwapInstruction,
+	PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID
+} from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { PublicKey, Transaction, SystemProgram, Keypair } from '@bbachain/web3.js'
+import {
+	PublicKey,
+	SystemProgram,
+	Transaction,
+	type TransactionInstruction
+} from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
 import { TGetTokensResponse } from '@/app/api/tokens/route'
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
-import { wrapBBAtoWBBA, unwrapWBBAtoBBA, createTokenAccountManual, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
+import { bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
 import { getTokenAccounts2 } from '@/lib/tokenAccount'
-import { isNativeBBA, getWBBAMintAddress, isBBAPool, getBBAPositionInPool } from '@/staticData/tokens'
+import { ExtendedMintInfo, isNativeBBA } from '@/staticData/tokens'
 
 import { getAllPoolsFromOnchain, OnchainPoolData } from '../liquidityPool/onchain'
 import { TGetTokenDataResponse, TGetTokenResponse } from '../tokens/types'
@@ -116,7 +123,9 @@ export const useGetTokensFromAPI = (searchQuery?: string) =>
 				params.append('includeAddress', 'true')
 			}
 
-			const url = searchQuery ? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}` : ENDPOINTS.API.GET_TOKENS
+			const url = searchQuery
+				? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}`
+				: ENDPOINTS.API.GET_TOKENS
 
 			const res = await axios.get(url)
 			return res.data as TGetTokensResponse
@@ -138,7 +147,9 @@ export const useGetSwappableTokens2 = () => {
 				})
 			)
 
-			const filteredTokenData = tokenData.filter((token): token is TGetTokenDataResponse => token !== null)
+			const filteredTokenData = tokenData.filter(
+				(token): token is TGetTokenDataResponse => token !== null
+			)
 
 			return {
 				message: `Successfully get token`,
@@ -165,7 +176,11 @@ export const useGetSwappableTokens3 = () => {
 				throw new Error(`Invalid owner: ${JSON.stringify(accountInfo.owner)}`)
 			}
 
-			const data = new Uint8Array(accountInfo.data.buffer, accountInfo.data.byteOffset, accountInfo.data.byteLength)
+			const data = new Uint8Array(
+				accountInfo.data.buffer,
+				accountInfo.data.byteOffset,
+				accountInfo.data.byteLength
+			)
 			return { data: TokenSwapLayout.decode(data) }
 		}
 	})
@@ -256,18 +271,29 @@ export const useGetSwapTransactionByMint = ({
 	const amountPayload = Number(amount) * 10 ** decimals
 	const slippageBps = slippage * 100
 	return useQuery<TGetSwapTransactionData>({
-		queryKey: [SERVICES_KEY.SWAP.GET_SWAP_TRANSACTION, swapType, inputMint, outputMint, amount, decimals, slippage],
+		queryKey: [
+			SERVICES_KEY.SWAP.GET_SWAP_TRANSACTION,
+			swapType,
+			inputMint,
+			outputMint,
+			amount,
+			decimals,
+			slippage
+		],
 		queryFn: async () => {
 			const baseType = swapType === 'BaseIn' ? 'in' : 'out'
-			const res = await axios.get(ENDPOINTS.RAYDIUM.GET_SWAP_TRANSACTION_BY_MINT + `/swap-base-${baseType}`, {
-				params: {
-					inputMint,
-					outputMint,
-					amount: amountPayload,
-					slippageBps,
-					txVersion: 'V0'
+			const res = await axios.get(
+				ENDPOINTS.RAYDIUM.GET_SWAP_TRANSACTION_BY_MINT + `/swap-base-${baseType}`,
+				{
+					params: {
+						inputMint,
+						outputMint,
+						amount: amountPayload,
+						slippageBps,
+						txVersion: 'V0'
+					}
 				}
-			})
+			)
 			return res.data
 		},
 		enabled: !!amount || amount === '0',
@@ -346,7 +372,11 @@ export function calculatePriceImpact(
  * @param outputMint - Output token mint address
  * @returns Best pool for the swap or null if no pool found
  */
-export function findBestPool(pools: OnchainPoolData[], inputMint: string, outputMint: string): OnchainPoolData | null {
+export function findBestPool(
+	pools: OnchainPoolData[],
+	inputMint: string,
+	outputMint: string
+): OnchainPoolData | null {
 	const availablePools = pools.filter((pool) => {
 		const hasInputToken = pool.mintA.address === inputMint || pool.mintB.address === inputMint
 		const hasOutputToken = pool.mintA.address === outputMint || pool.mintB.address === outputMint
@@ -450,8 +480,12 @@ export const useGetSwapQuote = ({
 					inputReserve,
 					outputReserve,
 					feeRate: bestPool.feeRate,
-					inputReserveRaw: isInputTokenA ? bestPool.reserveA.toString() : bestPool.reserveB.toString(),
-					outputReserveRaw: isInputTokenA ? bestPool.reserveB.toString() : bestPool.reserveA.toString()
+					inputReserveRaw: isInputTokenA
+						? bestPool.reserveA.toString()
+						: bestPool.reserveB.toString(),
+					outputReserveRaw: isInputTokenA
+						? bestPool.reserveB.toString()
+						: bestPool.reserveA.toString()
 				})
 
 				// Validate reserves
@@ -474,8 +508,18 @@ export const useGetSwapQuote = ({
 					feeRateDisplay: `${bestPool.feeRate}% -> ${(feeRateDecimal * 100).toFixed(2)}%`
 				})
 
-				const outputAmount = calculateOutputAmount(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal)
-				const priceImpact = calculatePriceImpact(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal)
+				const outputAmount = calculateOutputAmount(
+					inputAmountNumber,
+					inputReserve,
+					outputReserve,
+					feeRateDecimal
+				)
+				const priceImpact = calculatePriceImpact(
+					inputAmountNumber,
+					inputReserve,
+					outputReserve,
+					feeRateDecimal
+				)
 
 				console.log('📈 Calculation results:', {
 					inputAmount: inputAmountNumber,
@@ -516,7 +560,12 @@ export const useGetSwapQuote = ({
 				throw error
 			}
 		},
-		enabled: !!inputMint && !!outputMint && !!inputAmount && Number(inputAmount) > 0 && inputMint !== outputMint,
+		enabled:
+			!!inputMint &&
+			!!outputMint &&
+			!!inputAmount &&
+			Number(inputAmount) > 0 &&
+			inputMint !== outputMint,
 		staleTime: 10000, // 10 seconds
 		refetchInterval: 15000, // Refresh every 15 seconds
 		retry: (failureCount, error) => {
@@ -541,7 +590,9 @@ export const useGetAvailableTokens = (searchQuery?: string) => {
 				params.append('includeAddress', 'true')
 			}
 
-			const url = searchQuery ? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}` : ENDPOINTS.API.GET_TOKENS
+			const url = searchQuery
+				? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}`
+				: ENDPOINTS.API.GET_TOKENS
 
 			const response = await axios.get(url)
 			console.log('✅ Tokens fetched:', {
@@ -549,7 +600,8 @@ export const useGetAvailableTokens = (searchQuery?: string) => {
 				hasData: !!response.data?.data
 			})
 
-			return response.data
+			const data = response.data.data as ExtendedMintInfo[]
+			return data
 		},
 		staleTime: 60000, // 1 minute
 		enabled: true
@@ -569,7 +621,9 @@ export const useGetPoolsForToken = (tokenAddress: string) => {
 
 			const allPools = await getAllPoolsFromOnchain(connection)
 
-			return allPools.filter((pool) => pool.mintA.address === tokenAddress || pool.mintB.address === tokenAddress)
+			return allPools.filter(
+				(pool) => pool.mintA.address === tokenAddress || pool.mintB.address === tokenAddress
+			)
 		},
 		enabled: !!tokenAddress,
 		staleTime: 60000 // 1 minute
@@ -651,8 +705,6 @@ export const useExecuteSwap = () => {
 
 			// Calculate all required values for debugging
 			const isInputTokenA = pool.mintA.address === effectiveInputMint
-			const inputMintPubkey = new PublicKey(effectiveInputMint)
-			const outputMintPubkey = new PublicKey(effectiveOutputMint)
 
 			const inputAmountNumber = Number(inputAmount)
 			const inputDecimals = isInputTokenA ? pool.mintA.decimals : pool.mintB.decimals
@@ -668,7 +720,12 @@ export const useExecuteSwap = () => {
 				: Number(pool.reserveA) / Math.pow(10, pool.mintA.decimals)
 
 			const feeRateDecimal = pool.feeRate > 1 ? pool.feeRate / 100 : pool.feeRate
-			const expectedOutput = calculateOutputAmount(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal)
+			const expectedOutput = calculateOutputAmount(
+				inputAmountNumber,
+				inputReserve,
+				outputReserve,
+				feeRateDecimal
+			)
 			const expectedOutputDaltons = Math.floor(expectedOutput * Math.pow(10, outputDecimals))
 
 			const slippageMultiplier = 1 - slippage / 100
@@ -700,8 +757,8 @@ export const useExecuteSwap = () => {
 			let needsUnwrapping = false
 			// Track whether we created a temporary WBBA ATA for BBA → Token swaps
 			let createdWBBAInputAccount = false
-			let preTxInstructions: any[] = []
-			let postTxInstructions: any[] = []
+			let preTxInstructions: TransactionInstruction[] = []
+			let postTxInstructions: TransactionInstruction[] = []
 
 			if (isBBASwap) {
 				console.log('🪙 BBA swap detected - using WBBA for native BBA')
@@ -747,11 +804,18 @@ export const useExecuteSwap = () => {
 					preTxInstructions.push(transferBBAIx, syncBBAIx)
 
 					// For output, use standard token account
-					userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+					userOutputTokenAccount = await getAssociatedTokenAddress(
+						new PublicKey(outputMint),
+						publicKey
+					)
 
 					// If we created a temporary WBBA input ATA for this swap, close it after swap to reclaim rent
 					if (createdWBBAInputAccount) {
-						const closeWbbaInputIx = createCloseAccountInstruction(userInputTokenAccount, publicKey, publicKey)
+						const closeWbbaInputIx = createCloseAccountInstruction(
+							userInputTokenAccount,
+							publicKey,
+							publicKey
+						)
 						postTxInstructions.push(closeWbbaInputIx)
 					}
 				} else if (isOutputBBA) {
@@ -759,7 +823,10 @@ export const useExecuteSwap = () => {
 					console.log('💰 Token → BBA swap: Will receive WBBA and unwrap to BBA')
 
 					// For input, use standard token account
-					userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
+					userInputTokenAccount = await getAssociatedTokenAddress(
+						new PublicKey(inputMint),
+						publicKey
+					)
 
 					// For output, use WBBA (NATIVE_MINT) associated token account
 					userOutputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
@@ -779,7 +846,11 @@ export const useExecuteSwap = () => {
 
 					// Add instruction to unwrap WBBA to BBA after swap
 					needsUnwrapping = true
-					const closeWBBAIx = createCloseAccountInstruction(userOutputTokenAccount, publicKey, publicKey)
+					const closeWBBAIx = createCloseAccountInstruction(
+						userOutputTokenAccount,
+						publicKey,
+						publicKey
+					)
 					postTxInstructions.push(closeWBBAIx)
 				} else {
 					throw new Error('Unexpected BBA swap state')
@@ -788,7 +859,10 @@ export const useExecuteSwap = () => {
 				// Standard token/token swap
 				console.log('🔄 Standard token/token swap')
 				userInputTokenAccount = await getAssociatedTokenAddress(new PublicKey(inputMint), publicKey)
-				userOutputTokenAccount = await getAssociatedTokenAddress(new PublicKey(outputMint), publicKey)
+				userOutputTokenAccount = await getAssociatedTokenAddress(
+					new PublicKey(outputMint),
+					publicKey
+				)
 			}
 
 			// Get pool info from BBA Chain
@@ -807,8 +881,12 @@ export const useExecuteSwap = () => {
 				authority: swapAuthority,
 				userTransferAuthority: publicKey,
 				source: userInputTokenAccount,
-				swapSource: isInputTokenA ? new PublicKey(poolInfo.tokenAccountA) : new PublicKey(poolInfo.tokenAccountB),
-				swapDestination: isInputTokenA ? new PublicKey(poolInfo.tokenAccountB) : new PublicKey(poolInfo.tokenAccountA),
+				swapSource: isInputTokenA
+					? new PublicKey(poolInfo.tokenAccountA)
+					: new PublicKey(poolInfo.tokenAccountB),
+				swapDestination: isInputTokenA
+					? new PublicKey(poolInfo.tokenAccountB)
+					: new PublicKey(poolInfo.tokenAccountA),
 				destination: userOutputTokenAccount,
 				poolMint: new PublicKey(poolInfo.tokenPool),
 				feeAccount: new PublicKey(poolInfo.feeAccount),
@@ -864,7 +942,9 @@ export const useExecuteSwap = () => {
 
 			// Add post-swap instructions (BBA unwrapping if needed)
 			if (postTxInstructions.length > 0) {
-				console.log(`📝 Adding ${postTxInstructions.length} post-swap instructions (BBA unwrapping)`)
+				console.log(
+					`📝 Adding ${postTxInstructions.length} post-swap instructions (BBA unwrapping)`
+				)
 				postTxInstructions.forEach((ix) => transaction.add(ix))
 			}
 
@@ -888,7 +968,12 @@ export const useExecuteSwap = () => {
 				inputAmount: inputAmountNumber,
 				outputAmount: expectedOutput,
 				actualOutputAmount: expectedOutput, // TODO: Get actual from transaction logs
-				priceImpact: calculatePriceImpact(inputAmountNumber, inputReserve, outputReserve, feeRateDecimal),
+				priceImpact: calculatePriceImpact(
+					inputAmountNumber,
+					inputReserve,
+					outputReserve,
+					feeRateDecimal
+				),
 				executionTime: Date.now() - startTime,
 				poolDetail: pool
 			} as SwapExecutionResult
@@ -906,12 +991,24 @@ export const useExecuteSwap = () => {
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId] })
 			queryClient.invalidateQueries({
-				queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, baseMint?.address, quoteMint?.address]
+				queryKey: [
+					SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
+					poolId,
+					baseMint?.address,
+					quoteMint?.address
+				]
 			})
 			queryClient.invalidateQueries({
-				queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, poolId, quoteMint?.address, baseMint?.address]
+				queryKey: [
+					SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
+					poolId,
+					quoteMint?.address,
+					baseMint?.address
+				]
 			})
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, publicKey?.toBase58()] })
+			queryClient.invalidateQueries({
+				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, publicKey?.toBase58()]
+			})
 		},
 		onError: (error) => {
 			console.error('❌ Swap failed:', error)

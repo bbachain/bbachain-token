@@ -11,7 +11,7 @@ import { useIsMobile } from '@/hooks/isMobile'
 import { useGetBalance } from '@/services/wallet'
 import { useWalletListDialog } from '@/stores/walletDialog'
 
-const balanceFormater = (balance: number) => Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000
+export const balanceFormater = (balance: number) => Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000
 
 function BalanceValue() {
 	const getBalanceQuery = useGetBalance()

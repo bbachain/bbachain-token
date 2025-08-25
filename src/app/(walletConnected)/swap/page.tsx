@@ -27,24 +27,10 @@ import {
 import { TTokenProps } from '@/features/swap/types'
 import { getCoinGeckoId } from '@/features/swap/utils'
 import { cn } from '@/lib/utils'
+import StaticTokens from '@/staticData/tokens'
 
-const initialBaseTokenProps: TTokenProps = {
-	name: 'BBA Coin',
-	symbol: 'BBA',
-	address: NATIVE_MINT.toBase58(),
-	logoURI: '/bba_logo.svg',
-	decimals: 9,
-	tags: ['native']
-}
-
-const initialQuoteTokenProps: TTokenProps = {
-	name: 'Tether USD',
-	symbol: 'USDT',
-	address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
-	logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
-	decimals: 6,
-	tags: ['stablecoin']
-}
+const initialBaseToken = StaticTokens[1]
+const initialQuoteToken = StaticTokens[2]
 
 export default function Swap() {
 	/**
@@ -61,8 +47,8 @@ export default function Swap() {
 	const searchParams = useSearchParams()
 	const router = useRouter()
 	const [amountIn, setAmountIn] = useState<string>('')
-	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseTokenProps)
-	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteTokenProps)
+	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseToken)
+	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteToken)
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
 	const [maxSlippage, setMaxSlippage] = useState<number>(0.5)
 	const [timeLimit, setTimeLimit] = useState<string>('0')
@@ -151,8 +137,12 @@ export default function Swap() {
 	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: toTokenProps.address })
 
 	// Get token prices (fallback to external API if needed)
-	const getMintATokenPrice = useGetCoinGeckoTokenPrice({ coinGeckoId: getCoinGeckoId(fromTokenProps.address) })
-	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({ coinGeckoId: getCoinGeckoId(toTokenProps.address) })
+	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
+		coinGeckoId: getCoinGeckoId(fromTokenProps.address)
+	})
+	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
+		coinGeckoId: getCoinGeckoId(toTokenProps.address)
+	})
 
 	// Swap execution
 	const executeSwapMutation = useExecuteSwap()
@@ -172,7 +162,14 @@ export default function Swap() {
 			canSwapLoading: canSwapQuery.isLoading,
 			route: swapRouteQuery.data
 		})
-	}, [amountIn, fromTokenProps.symbol, toTokenProps.symbol, swapQuoteQuery, canSwapQuery, swapRouteQuery])
+	}, [
+		amountIn,
+		fromTokenProps.symbol,
+		toTokenProps.symbol,
+		swapQuoteQuery,
+		canSwapQuery,
+		swapRouteQuery
+	])
 
 	// Computed values
 	const swapQuote = swapQuoteQuery.data
@@ -199,7 +196,11 @@ export default function Swap() {
 	const isAmountPositive = REGEX.POSITIVE_DECIMAL.test(amountIn) && userInputAmount > 0
 	const hasValidTokenPair = fromTokenProps.address !== toTokenProps.address
 	const isValid =
-		!isBaseTokenBalanceNotEnough && isAmountPositive && hasValidTokenPair && canSwapQuery.data === true && swapQuote
+		!isBaseTokenBalanceNotEnough &&
+		isAmountPositive &&
+		hasValidTokenPair &&
+		canSwapQuery.data === true &&
+		swapQuote
 
 	// Exchange rate and other computed values
 	const exchangeRate = swapQuote?.exchangeRate
@@ -258,9 +259,12 @@ export default function Swap() {
 				poolAddress: swapQuote.poolAddress
 			})
 
-			toast.success(`Swap successful! Received ${result.actualOutputAmount.toFixed(6)} ${toTokenProps.symbol}`, {
-				duration: 5000
-			})
+			toast.success(
+				`Swap successful! Received ${result.actualOutputAmount.toFixed(6)} ${toTokenProps.symbol}`,
+				{
+					duration: 5000
+				}
+			)
 
 			// Reset form
 			setAmountIn('')
@@ -274,7 +278,9 @@ export default function Swap() {
 
 	return (
 		<div className="px-[15px] flex flex-col items-center lg:space-y-14 md:space-y-9 space-y-3">
-			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">Swap Assets</h1>
+			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
+				Swap Assets
+			</h1>
 
 			<Card className="md:w-[550px] w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 				<CardHeader className="text-center flex flex-row items-center justify-between space-y-0 p-0 md:pb-[18px] pb-3">
@@ -303,6 +309,7 @@ export default function Swap() {
 								setInputAmount={handleInputChange}
 							/>
 							<SwapItem
+								noCheckBalance
 								type="to"
 								tokenProps={toTokenProps}
 								balance={mintBBalance / Math.pow(10, toTokenProps.decimals)}
@@ -343,14 +350,18 @@ export default function Swap() {
 						{/* Error state */}
 						{swapQuoteQuery.error && (
 							<p className="text-xs text-red-500">
-								Error: {swapQuoteQuery.error instanceof Error ? swapQuoteQuery.error.message : 'Failed to get quote'}
+								Error:{' '}
+								{swapQuoteQuery.error instanceof Error
+									? swapQuoteQuery.error.message
+									: 'Failed to get quote'}
 							</p>
 						)}
 
 						{/* Pool information */}
 						{swapQuote && (
 							<p className="text-xs text-dark-grey">
-								Pool TVL: <span className="text-main-black">${swapQuote.poolTvl.toLocaleString()}</span>
+								Pool TVL:{' '}
+								<span className="text-main-black">${swapQuote.poolTvl.toLocaleString()}</span>
 							</p>
 						)}
 
@@ -363,7 +374,9 @@ export default function Swap() {
 
 						{/* Warning for no liquidity */}
 						{canSwapQuery.data === false && (
-							<p className="text-xs text-red-500">No liquidity pool available for this token pair</p>
+							<p className="text-xs text-red-500">
+								No liquidity pool available for this token pair
+							</p>
 						)}
 
 						{/* Input validation warnings */}
@@ -391,7 +404,10 @@ export default function Swap() {
 								className={cn(
 									'text-main-black',
 									swapQuote?.priceImpact && swapQuote.priceImpact > 5 && 'text-red-500',
-									swapQuote?.priceImpact && swapQuote.priceImpact > 1 && swapQuote.priceImpact <= 5 && 'text-yellow-500'
+									swapQuote?.priceImpact &&
+										swapQuote.priceImpact > 1 &&
+										swapQuote.priceImpact <= 5 &&
+										'text-yellow-500'
 								)}
 							>
 								{priceImpact}
@@ -416,7 +432,9 @@ export default function Swap() {
 							!isValid && 'hover:cursor-not-allowed'
 						)}
 					>
-						{(isSwapQuoteLoading || executeSwapMutation.isPending) && <Loader2 className="animate-spin mr-2" />}
+						{(isSwapQuoteLoading || executeSwapMutation.isPending) && (
+							<Loader2 className="animate-spin mr-2" />
+						)}
 						{executeSwapMutation.isPending
 							? 'Swapping...'
 							: isSwapQuoteLoading
