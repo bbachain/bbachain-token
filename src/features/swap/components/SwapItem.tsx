@@ -19,12 +19,14 @@ interface SwapItemProps {
 	setInputAmount: (inputAmount: string) => void
 	setTokenProps?: () => void
 	noTitle?: boolean
+	noCheckBalance?: boolean
 	disable?: boolean
 }
 
 export default function SwapItem({
 	type,
 	noTitle = false,
+	noCheckBalance = false,
 	disable = false,
 	tokenProps,
 	inputAmount,
@@ -33,7 +35,7 @@ export default function SwapItem({
 	setTokenProps,
 	setInputAmount
 }: SwapItemProps) {
-	const isBalanceNotEnough = Number(inputAmount) > balance
+	const isBalanceNotEnough = !noCheckBalance && Number(inputAmount) > balance
 	const isAmountPositive = Number(inputAmount) >= 0
 	const isInValid = isBalanceNotEnough || !isAmountPositive
 
@@ -95,9 +97,13 @@ export default function SwapItem({
 							Max
 						</Button>
 					)}
-					{isBalanceNotEnough && <p className="text-error absolute right-0 top-7 text-[10px]">Balance is not enough</p>}
+					{isBalanceNotEnough && (
+						<p className="text-error absolute right-0 top-7 text-[10px]">Balance is not enough</p>
+					)}
 					{!isAmountPositive && (
-						<p className="text-error absolute right-0 top-7 text-[10px]">Amount can not be negative</p>
+						<p className="text-error absolute right-0 top-7 text-[10px]">
+							Amount can not be negative
+						</p>
 					)}
 				</div>
 			</section>
