@@ -266,6 +266,8 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 	})
 }
 
+export const useGetUserPoolStatsById = () => {}
+
 // Pool refresh mutation
 export const useRefreshPools = () => {
 	const queryClient = useQueryClient()
