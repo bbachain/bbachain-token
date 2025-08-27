@@ -4,7 +4,8 @@ import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
 import { MintInfo } from '@/features/liquidityPool/types'
 
 export type ExtendedMintInfo = MintInfo & {
-	coinGeckoId?: string
+	coinGeckoId?: string;
+	isNative: boolean;
 }
 
 const StaticTokens: ExtendedMintInfo[] = [
@@ -12,10 +13,21 @@ const StaticTokens: ExtendedMintInfo[] = [
 		name: 'BBA Coin',
 		symbol: 'BBA',
 		coinGeckoId: 'bbachain',
-		address: NATIVE_MINT.toBase58(),
-		logoURI: '/bba_logo.svg',
+		address: '',
+		logoURI: 'https://s2.coinmarketcap.com/static/img/coins/64x64/34568.png',
 		decimals: 9,
+		isNative: true,
 		tags: ['native']
+	},
+	{
+		name: 'Wrapped BBA',
+		symbol: 'WBBA',
+		coinGeckoId: 'bbachain',
+		address: NATIVE_MINT.toBase58(),
+		logoURI: 'https://s2.coinmarketcap.com/static/img/coins/64x64/34568.png',
+		decimals: 9,
+		isNative: false,
+		tags: ['wrapped', 'native']
 	},
 	{
 		name: 'Tether USD',
@@ -24,6 +36,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
 		logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
 		decimals: 6,
+		isNative: false,
 		tags: ['stablecoin']
 	},
 	{
@@ -33,6 +46,7 @@ const StaticTokens: ExtendedMintInfo[] = [
 		address: '2pCnkCrLZt4BTfsqABJpQCrynZZbtoqYmq86CusP4FbS',
 		logoURI: 'https://ipfs.io/ipfs/Qmd5CCuusYMDW7KDaed9x2LyeHesdzfthQg43gUuGgmbPD',
 		decimals: 6,
+		isNative: false,
 		tags: ['meme']
 	}
 ]
