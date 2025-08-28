@@ -346,12 +346,16 @@ export const usePoolsBackgroundSync = () => {
 export const useGetTransactionsByPoolId = ({
 	poolId,
 	baseMint,
-	quoteMint
+	quoteMint,
+	isFilteredByOwner
 }: {
 	poolId: string
 	baseMint: MintInfo | undefined
 	quoteMint: MintInfo | undefined
+	isFilteredByOwner?: boolean
 }) => {
+	const { publicKey: ownerAddress } = useWallet()
+
 	const isValidParams =
 		!!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
 
@@ -374,7 +378,8 @@ export const useGetTransactionsByPoolId = ({
 			SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
 			poolId,
 			baseMint?.address,
-			quoteMint?.address
+			quoteMint?.address,
+			isFilteredByOwner ? ownerAddress?.toBase58() : null
 		],
 		enabled: isValidParams && areTokenPricesReady,
 		...CACHE_CONFIG,
@@ -390,7 +395,7 @@ export const useGetTransactionsByPoolId = ({
 
 				console.log('Transaction count:', transactionData?.length)
 
-				const responseData = transactionData
+				let responseData = transactionData
 					.map((tx) => {
 						const parsedData = processTransactionData(tx, baseMint, quoteMint)
 						if (!parsedData) return null
@@ -405,6 +410,10 @@ export const useGetTransactionsByPoolId = ({
 						} as TransactionListProps
 					})
 					.filter((item): item is TransactionListProps => item !== null)
+
+				if (isFilteredByOwner && ownerAddress) {
+					responseData = responseData.filter((item) => item.wallet === ownerAddress.toBase58())
+				}
 
 				return { message: 'Successfully get transaction data', data: responseData }
 			} catch (error) {

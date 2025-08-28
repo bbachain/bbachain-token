@@ -12,10 +12,14 @@ import { LuArrowUpDown } from 'react-icons/lu'
 
 import { CopyButton } from '@/components/common/CopyButton'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getFeeTierColor } from '@/features/liquidityPool/components/Columns'
-import PoolDetailSkeleton from '@/features/liquidityPool/components/PoolDetailSkeleton'
+import {
+	InitialPoolDetailSkeleton,
+	PoolDetailTransactionSkeleton
+} from '@/features/liquidityPool/components/PoolDetailSkeleton'
 import { getTransactionListColumns } from '@/features/liquidityPool/components/TransactionColumns'
 import { TransactionDataTable } from '@/features/liquidityPool/components/TransactionDataTable'
 import { useGetPoolById, useGetTransactionsByPoolId } from '@/features/liquidityPool/services'
@@ -31,12 +35,14 @@ function PoolAmountBar({
 	mintAAmount,
 	mintBAmount,
 	mintASymbol,
-	mintBSymbol
+	mintBSymbol,
+	isLoading
 }: {
 	mintAAmount: number
 	mintBAmount: number
 	mintASymbol: string
 	mintBSymbol: string
+	isLoading?: boolean
 }) {
 	const total = mintAAmount + mintBAmount
 	const mintAPercentage = (mintAAmount / total) * 100
@@ -46,6 +52,18 @@ function PoolAmountBar({
 		if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
 		if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
 		return value.toFixed(3)
+	}
+
+	if (isLoading) {
+		return (
+			<div className="w-full  mx-auto flex flex-col md:space-y-3 space-y-[3px]">
+				<div className="flex justify-between">
+					<Skeleton className="h-5 w-16 rounded-sm" />
+					<Skeleton className="h-5 w-16 rounded-sm" />
+				</div>
+				<Skeleton className="h-4 w-full rounded" />
+			</div>
+		)
 	}
 
 	return (
@@ -106,7 +124,9 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	const router = useRouter()
 	const poolId = params.poolId
 
-	const [isReversed, setIsReversed] = useState(false)
+	const [isReversed, setIsReversed] = useState<boolean>(false)
+	const [isMyStats, setIsMyStats] = useState<boolean>(false)
+	const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true)
 	const isMobile = useIsMobile()
 
 	const onReverse = () => {
@@ -123,7 +143,8 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	const getTransactionsByPoolId = useGetTransactionsByPoolId({
 		poolId,
 		baseMint,
-		quoteMint
+		quoteMint,
+		isFilteredByOwner: isMyStats
 	})
 	const transactionData = getTransactionsByPoolId.data ? getTransactionsByPoolId.data.data : []
 
@@ -187,7 +208,13 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		}
 	}, [getTransactionsByPoolId.error, getTransactionsByPoolId.isError])
 
-	if (getPoolById.isLoading || getTransactionsByPoolId.isLoading)
+	useEffect(() => {
+		if (!(getPoolById.isLoading || getTransactionsByPoolId.isLoading)) {
+			setIsInitialLoad(false)
+		}
+	}, [getPoolById.isLoading, getTransactionsByPoolId.isLoading])
+
+	if (isInitialLoad && (getPoolById.isLoading || getTransactionsByPoolId.isLoading))
 		return (
 			<div className="w-full mx-auto 2xl:max-w-7xl lg:max-w-5xl md:max-w-2xl px-[15px]">
 				<Button
@@ -198,7 +225,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 					<HiOutlineArrowNarrowLeft />
 					<h4>Pools</h4>
 				</Button>
-				<PoolDetailSkeleton />
+				<InitialPoolDetailSkeleton />
 			</div>
 		)
 
@@ -275,10 +302,33 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				</section>
 			</div>
 			<div className="bg-box-3 mt-6 md:p-6 p-3 rounded-[8px]">
-				<Tabs>
-					<TabsList>
-						<TabsTrigger value="pool-stats">Pool Stats</TabsTrigger>
-						<TabsTrigger value="my-stats">My Stats</TabsTrigger>
+				<Tabs
+					defaultValue="pool-stats"
+					onValueChange={(value) => setIsMyStats(value === 'my-stats')}
+				>
+					<TabsList className="flex md:w-40 w-full mb-[18px] rounded-md bg-light-grey !p-0">
+						<TabsTrigger
+							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
+               data-[state=active]:bg-main-green
+			   hover:bg-main-green 
+               data-[state=active]:text-main-white
+			   data-[state=inactive]:text-box
+			   hover:!text-main-white"
+							value="pool-stats"
+						>
+							Pool Stats
+						</TabsTrigger>
+						<TabsTrigger
+							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
+               data-[state=active]:bg-main-green
+			   hover:bg-main-green 
+               data-[state=active]:text-main-white
+			   data-[state=inactive]:text-box
+			   hover:!text-main-white"
+							value="my-stats"
+						>
+							My Stats
+						</TabsTrigger>
 					</TabsList>
 					<TabsContent value="pool-stats">
 						<div className="flex flex-col md:space-y-3 space-y-1.5">
@@ -306,6 +356,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								mintBAmount={mintBPoolAmount}
 								mintASymbol={baseMint?.symbol ?? ''}
 								mintBSymbol={quoteMint?.symbol ?? ''}
+								isLoading={getPoolById.isLoading}
 							/>
 						</div>
 						<div className="md:mt-6 mt-3 grid grid-cols-2 md:flex md:gap-y-0 gap-y-3  items-center justify-between">
@@ -419,6 +470,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								mintBAmount={mintBPoolAmount}
 								mintASymbol={baseMint?.symbol ?? ''}
 								mintBSymbol={quoteMint?.symbol ?? ''}
+								isLoading={getPoolById.isLoading}
 							/>
 						</div>
 						<div className="md:mt-6 mt-3 grid grid-cols-2 md:flex md:gap-y-0 gap-y-3  items-center justify-between">
@@ -510,7 +562,11 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 			</div>
 			<div className="flex flex-col md:space-y-6 space-y-3 md:mt-14 mt-5">
 				<h2 className="font-semibold lg:text-2xl text-xl text-main-black">Transactions</h2>
-				<TransactionDataTable columns={transactionColumn} data={transactionData} />
+				{getTransactionsByPoolId.isLoading ? (
+					<PoolDetailTransactionSkeleton />
+				) : (
+					<TransactionDataTable columns={transactionColumn} data={transactionData} />
+				)}
 			</div>
 		</div>
 	)
