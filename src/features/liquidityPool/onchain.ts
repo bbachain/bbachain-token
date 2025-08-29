@@ -2,14 +2,16 @@ import { struct, u8, blob } from '@bbachain/buffer-layout'
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	getAccount,
+	getAssociatedTokenAddress,
 	getMint,
 	TOKEN_PROGRAM_ID
 } from '@bbachain/spl-token'
-import { PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
+import { PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID, TokenSwap } from '@bbachain/spl-token-swap'
 import { Connection, PublicKey } from '@bbachain/web3.js'
 import axios from 'axios'
 
 import ENDPOINTS from '@/constants/endpoint'
+import { getTokenAccounts } from '@/lib/tokenAccount'
 import { getTokenByAddress, generateTokenDisplayName } from '@/staticData/tokens'
 
 import { getCoinGeckoId } from '../swap/utils'
@@ -260,16 +262,44 @@ export function calculatePoolMetrics(
 	}
 }
 
-async function getCoinGeckoTokenPrice(id: string | undefined) {
+const cache = new Map<string, { price: number; timestamp: number }>()
+
+const STALE_TIME = 60000 // 1 minute
+const REFETCH_INTERVAL = 300000 // 5 minutes
+
+async function getCoinGeckoTokenPrice(id: string | undefined): Promise<number> {
 	if (!id || id === '') return 1
-	const res = await axios.get(ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE, {
-		params: {
-			ids: id,
-			vs_currencies: 'usd'
+
+	const now = Date.now()
+	const cached = cache.get(id)
+
+	// If cached and not stale
+	if (cached && now - cached.timestamp < STALE_TIME) {
+		return cached.price
+	}
+
+	try {
+		const res = await axios.get(ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE, {
+			params: {
+				ids: id,
+				vs_currencies: 'usd'
+			}
+		})
+
+		const usdRate = res.data[id]?.usd ?? 1
+
+		// Update cache
+		cache.set(id, { price: usdRate, timestamp: now })
+
+		return usdRate
+	} catch (error) {
+		// If fetch fails and we have a recent cached value, return it
+		if (cached && now - cached.timestamp < REFETCH_INTERVAL) {
+			return cached.price
 		}
-	})
-	const usdRate = res.data[id].usd
-	return usdRate
+		// Otherwise fallback to default
+		return 1
+	}
 }
 
 /**
@@ -377,18 +407,29 @@ export async function getAllPoolsFromOnchain(connection: Connection): Promise<On
 	}
 }
 
-// export async function getUserLP(connection: Connection, lpMint: PublicKey, owner: PublicKey) {
-// 	// cari ATA (associated token account) user untuk LP mint
-// 	const ata = PublicKey.findProgramAddressSync(
-// 		[owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMint.toBuffer()],
-// 		ASSOCIATED_TOKEN_PROGRAM_ID
-// 	)
+export const getTotalLPSupply = async (connection: Connection, lpMintAddress: PublicKey) => {
+	const tokenSwapState = await TokenSwap.fromAccountAddress(connection, lpMintAddress)
+	const mintInfo = await getMint(connection, tokenSwapState.poolMint)
+	const decimals = mintInfo.decimals
+	const rawSupply = mintInfo.supply
+	const totalSupply = Number(rawSupply) / Math.pow(10, decimals)
+	return totalSupply
+}
 
-// 	try {
-// 		const accountInfo = await getAccount(connection, ata[0])
-// 		return Number(accountInfo.amount) / Math.pow(10, accountInfo.decimals ?? 0)
-// 	} catch (e) {
-// 		console.log('User has no LP tokens')
-// 		return 0
-// 	}
-// }
+export const getUserLPTokens = async (
+	connection: Connection,
+	lpMintAddress: PublicKey,
+	userPublicKey: PublicKey
+): Promise<number> => {
+	const tokenSwapState = await TokenSwap.fromAccountAddress(connection, lpMintAddress)
+	const userTokenAccountAddress = await getAssociatedTokenAddress(
+		tokenSwapState.poolMint,
+		userPublicKey
+	)
+	const tokenAccountInfo = await getAccount(connection, userTokenAccountAddress)
+	const mintInfo = await getMint(connection, tokenSwapState.poolMint)
+	const decimals = mintInfo.decimals
+	const rawAmount = tokenAccountInfo.amount
+	const userBalance = Number(rawAmount) / Math.pow(10, decimals)
+	return userBalance
+}

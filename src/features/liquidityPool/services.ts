@@ -36,9 +36,16 @@ import {
 
 import { useGetCoinGeckoTokenPrice } from '../swap/services'
 import { getCoinGeckoId } from '../swap/utils'
+import { getLPTokenData } from '../tokens/utils'
 
 import { TransactionListProps } from './components/TransactionColumns'
-import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
+import {
+	getAllPoolsFromOnchain,
+	getTotalLPSupply,
+	getUserLPTokens,
+	OnchainPoolData,
+	parsePoolData
+} from './onchain'
 import {
 	MintInfo,
 	PoolData,
@@ -279,7 +286,58 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 	})
 }
 
-export const useGetUserPoolStatsById = () => {}
+export const useGetUserPoolStatsById = ({
+	poolId,
+	reserveA,
+	reserveB,
+	isUserStats
+}: {
+	poolId: string
+	reserveA: number
+	reserveB: number
+	isUserStats: boolean
+}) => {
+	const { connection } = useConnection()
+	const { publicKey: ownerAddress } = useWallet()
+
+	return useQuery({
+		enabled:
+			Boolean(poolId) &&
+			reserveA > 0 &&
+			reserveB > 0 &&
+			isUserStats === true &&
+			Boolean(ownerAddress),
+		queryKey: [
+			SERVICES_KEY.POOL.GET_USER_POOL_STATS,
+			poolId,
+			ownerAddress?.toBase58(),
+			reserveA,
+			reserveB
+		],
+		queryFn: async () => {
+			if (!ownerAddress) {
+				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
+			}
+
+			const lpMint = new PublicKey(poolId)
+			const userLPToken = await getUserLPTokens(connection, lpMint, ownerAddress)
+			const lpTokenSupply = await getTotalLPSupply(connection, lpMint)
+
+			const userShare = userLPToken / lpTokenSupply
+			const userMintAReserve = userShare * reserveA
+			const userMintBReserve = userShare * reserveB
+			const userReserveTotal = userMintAReserve + userMintBReserve
+
+			return {
+				userShare: userShare * 100,
+				userLPToken,
+				userMintAReserve,
+				userMintBReserve,
+				userReserveTotal
+			}
+		}
+	})
+}
 
 // Pool refresh mutation
 export const useRefreshPools = () => {
