@@ -34,7 +34,7 @@ import {
 	getWBBAMintAddress
 } from '@/staticData/tokens'
 
-import { useGetCoinGeckoTokenPrice } from '../swap/services'
+import { useGetCoinGeckoTokenPrice, useGetUserBalanceByMint } from '../swap/services'
 import { getCoinGeckoId } from '../swap/utils'
 import { getLPTokenData } from '../tokens/utils'
 
@@ -290,15 +290,35 @@ export const useGetUserPoolStatsById = ({
 	poolId,
 	reserveA,
 	reserveB,
+	mintA,
+	mintB,
+	volume24h,
+	feeRate,
 	isUserStats
 }: {
 	poolId: string
 	reserveA: number
 	reserveB: number
+	mintA: MintInfo | undefined
+	mintB: MintInfo | undefined
+	volume24h: number
+	feeRate: number
 	isUserStats: boolean
 }) => {
 	const { connection } = useConnection()
 	const { publicKey: ownerAddress } = useWallet()
+	const baseUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: mintA ? getCoinGeckoId(mintA.address) : ''
+	})
+
+	const quoteUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: mintB ? getCoinGeckoId(mintB.address) : ''
+	})
+
+	const baseInitialPrice = baseUSDValue.data ?? 0
+	const quoteInitialPrice = quoteUSDValue.data ?? 0
+
+	const areTokenPricesReady = baseUSDValue.isSuccess && quoteUSDValue.isSuccess
 
 	return useQuery({
 		enabled:
@@ -306,7 +326,8 @@ export const useGetUserPoolStatsById = ({
 			reserveA > 0 &&
 			reserveB > 0 &&
 			isUserStats === true &&
-			Boolean(ownerAddress),
+			Boolean(ownerAddress) &&
+			areTokenPricesReady,
 		queryKey: [
 			SERVICES_KEY.POOL.GET_USER_POOL_STATS,
 			poolId,
@@ -326,14 +347,19 @@ export const useGetUserPoolStatsById = ({
 			const userShare = userLPToken / lpTokenSupply
 			const userMintAReserve = userShare * reserveA
 			const userMintBReserve = userShare * reserveB
-			const userReserveTotal = userMintAReserve + userMintBReserve
+			const userReserveTotal =
+				userMintAReserve * baseInitialPrice + userMintBReserve * quoteInitialPrice
+
+			const totalDailyFees = volume24h * feeRate
+			const dailyFeeEarnings = totalDailyFees * userShare
 
 			return {
 				userShare: userShare * 100,
 				userLPToken,
 				userMintAReserve,
 				userMintBReserve,
-				userReserveTotal
+				userReserveTotal,
+				dailyFeeEarnings
 			}
 		}
 	})
