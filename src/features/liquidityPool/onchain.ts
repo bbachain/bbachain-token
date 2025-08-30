@@ -1,9 +1,20 @@
 import { struct, u8, blob } from '@bbachain/buffer-layout'
-import { getAccount, getMint } from '@bbachain/spl-token'
-import { PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID } from '@bbachain/spl-token-swap'
+import {
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	getAccount,
+	getAssociatedTokenAddress,
+	getMint,
+	TOKEN_PROGRAM_ID
+} from '@bbachain/spl-token'
+import { PROGRAM_ID as TOKEN_SWAP_PROGRAM_ID, TokenSwap } from '@bbachain/spl-token-swap'
 import { Connection, PublicKey } from '@bbachain/web3.js'
+import axios from 'axios'
 
+import ENDPOINTS from '@/constants/endpoint'
+import { getTokenAccounts } from '@/lib/tokenAccount'
 import { getTokenByAddress, generateTokenDisplayName } from '@/staticData/tokens'
+
+import { getCoinGeckoId } from '../swap/utils'
 
 import { MintInfo } from './types'
 
@@ -16,92 +27,97 @@ const uint64 = (property: string = 'uint64') => {
 	return blob(8, property)
 }
 
-	interface RawTokenSwap {
-		version: number
-		isInitialized: boolean
-		bumpSeed: number
-		poolTokenProgramId: Uint8Array
-		tokenAccountA: Uint8Array
-		tokenAccountB: Uint8Array
-		tokenPool: Uint8Array
-		mintA: Uint8Array
-		mintB: Uint8Array
-		feeAccount: Uint8Array
-		tradeFeeNumerator: Uint8Array
-		tradeFeeDenominator: Uint8Array
-		ownerTradeFeeNumerator: Uint8Array
-		ownerTradeFeeDenominator: Uint8Array
-		ownerWithdrawFeeNumerator: Uint8Array
-		ownerWithdrawFeeDenominator: Uint8Array
-		hostFeeNumerator: Uint8Array
-		hostFeeDenominator: Uint8Array
-		curveType: number
-		curveParameters: Uint8Array
-	}
+interface RawTokenSwap {
+	version: number
+	isInitialized: boolean
+	bumpSeed: number
+	poolTokenProgramId: Uint8Array
+	tokenAccountA: Uint8Array
+	tokenAccountB: Uint8Array
+	tokenPool: Uint8Array
+	mintA: Uint8Array
+	mintB: Uint8Array
+	feeAccount: Uint8Array
+	tradeFeeNumerator: Uint8Array
+	tradeFeeDenominator: Uint8Array
+	ownerTradeFeeNumerator: Uint8Array
+	ownerTradeFeeDenominator: Uint8Array
+	ownerWithdrawFeeNumerator: Uint8Array
+	ownerWithdrawFeeDenominator: Uint8Array
+	hostFeeNumerator: Uint8Array
+	hostFeeDenominator: Uint8Array
+	curveType: number
+	curveParameters: Uint8Array
+}
 
-	export const TokenSwapLayout = struct<RawTokenSwap>([
-		u8('version'),
-		u8('isInitialized'),
-		u8('bumpSeed'),
-		publicKey('poolTokenProgramId'),
-		publicKey('tokenAccountA'),
-		publicKey('tokenAccountB'),
-		publicKey('tokenPool'),
-		publicKey('mintA'),
-		publicKey('mintB'),
-		publicKey('feeAccount'),
-		uint64('tradeFeeNumerator'),
-		uint64('tradeFeeDenominator'),
-		uint64('ownerTradeFeeNumerator'),
-		uint64('ownerTradeFeeDenominator'),
-		uint64('ownerWithdrawFeeNumerator'),
-		uint64('ownerWithdrawFeeDenominator'),
-		uint64('hostFeeNumerator'),
-		uint64('hostFeeDenominator'),
-		u8('curveType'),
-		blob(32, 'curveParameters')
-	])
+export const TokenSwapLayout = struct<RawTokenSwap>([
+	u8('version'),
+	u8('isInitialized'),
+	u8('bumpSeed'),
+	publicKey('poolTokenProgramId'),
+	publicKey('tokenAccountA'),
+	publicKey('tokenAccountB'),
+	publicKey('tokenPool'),
+	publicKey('mintA'),
+	publicKey('mintB'),
+	publicKey('feeAccount'),
+	uint64('tradeFeeNumerator'),
+	uint64('tradeFeeDenominator'),
+	uint64('ownerTradeFeeNumerator'),
+	uint64('ownerTradeFeeDenominator'),
+	uint64('ownerWithdrawFeeNumerator'),
+	uint64('ownerWithdrawFeeDenominator'),
+	uint64('hostFeeNumerator'),
+	uint64('hostFeeDenominator'),
+	u8('curveType'),
+	blob(32, 'curveParameters')
+])
 
-	export interface OnchainPoolData {
-		address: string
-		programId: string
-		swapData: RawTokenSwap
-		mintA: MintInfo
-		mintB: MintInfo
-		tokenAccountA: string
-		tokenAccountB: string
-		reserveA: bigint
-		reserveB: bigint
-		feeRate: number
-		tvl: number
-		volume24h: number
-		fees24h: number
-		apr24h: number
-	}
+export interface OnchainPoolData {
+	address: string
+	programId: string
+	swapData: RawTokenSwap
+	mintA: MintInfo
+	mintB: MintInfo
+	tokenAccountA: string
+	tokenAccountB: string
+	reserveA: bigint
+	reserveB: bigint
+	feeRate: number
+	tvl: number
+	volume24h: number
+	fees24h: number
+	apr24h: number
+}
 
-	/**
-	 * Fetch all pool accounts from the Token Swap Program
-	 */
-	export async function getPoolAccounts(connection: Connection): Promise<Array<{ pubkey: PublicKey; account: any }>> {
-		try {
-			const accounts = await connection.getProgramAccounts(TOKEN_SWAP_PROGRAM_ID, {
-				filters: [
-					{
-						dataSize: TokenSwapLayout.span // Only get accounts with correct data size
-					}
-				]
-			})
-			return accounts
-		} catch (error) {
-			console.error('Error fetching pool accounts:', error)
-			throw new Error('Failed to fetch pool accounts from onchain')
-		}
+/**
+ * Fetch all pool accounts from the Token Swap Program
+ */
+export async function getPoolAccounts(
+	connection: Connection
+): Promise<Array<{ pubkey: PublicKey; account: any }>> {
+	try {
+		const accounts = await connection.getProgramAccounts(TOKEN_SWAP_PROGRAM_ID, {
+			filters: [
+				{
+					dataSize: TokenSwapLayout.span // Only get accounts with correct data size
+				}
+			]
+		})
+		return accounts
+	} catch (error) {
+		console.error('Error fetching pool accounts:', error)
+		throw new Error('Failed to fetch pool accounts from onchain')
 	}
+}
 
 /**
  * Parse raw pool account data into structured format
  */
-export function parsePoolData(pubkey: PublicKey, accountData: Buffer): RawTokenSwap & { address: string } {
+export function parsePoolData(
+	pubkey: PublicKey,
+	accountData: Buffer
+): RawTokenSwap & { address: string } {
 	try {
 		const data = new Uint8Array(accountData.buffer, accountData.byteOffset, accountData.byteLength)
 		const swapData = TokenSwapLayout.decode(data)
@@ -119,7 +135,10 @@ export function parsePoolData(pubkey: PublicKey, accountData: Buffer): RawTokenS
 /**
  * Get token mint information for a given mint address
  */
-export async function getTokenMintInfo(connection: Connection, mintAddress: PublicKey): Promise<MintInfo> {
+export async function getTokenMintInfo(
+	connection: Connection,
+	mintAddress: PublicKey
+): Promise<MintInfo> {
 	try {
 		const addressStr = mintAddress.toBase58()
 
@@ -165,7 +184,10 @@ export async function getTokenMintInfo(connection: Connection, mintAddress: Publ
 /**
  * Get token account balance for reserve calculation
  */
-export async function getTokenAccountBalance(connection: Connection, tokenAccount: PublicKey): Promise<bigint> {
+export async function getTokenAccountBalance(
+	connection: Connection,
+	tokenAccount: PublicKey
+): Promise<bigint> {
 	try {
 		const account = await getAccount(connection, tokenAccount)
 		return account.amount
@@ -206,8 +228,8 @@ export function calculateTVL(
 	reserveB: bigint,
 	mintA: MintInfo,
 	mintB: MintInfo,
-	priceA: number = 1,
-	priceB: number = 1
+	priceA: number,
+	priceB: number
 ): number {
 	const balanceA = Number(reserveA) / Math.pow(10, mintA.decimals)
 	const balanceB = Number(reserveB) / Math.pow(10, mintB.decimals)
@@ -240,6 +262,46 @@ export function calculatePoolMetrics(
 	}
 }
 
+const cache = new Map<string, { price: number; timestamp: number }>()
+
+const STALE_TIME = 60000 // 1 minute
+const REFETCH_INTERVAL = 300000 // 5 minutes
+
+async function getCoinGeckoTokenPrice(id: string | undefined): Promise<number> {
+	if (!id || id === '') return 1
+
+	const now = Date.now()
+	const cached = cache.get(id)
+
+	// If cached and not stale
+	if (cached && now - cached.timestamp < STALE_TIME) {
+		return cached.price
+	}
+
+	try {
+		const res = await axios.get(ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE, {
+			params: {
+				ids: id,
+				vs_currencies: 'usd'
+			}
+		})
+
+		const usdRate = res.data[id]?.usd ?? 1
+
+		// Update cache
+		cache.set(id, { price: usdRate, timestamp: now })
+
+		return usdRate
+	} catch (error) {
+		// If fetch fails and we have a recent cached value, return it
+		if (cached && now - cached.timestamp < REFETCH_INTERVAL) {
+			return cached.price
+		}
+		// Otherwise fallback to default
+		return 1
+	}
+}
+
 /**
  * Process a single pool account into OnchainPoolData
  */
@@ -264,8 +326,14 @@ export async function processPoolAccount(
 		const tokenAccountBKey = new PublicKey(parsedData.tokenAccountB)
 
 		// Convert fee numerator/denominator from Uint8Array to bigint
-		const tradeFeeNumerator = new DataView(parsedData.tradeFeeNumerator.buffer).getBigUint64(0, true)
-		const tradeFeeDenominator = new DataView(parsedData.tradeFeeDenominator.buffer).getBigUint64(0, true)
+		const tradeFeeNumerator = new DataView(parsedData.tradeFeeNumerator.buffer).getBigUint64(
+			0,
+			true
+		)
+		const tradeFeeDenominator = new DataView(parsedData.tradeFeeDenominator.buffer).getBigUint64(
+			0,
+			true
+		)
 
 		// Get mint information for both tokens
 		const [mintA, mintB] = await Promise.all([
@@ -279,9 +347,11 @@ export async function processPoolAccount(
 			getTokenAccountBalance(connection, tokenAccountBKey)
 		])
 
+		const mintAPrice = await getCoinGeckoTokenPrice(getCoinGeckoId(mintA.address))
+		const mintBPrice = await getCoinGeckoTokenPrice(getCoinGeckoId(mintB.address))
 		// Calculate metrics
 		const feeRate = calculateFeeRate(tradeFeeNumerator, tradeFeeDenominator)
-		const tvl = calculateTVL(reserveA, reserveB, mintA, mintB)
+		const tvl = calculateTVL(reserveA, reserveB, mintA, mintB, mintAPrice, mintBPrice)
 		const metrics = calculatePoolMetrics(tvl, feeRate)
 
 		return {
@@ -335,4 +405,31 @@ export async function getAllPoolsFromOnchain(connection: Connection): Promise<On
 		console.error('❌ Error getting pools from onchain:', error)
 		throw error
 	}
+}
+
+export const getTotalLPSupply = async (connection: Connection, lpMintAddress: PublicKey) => {
+	const tokenSwapState = await TokenSwap.fromAccountAddress(connection, lpMintAddress)
+	const mintInfo = await getMint(connection, tokenSwapState.poolMint)
+	const decimals = mintInfo.decimals
+	const rawSupply = mintInfo.supply
+	const totalSupply = Number(rawSupply) / Math.pow(10, decimals)
+	return totalSupply
+}
+
+export const getUserLPTokens = async (
+	connection: Connection,
+	lpMintAddress: PublicKey,
+	userPublicKey: PublicKey
+): Promise<number> => {
+	const tokenSwapState = await TokenSwap.fromAccountAddress(connection, lpMintAddress)
+	const userTokenAccountAddress = await getAssociatedTokenAddress(
+		tokenSwapState.poolMint,
+		userPublicKey
+	)
+	const tokenAccountInfo = await getAccount(connection, userTokenAccountAddress)
+	const mintInfo = await getMint(connection, tokenSwapState.poolMint)
+	const decimals = mintInfo.decimals
+	const rawAmount = tokenAccountInfo.amount
+	const userBalance = Number(rawAmount) / Math.pow(10, decimals)
+	return userBalance
 }

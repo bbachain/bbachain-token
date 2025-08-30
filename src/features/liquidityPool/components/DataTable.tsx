@@ -37,9 +37,22 @@ import {
 	DropdownMenuLabel
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow
+} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/isMobile'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -78,7 +91,11 @@ interface AdvancedFilters {
 }
 
 // Enhanced global filter function
-function enhancedGlobalFilterFn<T extends PoolListProps>(row: any, columnId: string, filterValue: string) {
+function enhancedGlobalFilterFn<T extends PoolListProps>(
+	row: any,
+	columnId: string,
+	filterValue: string
+) {
 	const { mintA, mintB, id } = row.original as PoolListProps
 	const search = filterValue.toLowerCase()
 
@@ -175,7 +192,13 @@ function TableSkeleton() {
 	)
 }
 
-function EmptyState({ hasFilters, onClearFilters }: { hasFilters: boolean; onClearFilters: () => void }) {
+function EmptyState({
+	hasFilters,
+	onClearFilters
+}: {
+	hasFilters: boolean
+	onClearFilters: () => void
+}) {
 	return (
 		<div className="flex flex-col items-center justify-center py-12 px-4">
 			<div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
@@ -364,7 +387,8 @@ export function DataTable<TData, TValue>({
 	const filteredPools = table.getFilteredRowModel().rows.length
 	const currentPage = table.getState().pagination.pageIndex + 1
 	const totalPages = table.getPageCount()
-	const startIndex = table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
+	const startIndex =
+		table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
 	const endIndex = Math.min(startIndex + table.getState().pagination.pageSize - 1, filteredPools)
 
 	if (isLoading) {
@@ -395,7 +419,9 @@ export function DataTable<TData, TValue>({
 						<div className="lg:flex hidden items-center gap-2">
 							<Select
 								value={advancedFilters.type}
-								onValueChange={(value: FilterType) => setAdvancedFilters((prev) => ({ ...prev, type: value }))}
+								onValueChange={(value: FilterType) =>
+									setAdvancedFilters((prev) => ({ ...prev, type: value }))
+								}
 							>
 								<SelectTrigger className="w-[150px] p-[18px] h-12 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black ">
 									<SelectValue />
@@ -414,7 +440,9 @@ export function DataTable<TData, TValue>({
 						<div className="flex lg:hidden items-center gap-2">
 							<Select
 								value={advancedFilters.type}
-								onValueChange={(value: FilterType) => setAdvancedFilters((prev) => ({ ...prev, type: value }))}
+								onValueChange={(value: FilterType) =>
+									setAdvancedFilters((prev) => ({ ...prev, type: value }))
+								}
 							>
 								<SelectTrigger className="w-[120px] px-3 py-2 h-9 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black ">
 									<SelectValue />
@@ -500,7 +528,12 @@ export function DataTable<TData, TValue>({
 								<TooltipProvider>
 									<Tooltip>
 										<TooltipTrigger asChild>
-											<Button variant="ghost" size="icon" className="[&_svg]:size-5" onClick={onRefresh}>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="[&_svg]:size-5"
+												onClick={onRefresh}
+											>
 												<TfiReload className={cn(isRefreshing && 'animate-spin')} />
 											</Button>
 										</TooltipTrigger>
@@ -728,7 +761,12 @@ export function DataTable<TData, TValue>({
 								</button>
 							</Badge>
 						)}
-						<Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-xs">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={clearAllFilters}
+							className="h-6 px-2 text-xs"
+						>
 							Clear all
 						</Button>
 					</div>
@@ -739,7 +777,9 @@ export function DataTable<TData, TValue>({
 			<div className="flex items-center justify-between">
 				<div className="flex text-main-black text-lg items-center gap-6">
 					<p className="md:block hidden">
-						{filteredPools === totalPools ? `${totalPools} total pools` : `${filteredPools} of ${totalPools} pools`}
+						{filteredPools === totalPools
+							? `${totalPools} total pools`
+							: `${filteredPools} of ${totalPools} pools`}
 					</p>
 					{enablePagination && filteredPools > 0 && (
 						<p className="md:block hidden">
@@ -784,11 +824,16 @@ export function DataTable<TData, TValue>({
 								<TableRow key={headerGroup.id} className="bg-box-3 h-[58px]">
 									{headerGroup.headers.map((header) => (
 										<TableHead key={header.id} className="font-semibold text-main-black">
-											{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+											{header.isPlaceholder
+												? null
+												: flexRender(header.column.columnDef.header, header.getContext())}
 										</TableHead>
 									))}
 									<TableHead
-										className={cn('w-32 text-right text-main-black md:pr-6 font-semibold', isMobile && 'hidden')}
+										className={cn(
+											'w-32 text-right text-main-black md:pr-6 font-semibold',
+											isMobile && 'hidden'
+										)}
 									>
 										Actions
 									</TableHead>

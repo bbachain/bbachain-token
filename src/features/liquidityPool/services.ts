@@ -34,11 +34,18 @@ import {
 	getWBBAMintAddress
 } from '@/staticData/tokens'
 
-import { useGetCoinGeckoTokenPrice } from '../swap/services'
+import { useGetCoinGeckoTokenPrice, useGetUserBalanceByMint } from '../swap/services'
 import { getCoinGeckoId } from '../swap/utils'
+import { getLPTokenData } from '../tokens/utils'
 
 import { TransactionListProps } from './components/TransactionColumns'
-import { getAllPoolsFromOnchain, OnchainPoolData } from './onchain'
+import {
+	getAllPoolsFromOnchain,
+	getTotalLPSupply,
+	getUserLPTokens,
+	OnchainPoolData,
+	parsePoolData
+} from './onchain'
 import {
 	MintInfo,
 	PoolData,
@@ -279,6 +286,85 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 	})
 }
 
+export const useGetUserPoolStatsById = ({
+	poolId,
+	reserveA,
+	reserveB,
+	mintA,
+	mintB,
+	volume24h,
+	feeRate,
+	isUserStats
+}: {
+	poolId: string
+	reserveA: number
+	reserveB: number
+	mintA: MintInfo | undefined
+	mintB: MintInfo | undefined
+	volume24h: number
+	feeRate: number
+	isUserStats: boolean
+}) => {
+	const { connection } = useConnection()
+	const { publicKey: ownerAddress } = useWallet()
+	const baseUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: mintA ? getCoinGeckoId(mintA.address) : ''
+	})
+
+	const quoteUSDValue = useGetCoinGeckoTokenPrice({
+		coinGeckoId: mintB ? getCoinGeckoId(mintB.address) : ''
+	})
+
+	const baseInitialPrice = baseUSDValue.data ?? 0
+	const quoteInitialPrice = quoteUSDValue.data ?? 0
+
+	const areTokenPricesReady = baseUSDValue.isSuccess && quoteUSDValue.isSuccess
+
+	return useQuery({
+		enabled:
+			Boolean(poolId) &&
+			reserveA > 0 &&
+			reserveB > 0 &&
+			isUserStats === true &&
+			Boolean(ownerAddress) &&
+			areTokenPricesReady,
+		queryKey: [
+			SERVICES_KEY.POOL.GET_USER_POOL_STATS,
+			poolId,
+			ownerAddress?.toBase58(),
+			reserveA,
+			reserveB
+		],
+		queryFn: async () => {
+			if (!ownerAddress) {
+				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
+			}
+
+			const lpMint = new PublicKey(poolId)
+			const userLPToken = await getUserLPTokens(connection, lpMint, ownerAddress)
+			const lpTokenSupply = await getTotalLPSupply(connection, lpMint)
+
+			const userShare = userLPToken / lpTokenSupply
+			const userMintAReserve = userShare * reserveA
+			const userMintBReserve = userShare * reserveB
+			const userReserveTotal =
+				userMintAReserve * baseInitialPrice + userMintBReserve * quoteInitialPrice
+
+			const totalDailyFees = volume24h * feeRate
+			const dailyFeeEarnings = totalDailyFees * userShare
+
+			return {
+				userShare: userShare * 100,
+				userLPToken,
+				userMintAReserve,
+				userMintBReserve,
+				userReserveTotal,
+				dailyFeeEarnings
+			}
+		}
+	})
+}
+
 // Pool refresh mutation
 export const useRefreshPools = () => {
 	const queryClient = useQueryClient()
@@ -344,12 +430,16 @@ export const usePoolsBackgroundSync = () => {
 export const useGetTransactionsByPoolId = ({
 	poolId,
 	baseMint,
-	quoteMint
+	quoteMint,
+	isFilteredByOwner
 }: {
 	poolId: string
 	baseMint: MintInfo | undefined
 	quoteMint: MintInfo | undefined
+	isFilteredByOwner?: boolean
 }) => {
+	const { publicKey: ownerAddress } = useWallet()
+
 	const isValidParams =
 		!!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
 
@@ -372,7 +462,8 @@ export const useGetTransactionsByPoolId = ({
 			SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
 			poolId,
 			baseMint?.address,
-			quoteMint?.address
+			quoteMint?.address,
+			isFilteredByOwner ? ownerAddress?.toBase58() : null
 		],
 		enabled: isValidParams && areTokenPricesReady,
 		...CACHE_CONFIG,
@@ -388,7 +479,7 @@ export const useGetTransactionsByPoolId = ({
 
 				console.log('Transaction count:', transactionData?.length)
 
-				const responseData = transactionData
+				let responseData = transactionData
 					.map((tx) => {
 						const parsedData = processTransactionData(tx, baseMint, quoteMint)
 						if (!parsedData) return null
@@ -403,6 +494,10 @@ export const useGetTransactionsByPoolId = ({
 						} as TransactionListProps
 					})
 					.filter((item): item is TransactionListProps => item !== null)
+
+				if (isFilteredByOwner && ownerAddress) {
+					responseData = responseData.filter((item) => item.wallet === ownerAddress.toBase58())
+				}
 
 				return { message: 'Successfully get transaction data', data: responseData }
 			} catch (error) {
