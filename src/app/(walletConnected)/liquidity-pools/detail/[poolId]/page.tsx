@@ -1,6 +1,5 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -13,12 +12,21 @@ import { LuArrowUpDown } from 'react-icons/lu'
 
 import { CopyButton } from '@/components/common/CopyButton'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getFeeTierColor } from '@/features/liquidityPool/components/Columns'
-import PoolDetailSkeleton from '@/features/liquidityPool/components/PoolDetailSkeleton'
+import {
+	InitialPoolDetailSkeleton,
+	PoolDetailTransactionSkeleton
+} from '@/features/liquidityPool/components/PoolDetailSkeleton'
 import { getTransactionListColumns } from '@/features/liquidityPool/components/TransactionColumns'
 import { TransactionDataTable } from '@/features/liquidityPool/components/TransactionDataTable'
-import { useGetPoolById, useGetTransactionsByPoolId } from '@/features/liquidityPool/services'
+import {
+	useGetPoolById,
+	useGetTransactionsByPoolId,
+	useGetUserPoolStatsById
+} from '@/features/liquidityPool/services'
 import { PoolData } from '@/features/liquidityPool/types'
 import { useIsMobile } from '@/hooks/isMobile'
 import { cn, getExplorerAddress, shortenAddress } from '@/lib/utils'
@@ -31,12 +39,14 @@ function PoolAmountBar({
 	mintAAmount,
 	mintBAmount,
 	mintASymbol,
-	mintBSymbol
+	mintBSymbol,
+	isLoading
 }: {
 	mintAAmount: number
 	mintBAmount: number
 	mintASymbol: string
 	mintBSymbol: string
+	isLoading?: boolean
 }) {
 	const total = mintAAmount + mintBAmount
 	const mintAPercentage = (mintAAmount / total) * 100
@@ -46,6 +56,18 @@ function PoolAmountBar({
 		if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
 		if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
 		return value.toFixed(3)
+	}
+
+	if (isLoading) {
+		return (
+			<div className="w-full  mx-auto flex flex-col md:space-y-3 space-y-[3px]">
+				<div className="flex justify-between">
+					<Skeleton className="h-5 w-16 rounded-sm" />
+					<Skeleton className="h-5 w-16 rounded-sm" />
+				</div>
+				<Skeleton className="h-4 w-full rounded" />
+			</div>
+		)
 	}
 
 	return (
@@ -71,12 +93,14 @@ function StatsItem({
 	title,
 	info,
 	content,
-	className
+	className,
+	isLoading
 }: {
 	title: string
 	info: string
 	content: string
 	className?: string
+	isLoading?: boolean
 }) {
 	return (
 		<div className={cn('flex flex-col space-y-1.5', className)}>
@@ -97,7 +121,11 @@ function StatsItem({
 					</TooltipContent>
 				</Tooltip>
 			</section>
-			<p className="lg:text-2xl md:text-lg text-base font-medium text-main-black">{content}</p>
+			{isLoading ? (
+				<Skeleton className="h-6 w-28" />
+			) : (
+				<p className="lg:text-2xl md:text-lg text-base font-medium text-main-black">{content}</p>
+			)}
 		</div>
 	)
 }
@@ -106,7 +134,9 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	const router = useRouter()
 	const poolId = params.poolId
 
-	const [isReversed, setIsReversed] = useState(false)
+	const [isReversed, setIsReversed] = useState<boolean>(false)
+	const [isMyStats, setIsMyStats] = useState<boolean>(false)
+	const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true)
 	const isMobile = useIsMobile()
 
 	const onReverse = () => {
@@ -123,11 +153,15 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	const getTransactionsByPoolId = useGetTransactionsByPoolId({
 		poolId,
 		baseMint,
-		quoteMint
+		quoteMint,
+		isFilteredByOwner: isMyStats
 	})
 	const transactionData = getTransactionsByPoolId.data ? getTransactionsByPoolId.data.data : []
 
-	const transactionColumn = getTransactionListColumns(baseMint?.symbol ?? '', quoteMint?.symbol ?? '')
+	const transactionColumn = getTransactionListColumns(
+		baseMint?.symbol ?? '',
+		quoteMint?.symbol ?? ''
+	)
 
 	const mintAPoolAmount = useMemo(() => {
 		if (!poolDetailData) return 0
@@ -155,6 +189,21 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		return Number(reserve) / Math.pow(10, decimals)
 	}, [poolDetailData, isReversed])
 
+	const getUserStats = useGetUserPoolStatsById({
+		poolId,
+		reserveA: mintAPoolAmount,
+		reserveB: mintBPoolAmount,
+		mintA: baseMint,
+		mintB: quoteMint,
+		feeRate: poolDetailData?.feeRate ?? 0,
+		volume24h: !poolDetailData
+			? 0
+			: isPoolData(poolDetailData)
+				? poolDetailData.day.volume
+				: poolDetailData.volume24h,
+		isUserStats: isMyStats
+	})
+
 	const apr7Day = !poolDetailData
 		? '0.00%'
 		: `${(isPoolData(poolDetailData) ? poolDetailData.week.apr : poolDetailData.apr24h).toFixed(2)}%`
@@ -167,8 +216,10 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		? '$0'
 		: `$${(isPoolData(poolDetailData) ? poolDetailData.day.volume : poolDetailData.volume24h).toFixed(3)}`
 
-	const mintAImage = baseMint?.logoURI && baseMint?.logoURI !== '' ? baseMint.logoURI : '/icon-placeholder.svg'
-	const mintBImage = quoteMint?.logoURI && quoteMint?.logoURI !== '' ? quoteMint.logoURI : '/icon-placeholder.svg'
+	const mintAImage =
+		baseMint?.logoURI && baseMint?.logoURI !== '' ? baseMint.logoURI : '/icon-placeholder.svg'
+	const mintBImage =
+		quoteMint?.logoURI && quoteMint?.logoURI !== '' ? quoteMint.logoURI : '/icon-placeholder.svg'
 
 	useEffect(() => {
 		if (getTransactionsByPoolId.isSuccess) {
@@ -182,7 +233,16 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		}
 	}, [getTransactionsByPoolId.error, getTransactionsByPoolId.isError])
 
-	if (getPoolById.isLoading || getTransactionsByPoolId.isLoading)
+	useEffect(() => {
+		if (!(getPoolById.isLoading || getTransactionsByPoolId.isLoading)) {
+			setIsInitialLoad(false)
+		}
+	}, [getPoolById.isLoading, getTransactionsByPoolId.isLoading])
+
+	if (
+		isInitialLoad &&
+		(getPoolById.isLoading || getTransactionsByPoolId.isLoading || getUserStats.isLoading)
+	)
 		return (
 			<div className="w-full mx-auto 2xl:max-w-7xl lg:max-w-5xl md:max-w-2xl px-[15px]">
 				<Button
@@ -193,12 +253,12 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 					<HiOutlineArrowNarrowLeft />
 					<h4>Pools</h4>
 				</Button>
-				<PoolDetailSkeleton />
+				<InitialPoolDetailSkeleton />
 			</div>
 		)
 
 	return (
-		<div className="w-full mx-auto 2xl:max-w-7xl lg:max-w-5xl md:max-w-2xl px-[15px]">
+		<div className="w-full mx-auto 2xl:max-w-7xl xl:max-w-5xl lg:max-w-4xl md:max-w-2xl px-[15px]">
 			<Button
 				variant="ghost"
 				onClick={() => router.push('/liquidity-pools')}
@@ -258,7 +318,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 						Swap
 					</Link>
 					<Link
-						href="/liquidity-pool/create-pool"
+						href={`/liquidity-pools/deposit/${poolId}`}
 						className={cn(
 							buttonVariants({ size: 'lg', variant: 'default' }),
 							'bg-main-green hover:bg-hover-green px-6 py-3 text-main-white font-medium text-lg rounded-[26px]'
@@ -270,119 +330,220 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				</section>
 			</div>
 			<div className="bg-box-3 mt-6 md:p-6 p-3 rounded-[8px]">
-				<div className="flex flex-col md:space-y-3 space-y-1.5">
-					<section className="flex items-center space-x-2">
-						<h3 className="lg:text-lg md:text-base text-sm text-dark-grey">Pool balances</h3>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
-									size="icon"
-								>
-									<AiOutlineInfo className="text-main-green" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent className="bg-main-white">
-								<p className="text-xs text-dark-grey">
-									Total value of tokens currently held in this pool, displayed per token.
-								</p>
-							</TooltipContent>
-						</Tooltip>
-					</section>
-					<PoolAmountBar
-						mintAAmount={mintAPoolAmount}
-						mintBAmount={mintBPoolAmount}
-						mintASymbol={baseMint?.symbol ?? ''}
-						mintBSymbol={quoteMint?.symbol ?? ''}
-					/>
-				</div>
-				<div className="md:mt-6 mt-3 grid grid-cols-2 md:flex md:gap-y-0 gap-y-3  items-center justify-between">
-					<StatsItem
-						title="APR(7 days)"
-						info="Weekly Percentage Rate earned by liquidity providers from trading fees and rewards."
-						content={apr7Day}
-					/>
-					<hr className="w-px h-12 md:block hidden bg-light-grey border-0" />
-					<StatsItem
-						title="TVL"
-						info="The total dollar value of assets locked in this liquidity pool."
-						content={`$${poolDetailData?.tvl.toLocaleString() ?? 0}`}
-					/>
-					<hr className="w-px h-12 md:block hidden bg-light-grey border-0" />
-					<StatsItem
-						title="Fees(24h)"
-						info="Trading fees generated by this pool in the past 24 hours."
-						content={fee24H}
-					/>
-					<hr className="w-px h-12 md:block hidden bg-light-grey border-0" />
-					<StatsItem
-						title="Volume(24h)"
-						info="Total swap volume (trades) processed in this pool within the last 24 hours."
-						content={volume24H}
-					/>
-				</div>
-				<div className="md:mt-9 mt-6">
-					<h2 className="lg:text-2xl md:text-xl text-lg font-semibold lg:mb-6 md:mb-4 mb-3">Links</h2>
-					<div className="flex md:flex-row flex-col justify-between">
-						<section className="flex items-center md:space-x-3 md:justify-normal justify-between">
-							<section className="flex items-center space-x-1.5">
-								<Image
-									src={mintAImage}
-									width={isMobile ? 24 : 28}
-									height={isMobile ? 24 : 28}
-									className="rounded-full relative"
-									alt={`${baseMint?.name} icon`}
-									onError={(e) => {
-										e.currentTarget.src = '/icon-placeholder.svg'
-									}}
-								/>
-								<h4 className="md:text-xl text-sm text-main-black">{baseMint?.symbol}</h4>
+				<Tabs
+					defaultValue="pool-stats"
+					onValueChange={(value) => setIsMyStats(value === 'my-stats')}
+				>
+					<TabsList className="flex md:w-40 w-full mb-[18px] rounded-md bg-light-grey !p-0">
+						<TabsTrigger
+							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
+               data-[state=active]:bg-main-green
+			   hover:bg-main-green 
+               data-[state=active]:text-main-white
+			   data-[state=inactive]:text-box
+			   hover:!text-main-white"
+							value="pool-stats"
+						>
+							Pool Stats
+						</TabsTrigger>
+						<TabsTrigger
+							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
+               data-[state=active]:bg-main-green
+			   hover:bg-main-green 
+               data-[state=active]:text-main-white
+			   data-[state=inactive]:text-box
+			   hover:!text-main-white"
+							value="my-stats"
+						>
+							My Stats
+						</TabsTrigger>
+					</TabsList>
+					<TabsContent value="pool-stats">
+						<div className="flex flex-col md:space-y-3 space-y-1.5">
+							<section className="flex items-center space-x-2">
+								<h3 className="lg:text-lg md:text-base text-sm text-dark-grey">Pool balances</h3>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="outline"
+											className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
+											size="icon"
+										>
+											<AiOutlineInfo className="text-main-green" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="bg-main-white">
+										<p className="text-xs text-dark-grey">
+											Total value of tokens currently held in this pool, displayed per token.
+										</p>
+									</TooltipContent>
+								</Tooltip>
 							</section>
-							<section className="flex items-center space-x-1">
-								<a
-									className="text-main-green hover:text-hover-green md:text-lg text-sm"
-									href={getExplorerAddress(baseMint?.address ?? '')}
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									{shortenAddress(baseMint?.address ?? '', 7)}
-								</a>
-								<CopyButton secretValue={baseMint?.address ?? ''} iconSize="xs" />
+							<PoolAmountBar
+								mintAAmount={mintAPoolAmount}
+								mintBAmount={mintBPoolAmount}
+								mintASymbol={baseMint?.symbol ?? ''}
+								mintBSymbol={quoteMint?.symbol ?? ''}
+								isLoading={getPoolById.isLoading}
+							/>
+						</div>
+						<div className="md:mt-6 mt-3 grid grid-cols-2 lg:flex lg:gap-y-0 gap-y-3  items-center justify-between">
+							<StatsItem
+								isLoading={getPoolById.isLoading}
+								title="APR(7 days)"
+								info="Weekly Percentage Rate earned by liquidity providers from trading fees and rewards."
+								content={apr7Day}
+							/>
+							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+							<StatsItem
+								isLoading={getPoolById.isLoading}
+								title="TVL"
+								info="The total dollar value of assets locked in this liquidity pool."
+								content={`$${poolDetailData?.tvl.toLocaleString() ?? 0}`}
+							/>
+							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+							<StatsItem
+								isLoading={getPoolById.isLoading}
+								title="Fees(24h)"
+								info="Trading fees generated by this pool in the past 24 hours."
+								content={fee24H}
+							/>
+							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+							<StatsItem
+								isLoading={getPoolById.isLoading}
+								title="Volume(24h)"
+								info="Total swap volume (trades) processed in this pool within the last 24 hours."
+								content={volume24H}
+							/>
+						</div>
+						<div className="md:mt-9 mt-6">
+							<h2 className="lg:text-2xl md:text-xl text-lg font-semibold lg:mb-6 md:mb-4 mb-3">
+								Links
+							</h2>
+							<div className="flex md:flex-row flex-col justify-between">
+								<section className="flex items-center md:space-x-3 md:justify-normal justify-between">
+									<section className="flex items-center space-x-1.5">
+										<Image
+											src={mintAImage}
+											width={isMobile ? 24 : 28}
+											height={isMobile ? 24 : 28}
+											className="rounded-full relative"
+											alt={`${baseMint?.name} icon`}
+											onError={(e) => {
+												e.currentTarget.src = '/icon-placeholder.svg'
+											}}
+										/>
+										<h4 className="md:text-xl text-sm text-main-black">{baseMint?.symbol}</h4>
+									</section>
+									<section className="flex items-center space-x-1">
+										<a
+											className="text-main-green hover:text-hover-green md:text-lg text-sm"
+											href={getExplorerAddress(baseMint?.address ?? '')}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											{shortenAddress(baseMint?.address ?? '', 7)}
+										</a>
+										<CopyButton secretValue={baseMint?.address ?? ''} iconSize="xs" />
+									</section>
+								</section>
+								<section className="flex items-center md:space-x-3 md:justify-normal justify-between">
+									<section className="flex items-center space-x-1.5">
+										<Image
+											src={mintBImage}
+											width={isMobile ? 24 : 28}
+											height={isMobile ? 24 : 28}
+											className="rounded-full relative"
+											alt={`${quoteMint?.name} icon`}
+											onError={(e) => {
+												e.currentTarget.src = '/icon-placeholder.svg'
+											}}
+										/>
+										<h4 className="md:text-xl text-sm text-main-black">{quoteMint?.symbol}</h4>
+									</section>
+									<section className="flex items-center space-x-1">
+										<a
+											className="text-main-green hover:text-hover-green md:text-lg text-sm"
+											href={getExplorerAddress(quoteMint?.address ?? '')}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											{shortenAddress(quoteMint?.address ?? '', 7)}
+										</a>
+										<CopyButton secretValue={quoteMint?.address ?? ''} iconSize="xs" />
+									</section>
+								</section>
+							</div>
+						</div>
+					</TabsContent>
+					<TabsContent value="my-stats">
+						<div className="flex flex-col md:space-y-3 space-y-1.5">
+							<section className="flex items-center space-x-2">
+								<h3 className="lg:text-lg md:text-base text-sm text-dark-grey">Your Deposits</h3>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="outline"
+											className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
+											size="icon"
+										>
+											<AiOutlineInfo className="text-main-green" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="bg-main-white">
+										<p className="text-xs text-dark-grey">
+											Total value of tokens currently you deposit in this pool, displayed per token.
+										</p>
+									</TooltipContent>
+								</Tooltip>
 							</section>
-						</section>
-						<section className="flex items-center md:space-x-3 md:justify-normal justify-between">
-							<section className="flex items-center space-x-1.5">
-								<Image
-									src={mintBImage}
-									width={isMobile ? 24 : 28}
-									height={isMobile ? 24 : 28}
-									className="rounded-full relative"
-									alt={`${quoteMint?.name} icon`}
-									onError={(e) => {
-										e.currentTarget.src = '/icon-placeholder.svg'
-									}}
-								/>
-								<h4 className="md:text-xl text-sm text-main-black">{quoteMint?.symbol}</h4>
-							</section>
-							<section className="flex items-center space-x-1">
-								<a
-									className="text-main-green hover:text-hover-green md:text-lg text-sm"
-									href={getExplorerAddress(quoteMint?.address ?? '')}
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									{shortenAddress(quoteMint?.address ?? '', 7)}
-								</a>
-								<CopyButton secretValue={quoteMint?.address ?? ''} iconSize="xs" />
-							</section>
-						</section>
-					</div>
-				</div>
+							<PoolAmountBar
+								mintAAmount={getUserStats.data?.userMintAReserve ?? 0}
+								mintBAmount={getUserStats.data?.userMintBReserve ?? 0}
+								mintASymbol={baseMint?.symbol ?? ''}
+								mintBSymbol={quoteMint?.symbol ?? ''}
+								isLoading={getUserStats.isLoading}
+							/>
+						</div>
+						<div className="md:mt-6 mt-3 grid grid-cols-2 lg:flex lg:gap-y-0 gap-y-3  items-center justify-between">
+							<StatsItem
+								isLoading={getUserStats.isLoading}
+								title="My Pool Share (%)"
+								info="This is the percentage of the total liquidity pool that you currently own."
+								content={`${getUserStats.data?.userShare.toFixed(2) ?? 0}%`}
+							/>
+							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+							<StatsItem
+								isLoading={getUserStats.isLoading}
+								title="My Liquidity Value"
+								info="The estimated dollar value of the tokens you've contributed to this pool."
+								content={`$${getUserStats.data?.userReserveTotal.toLocaleString() ?? 0}`}
+							/>
+							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+							<StatsItem
+								isLoading={getUserStats.isLoading}
+								title="LP Tokens Held"
+								info="The total number of LP (liquidity provider) tokens you own — including both staked and unstaked."
+								content={`${getUserStats.data?.userLPToken.toLocaleString() ?? 0} LP`}
+							/>
+							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+							<StatsItem
+								isLoading={getUserStats.isLoading}
+								title="Fee Earnings(24h)"
+								info="Total amount you've earned from trading fees within the last 24 hours."
+								content={`$${getUserStats.data?.dailyFeeEarnings.toFixed(3) ?? 0}`}
+							/>
+						</div>
+					</TabsContent>
+				</Tabs>
 			</div>
 			<div className="flex flex-col md:space-y-6 space-y-3 md:mt-14 mt-5">
 				<h2 className="font-semibold lg:text-2xl text-xl text-main-black">Transactions</h2>
-				<TransactionDataTable columns={transactionColumn} data={transactionData} />
+				{getTransactionsByPoolId.isLoading ? (
+					<PoolDetailTransactionSkeleton />
+				) : (
+					<TransactionDataTable columns={transactionColumn} data={transactionData} />
+				)}
 			</div>
 		</div>
 	)
