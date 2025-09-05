@@ -1,8 +1,12 @@
 import { Collection, Creator, Uses } from '@bbachain/spl-token-metadata'
 import { z } from 'zod'
 
+import { MintInfo } from '@/features/liquidityPool/types'
 import { type CreateTokenValidation } from '@/features/tokens/validation'
+import { ExtendedMintInfo } from '@/staticData/tokens'
 import { TSuccessMessage } from '@/types'
+
+export type TTradeableTokenProps = MintInfo
 
 export type UploadToMetadataPayload = {
 	name: string
@@ -54,6 +58,10 @@ export type TCreateTokenDataResponse = {
 	mintAddress: string
 	metadataAddress: string
 	metadata: UploadToMetadataPayload
+}
+
+export type TGetTradeableTokenResponse = TSuccessMessage & {
+	data: ExtendedMintInfo[]
 }
 
 export type TGetTokenResponse = TSuccessMessage & {

@@ -1,12 +1,13 @@
 import { z } from 'zod'
 
-import { type TTokenProps } from '@/features/swap/types'
 import { TSuccessMessage } from '@/types'
+
+import { type TTradeableTokenProps } from '../tokens/types'
 
 import { TransactionListProps } from './components/TransactionColumns'
 import { createPoolValidation } from './validation'
 
-export type TLPTokenProps = TTokenProps & {
+export type TLPTokenProps = TTradeableTokenProps & {
 	currentPool: number
 	decimals: number
 	tags: string[]
@@ -14,8 +15,8 @@ export type TLPTokenProps = TTokenProps & {
 
 export type TTokenFarmProps = {
 	id: string
-	fromToken: TTokenProps
-	toToken: TTokenProps
+	fromToken: TTradeableTokenProps
+	toToken: TTradeableTokenProps
 	tvl: string
 	apr: string
 }

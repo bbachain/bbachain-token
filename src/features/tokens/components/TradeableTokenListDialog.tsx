@@ -16,20 +16,19 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useGetTradeableTokens } from '@/features/tokens/services'
+import { type TTradeableTokenProps } from '@/features/tokens/types'
 import { cn } from '@/lib/utils'
 import { ExtendedMintInfo } from '@/staticData/tokens'
-
-import { useGetAvailableTokens } from '../services'
-import { TTokenProps } from '../types'
 
 interface TokenListDialogProps {
 	type: 'from' | 'to'
 	isOpen: boolean
 	setIsOpen: Dispatch<SetStateAction<boolean>>
-	selectedFrom: TTokenProps
-	selectedTo: TTokenProps
-	setSelectedFrom: (token: TTokenProps) => void
-	setSelectedTo: (token: TTokenProps) => void
+	selectedFrom: TTradeableTokenProps
+	selectedTo: TTradeableTokenProps
+	setSelectedFrom: (token: TTradeableTokenProps) => void
+	setSelectedTo: (token: TTradeableTokenProps) => void
 }
 
 const SelectTokenTips = {
@@ -39,7 +38,7 @@ const SelectTokenTips = {
 	noPoolTip: 'No liquidity pool available for this token pair'
 } as const
 
-export default function TokenListDialog({
+export default function TradeableTokenListDialog({
 	type,
 	isOpen,
 	setIsOpen,
@@ -65,9 +64,9 @@ export default function TokenListDialog({
 		data: tokensResponse,
 		isLoading,
 		error
-	} = useGetAvailableTokens(debouncedSearch.trim() || undefined)
+	} = useGetTradeableTokens(debouncedSearch.trim() || undefined)
 
-	const tokens: ExtendedMintInfo[] = tokensResponse ?? []
+	const tokens = tokensResponse?.data ?? []
 	const selectedToken = () => {
 		switch (type) {
 			case 'from':
@@ -77,14 +76,12 @@ export default function TokenListDialog({
 		}
 	}
 
-	const onSelectToken = (token: TTokenProps) => {
-		// Prevent selecting the same token for both from and to
-		if (type === 'from' && selectedTo && token.address === selectedTo.address) {
-			return
-		}
-		if (type === 'to' && selectedFrom && token.address === selectedFrom.address) {
-			return
-		}
+	const onSelectToken = (token: TTradeableTokenProps) => {
+		const isSameAsSelected =
+			(type === 'from' && selectedTo?.address === token.address) ||
+			(type === 'to' && selectedFrom?.address === token.address)
+
+		if (isSameAsSelected) return
 
 		switch (type) {
 			case 'from':
@@ -98,13 +95,11 @@ export default function TokenListDialog({
 	const filteredTokens = tokens.filter((token: ExtendedMintInfo) => {
 		if (token.isNative) return false
 
-		if (type === 'from' && selectedTo) {
-			return token.address !== selectedTo.address
-		}
-		if (type === 'to' && selectedFrom) {
-			return token.address !== selectedFrom.address
-		}
-		return true
+		const isSameAsSelected =
+			(type === 'from' && selectedTo?.address === token.address) ||
+			(type === 'to' && selectedFrom?.address === token.address)
+
+		return !isSameAsSelected
 	})
 
 	const handleClearSearch = () => {
@@ -178,7 +173,7 @@ export default function TokenListDialog({
 
 						{!isLoading && !error && filteredTokens.length > 0 && (
 							<div className="space-y-1">
-								{filteredTokens.map((token: TTokenProps) => {
+								{filteredTokens.map((token: TTradeableTokenProps) => {
 									const isSelected = selectedToken()?.address === token.address
 									const isDisabled =
 										(type === 'from' && selectedTo?.address === token.address) ||

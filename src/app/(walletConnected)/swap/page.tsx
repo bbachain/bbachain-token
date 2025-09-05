@@ -1,6 +1,5 @@
 'use client'
 
-import { NATIVE_MINT } from '@bbachain/spl-token'
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -14,41 +13,27 @@ import REGEX from '@/constants/regex'
 import ExpertModeWarningDialog from '@/features/swap/components/ExpertModeWarningDialog'
 import SettingDialog from '@/features/swap/components/SettingDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
-import TokenListDialog from '@/features/swap/components/TokenListDialog'
 import {
 	useGetSwapQuote,
 	useGetUserBalanceByMint,
 	useExecuteSwap,
 	useCanSwap,
 	useGetSwapRoute,
-	useGetTokensFromAPI,
 	useGetCoinGeckoTokenPrice
 } from '@/features/swap/services'
-import { TTokenProps } from '@/features/swap/types'
 import { getCoinGeckoId } from '@/features/swap/utils'
+import TradeableTokenListDialog from '@/features/tokens/components/TradeableTokenListDialog'
+import { useGetTradeableTokens } from '@/features/tokens/services'
+import { TTradeableTokenProps } from '@/features/tokens/types'
 import { cn } from '@/lib/utils'
 import StaticTokens from '@/staticData/tokens'
 
-const initialBaseToken = StaticTokens[1]
-const initialQuoteToken = StaticTokens[2]
-
 export default function Swap() {
-	/**
-	 * Enhanced Swap Page with URL Parameter Support
-	 *
-	 * Features:
-	 * - URL parameters: /swap?from=<token_address>&to=<token_address>
-	 * - Dynamic token fetching from /api/tokens endpoint
-	 * - Automatic URL sync when tokens are selected
-	 * - Fallback to hardcoded tokens if URL params not found
-	 *
-	 * Example: /swap?from=LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq&to=GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR
-	 */
 	const searchParams = useSearchParams()
 	const router = useRouter()
 	const [amountIn, setAmountIn] = useState<string>('')
-	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseToken)
-	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteToken)
+	const [fromTokenProps, setFromTokenProps] = useState<TTradeableTokenProps>(StaticTokens[1])
+	const [toTokenProps, setToTokenProps] = useState<TTradeableTokenProps>(StaticTokens[2])
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
 	const [maxSlippage, setMaxSlippage] = useState<number>(0.5)
 	const [timeLimit, setTimeLimit] = useState<string>('0')
@@ -58,7 +43,7 @@ export default function Swap() {
 	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
 
 	// Get all tokens from API for lookup
-	const { data: allTokens } = useGetTokensFromAPI('')
+	const { data: allTokens } = useGetTradeableTokens('')
 
 	// Handle URL parameters for token initialization
 	useEffect(() => {
@@ -66,7 +51,7 @@ export default function Swap() {
 		const toParam = searchParams.get('to')
 
 		// Function to find token by address from API
-		const findTokenByAddress = (address: string): TTokenProps | null => {
+		const findTokenByAddress = (address: string): TTradeableTokenProps | null => {
 			if (!allTokens?.data) return null
 
 			const token = allTokens.data.find((token) => token.address === address)
@@ -82,26 +67,15 @@ export default function Swap() {
 			}
 		}
 
-		if (fromParam && allTokens?.data) {
-			const fromToken = findTokenByAddress(fromParam)
-			if (fromToken) {
-				console.log('🔄 Setting from token from URL:', fromToken)
-				setFromTokenProps(fromToken)
-			}
-		}
-
-		if (toParam && allTokens?.data) {
-			const toToken = findTokenByAddress(toParam)
-			if (toToken) {
-				console.log('🔄 Setting to token from URL:', toToken)
-				setToTokenProps(toToken)
-			}
-		}
+		const fromToken = findTokenByAddress(fromParam ?? '')
+		const toToken = findTokenByAddress(toParam ?? '')
+		if (fromToken) setFromTokenProps(fromToken)
+		if (toToken) setToTokenProps(toToken)
 	}, [searchParams, allTokens])
 
 	// Function to update URL with current token selection
 	const updateURLParams = useCallback(
-		(fromToken: TTokenProps, toToken: TTokenProps) => {
+		(fromToken: TTradeableTokenProps, toToken: TTradeableTokenProps) => {
 			const params = new URLSearchParams()
 			params.set('from', fromToken.address)
 			params.set('to', toToken.address)
@@ -147,30 +121,6 @@ export default function Swap() {
 	// Swap execution
 	const executeSwapMutation = useExecuteSwap()
 
-	// Debug logging
-	useEffect(() => {
-		console.log('🔍 Swap Debug Info:', {
-			inputAmount: amountIn,
-			inputAmountNumber: Number(amountIn),
-			inputAmountValid: amountIn && Number(amountIn) > 0,
-			fromToken: fromTokenProps.symbol,
-			toToken: toTokenProps.symbol,
-			swapQuoteLoading: swapQuoteQuery.isLoading || swapQuoteQuery.isRefetching,
-			swapQuoteError: swapQuoteQuery.error,
-			swapQuoteData: swapQuoteQuery.data,
-			canSwap: canSwapQuery.data,
-			canSwapLoading: canSwapQuery.isLoading,
-			route: swapRouteQuery.data
-		})
-	}, [
-		amountIn,
-		fromTokenProps.symbol,
-		toTokenProps.symbol,
-		swapQuoteQuery,
-		canSwapQuery,
-		swapRouteQuery
-	])
-
 	// Computed values
 	const swapQuote = swapQuoteQuery.data
 	const mintABalance = getMintABalance.data?.balance ?? 0
@@ -183,10 +133,6 @@ export default function Swap() {
 	const outputAmount = swapQuote?.outputAmount ?? 0
 	const baseTokenPrice = inputAmount * mintAInitialPrice
 	const quoteTokenPrice = outputAmount * mintBInitialPrice
-
-	useEffect(() => {
-		console.log('base token price ', baseTokenPrice)
-	}, [baseTokenPrice])
 
 	// Improved validation
 	const userInputAmount = Number(amountIn) || 0
@@ -221,22 +167,18 @@ export default function Swap() {
 		setIsTokenDialogOpen(true)
 	}
 
-	const handleInputChange = (val: string) => {
-		console.log('💰 Input amount changed:', val)
-		setAmountIn(val)
-	}
+	const handleInputChange = (val: string) => setAmountIn(val)
 
 	// Enhanced token setters that update URL
-	const setFromTokenWithURL = (token: TTokenProps) => {
+	const setFromTokenWithURL = (token: TTradeableTokenProps) => {
 		setFromTokenProps(token)
 	}
 
-	const setToTokenWithURL = (token: TTokenProps) => {
+	const setToTokenWithURL = (token: TTradeableTokenProps) => {
 		setToTokenProps(token)
 	}
 
 	const onReverseSwap = () => {
-		console.log('🔄 Reversing swap tokens')
 		setAmountIn('')
 		const newFromToken = toTokenProps
 		const newToToken = fromTokenProps
@@ -259,12 +201,9 @@ export default function Swap() {
 				poolAddress: swapQuote.poolAddress
 			})
 
-			toast.success(
-				`Swap successful! Received ${result.actualOutputAmount.toFixed(6)} ${toTokenProps.symbol}`,
-				{
-					duration: 5000
-				}
-			)
+			toast.success(result.message, {
+				duration: 5000
+			})
 
 			// Reset form
 			setAmountIn('')
@@ -453,7 +392,7 @@ export default function Swap() {
 			</Card>
 
 			{/* Enhanced Token Selection Dialog */}
-			<TokenListDialog
+			<TradeableTokenListDialog
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
 				type={typeItem}
@@ -462,7 +401,6 @@ export default function Swap() {
 				selectedTo={toTokenProps}
 				setSelectedTo={setToTokenWithURL}
 			/>
-
 			<SettingDialog
 				isOpen={isSettingDialogOpen}
 				setIsOpen={setIsSettingDialogOpen}
@@ -474,7 +412,6 @@ export default function Swap() {
 				setIsExpertMode={setIsExpertMode}
 				setIsExpertModeOpen={setIsExpertModeDialogOpen}
 			/>
-
 			<ExpertModeWarningDialog
 				isOpen={isExpertModeDialogOpen}
 				setIsOpen={setIsExpertModeDialogOpen}

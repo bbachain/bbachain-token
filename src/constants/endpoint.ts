@@ -24,7 +24,7 @@ const COIN_GECKO = {
 }
 
 const INTERNAL_API_ENDPOINTS = {
-	GET_TOKENS: '/api/tokens'
+	GET_TRADEABLE_TOKENS: '/api/tokens'
 } as const
 
 const BBASCAN_API_ENDPOINTS = {
