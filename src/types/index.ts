@@ -21,7 +21,3 @@ export type TGetTokenAccountsData = {
 	supply: number
 	decimals: number
 }
-
-export type TGetTokenAccountsData2 = {
-	mintAddress: string
-}

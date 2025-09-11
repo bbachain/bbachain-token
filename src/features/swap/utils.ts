@@ -1,44 +1,4 @@
-import * as BufferLayout from '@bbachain/buffer-layout'
-
-import { OnchainPoolData } from '@/features/liquidityPool/onchain'
-import { RawTokenSwap } from '@/features/swap/types'
-import StaticTokens from '@/staticData/tokens'
-
-const publicKey = (property: string = 'publicKey') => {
-	return BufferLayout.blob(32, property)
-}
-
-const uint64 = (property: string = 'uint64') => {
-	return BufferLayout.blob(8, property)
-}
-
-export const TokenSwapLayout = BufferLayout.struct<RawTokenSwap>([
-	BufferLayout.u8('version'),
-	BufferLayout.u8('isInitialized'),
-	BufferLayout.u8('bumpSeed'),
-	publicKey('tokenProgramId'),
-	publicKey('tokenAccountA'),
-	publicKey('tokenAccountB'),
-	publicKey('tokenPool'),
-	publicKey('mintA'),
-	publicKey('mintB'),
-	publicKey('feeAccount'),
-	uint64('tradeFeeNumerator'),
-	uint64('tradeFeeDenominator'),
-	uint64('ownerTradeFeeNumerator'),
-	uint64('ownerTradeFeeDenominator'),
-	uint64('ownerWithdrawFeeNumerator'),
-	uint64('ownerWithdrawFeeDenominator'),
-	uint64('hostFeeNumerator'),
-	uint64('hostFeeDenominator'),
-	BufferLayout.u8('curveType'),
-	BufferLayout.blob(32, 'curveParameters')
-])
-
-export function getCoinGeckoId(address: string) {
-	const coinGeckoId = StaticTokens.find((token) => address === token.address)?.coinGeckoId
-	return coinGeckoId
-}
+import { TOnchainPoolData } from '../liquidityPool/types'
 
 /**
  * Calculate output amount using constant product formula (x * y = k)
@@ -108,10 +68,10 @@ export function calculatePriceImpact(
  * @returns Best pool for the swap or null if no pool found
  */
 export function findBestPool(
-	pools: OnchainPoolData[],
+	pools: TOnchainPoolData[],
 	inputMint: string,
 	outputMint: string
-): OnchainPoolData | null {
+): TOnchainPoolData | null {
 	const availablePools = pools.filter((pool) => {
 		const hasInputToken = pool.mintA.address === inputMint || pool.mintB.address === inputMint
 		const hasOutputToken = pool.mintA.address === outputMint || pool.mintB.address === outputMint

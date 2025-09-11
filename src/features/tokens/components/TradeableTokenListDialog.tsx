@@ -18,8 +18,8 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useGetTradeableTokens } from '@/features/tokens/services'
 import { type TTradeableTokenProps } from '@/features/tokens/types'
+import { TExtendedTradeableTokenProps } from '@/features/tokens/types'
 import { cn } from '@/lib/utils'
-import { ExtendedMintInfo } from '@/staticData/tokens'
 
 interface TokenListDialogProps {
 	type: 'from' | 'to'
@@ -92,7 +92,7 @@ export default function TradeableTokenListDialog({
 	}
 
 	// Filter out already selected token from the opposite side
-	const filteredTokens = tokens.filter((token: ExtendedMintInfo) => {
+	const filteredTokens = tokens.filter((token: TExtendedTradeableTokenProps) => {
 		if (token.isNative) return false
 
 		const isSameAsSelected =

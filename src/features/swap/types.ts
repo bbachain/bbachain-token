@@ -1,7 +1,6 @@
 import { PublicKey } from '@bbachain/web3.js'
 
-import { OnchainPoolData } from '@/features/liquidityPool/onchain'
-import { MintInfo } from '@/features/liquidityPool/types'
+import { TOnchainPoolData } from '@/features/liquidityPool/types'
 import { TTradeableTokenProps } from '@/features/tokens/types'
 import { TSuccessMessage } from '@/types'
 
@@ -54,37 +53,20 @@ export type SwapData = {
 	routePlan: RoutePlanStep[]
 }
 
-export type TGetUserBalanceData = {
-	balance: number
-}
-
-export type TGetTokenPriceData = {
-	usdRate: number
-}
-
-export type TGetSwapTransactionPayload = {
-	swapType: SwapType
-	inputMint: string
-	outputMint: string
-	amount: string
-	decimals: number
-	slippage: number
-}
-
 export type TGetSwappableTokensResponse = TSuccessMessage & {
 	data: TTradeableTokenProps[]
-}
-
-export type TGetSwapTransactionData = {
-	id: string
-	success: boolean
-	version: string
-	data: SwapData
 }
 
 export type TPostSwapTokensResponse = TSuccessMessage & {
 	txId: string
 }
+
+export type TGetSwapRoutePayload = {
+	inputMint: string
+	outputMint: string
+}
+
+export type TCanSwapPayload = TGetSwapRoutePayload
 
 export type TGetSwapQuotePayload = {
 	inputMint: string
@@ -102,8 +84,15 @@ export type TGetSwapQuoteResponse = {
 	feeRate: number
 	poolAddress: string
 	poolTvl: number
-	inputToken: MintInfo
-	outputToken: MintInfo
+	inputToken: TTradeableTokenProps
+	outputToken: TTradeableTokenProps
+}
+
+export type TGetSwapRouteResponse = {
+	type: string
+	pools: TOnchainPoolData[]
+	route: string[]
+	totalFeeRate: number
 }
 
 export type TExecuteSwapPayload = {
@@ -121,7 +110,7 @@ export type TExecuteSwapResponseData = {
 	actualOutputAmount: number
 	priceImpact: number
 	executionTime: number
-	poolDetail?: OnchainPoolData
+	poolDetail?: TOnchainPoolData
 }
 
 export type TExecuteSwapResponse = TSuccessMessage & {

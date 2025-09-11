@@ -31,7 +31,7 @@ import {
 import { type TUpdateTokenMetadataPayload } from '@/features/tokens/types'
 import { CreateIconTokenValidation } from '@/features/tokens/validation'
 import { useIsMobile } from '@/hooks/isMobile'
-import { useGetBalance } from '@/services/wallet'
+import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type BasicTokenProps = {
@@ -59,7 +59,7 @@ export default function TokenDetail({ params }: { params: { address: string } })
 	const revokeFreezeAuthoritiMutation = useRevokeFreezeAuthority({ mintAddress })
 	const burnTokensMutation = useBurnTokenSupply({ mintAddress })
 	const mintTokensMutation = useMintTokenSupply({ mintAddress })
-	const getBalanceQuery = useGetBalance()
+	const getBalanceQuery = useGetBBABalance()
 
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const tokenDetailData = getTokenDetailQuery.data?.data
@@ -75,7 +75,8 @@ export default function TokenDetail({ params }: { params: { address: string } })
 		burnTokensMutation.isPending ||
 		mintTokensMutation.isPending
 
-	const pageTitle = tokenDetailData?.metadata.name ?? `${tokenDetailData?.mintAddress.slice(0, 8)}...`
+	const pageTitle =
+		tokenDetailData?.metadata.name ?? `${tokenDetailData?.mintAddress.slice(0, 8)}...`
 
 	const [initialData, setInitialData] = useState(initialUpdatedPayload)
 	const [updatePayload, setUpdatePayload] = useState(initialUpdatedPayload)
@@ -238,7 +239,10 @@ export default function TokenDetail({ params }: { params: { address: string } })
 				}
 			},
 			action: () =>
-				burnTokensMutation.mutate({ amount: Number(burnTokenAmount), decimals: tokenDetailData?.decimals! }),
+				burnTokensMutation.mutate({
+					amount: Number(burnTokenAmount),
+					decimals: tokenDetailData?.decimals!
+				}),
 			onChange: (e: ChangeEvent<HTMLInputElement>) => setBurnTokenAmount(e.target.value)
 		},
 		{
@@ -247,14 +251,18 @@ export default function TokenDetail({ params }: { params: { address: string } })
 			type: 'input',
 			tip: 'Add more token supply to your account',
 			pending: mintTokensMutation.isPending,
-			disabled: isDisabled || mintTokenAmount === '' || Number(mintTokenAmount) <= 0 || isMintRevoked,
+			disabled:
+				isDisabled || mintTokenAmount === '' || Number(mintTokenAmount) <= 0 || isMintRevoked,
 			errorMessages: () => {
 				if (mintTokenAmount !== '' && Number(mintTokenAmount) <= 0) {
 					return { message: 'The value should be greater than 0' }
 				}
 			},
 			action: () =>
-				mintTokensMutation.mutate({ amount: Number(mintTokenAmount), decimals: tokenDetailData?.decimals! }),
+				mintTokensMutation.mutate({
+					amount: Number(mintTokenAmount),
+					decimals: tokenDetailData?.decimals!
+				}),
 			onChange: (e: ChangeEvent<HTMLInputElement>) => setMintTokenAmount(e.target.value)
 		}
 	]
@@ -324,7 +332,8 @@ export default function TokenDetail({ params }: { params: { address: string } })
 	}, [revokeFreezeAuthoritiMutation.data, revokeFreezeAuthoritiMutation.isSuccess])
 
 	useEffect(() => {
-		if (lockMetadataMutation.isSuccess && lockMetadataMutation.data) toast.success(lockMetadataMutation.data.message)
+		if (lockMetadataMutation.isSuccess && lockMetadataMutation.data)
+			toast.success(lockMetadataMutation.data.message)
 	}, [lockMetadataMutation.data, lockMetadataMutation.isSuccess])
 
 	useEffect(() => {
@@ -367,17 +376,26 @@ export default function TokenDetail({ params }: { params: { address: string } })
 
 	useEffect(() => {
 		if (lockMetadataMutation.isError && lockMetadataMutation.error)
-			openErrorDialog({ title: 'We can not proceed your transaction', description: lockMetadataMutation.error.message })
+			openErrorDialog({
+				title: 'We can not proceed your transaction',
+				description: lockMetadataMutation.error.message
+			})
 	}, [openErrorDialog, lockMetadataMutation.error, lockMetadataMutation.isError])
 
 	useEffect(() => {
 		if (burnTokensMutation.isError && burnTokensMutation.error)
-			openErrorDialog({ title: 'We can not proceed your transaction', description: burnTokensMutation.error.message })
+			openErrorDialog({
+				title: 'We can not proceed your transaction',
+				description: burnTokensMutation.error.message
+			})
 	}, [burnTokensMutation.error, burnTokensMutation.isError, openErrorDialog])
 
 	useEffect(() => {
 		if (mintTokensMutation.isError && mintTokensMutation.error)
-			openErrorDialog({ title: 'We can not proceed your transaction', description: mintTokensMutation.error.message })
+			openErrorDialog({
+				title: 'We can not proceed your transaction',
+				description: mintTokensMutation.error.message
+			})
 	}, [mintTokensMutation.error, mintTokensMutation.isError, openErrorDialog])
 
 	if (getBalanceQuery.isLoading || getTokenDetailQuery.isLoading) {
@@ -427,7 +445,10 @@ export default function TokenDetail({ params }: { params: { address: string } })
 											value={overviewData.value}
 											type={overviewData.type}
 											onChange={(e) =>
-												onUpdateInputPayload(overviewData.name as keyof TUpdateTokenMetadataPayload, e.target.value)
+												onUpdateInputPayload(
+													overviewData.name as keyof TUpdateTokenMetadataPayload,
+													e.target.value
+												)
 											}
 										/>
 									</div>
@@ -483,7 +504,9 @@ export default function TokenDetail({ params }: { params: { address: string } })
 													placeholder="Enter amount"
 													type="number"
 												/>
-												<p className="text-error text-xs">{optionData.errorMessages?.()?.message}</p>
+												<p className="text-error text-xs">
+													{optionData.errorMessages?.()?.message}
+												</p>
 											</div>
 											<Button
 												onClick={
@@ -519,7 +542,9 @@ export default function TokenDetail({ params }: { params: { address: string } })
 												className="bg-main-green md:ml-0 ml-9  rounded-[8px] text-sm w-auto md:max-w-none max-w-[171px] min-w-[114px] h-7 md:px-3 px-0 py-1.5 font-medium"
 											>
 												{optionData.pending && <Loader2 className="animate-spin" />}
-												{optionData.label !== 'Lock Metadata' ? `Revoke ${optionData.label}` : optionData.label}
+												{optionData.label !== 'Lock Metadata'
+													? `Revoke ${optionData.label}`
+													: optionData.label}
 											</Button>
 										)}
 									</div>

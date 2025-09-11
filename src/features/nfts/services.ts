@@ -20,7 +20,7 @@ import BN from 'bn.js'
 import { ZodError } from 'zod'
 
 import SERVICES_KEY from '@/constants/service'
-import { getTokenAccounts } from '@/lib/tokenAccount'
+import { getTokenAccounts } from '@/lib/token'
 
 import {
 	TCreateCollectionPayload,
@@ -107,8 +107,19 @@ export const useCreateNFT = () => {
 					daltons,
 					programId: TOKEN_PROGRAM_ID
 				}),
-				createInitializeMintInstruction(mintKeypair.publicKey, 0, ownerAddress, ownerAddress, TOKEN_PROGRAM_ID),
-				createAssociatedTokenAccountInstruction(ownerAddress, tokenATA, ownerAddress, mintKeypair.publicKey),
+				createInitializeMintInstruction(
+					mintKeypair.publicKey,
+					0,
+					ownerAddress,
+					ownerAddress,
+					TOKEN_PROGRAM_ID
+				),
+				createAssociatedTokenAccountInstruction(
+					ownerAddress,
+					tokenATA,
+					ownerAddress,
+					mintKeypair.publicKey
+				),
 				createMintToInstruction(
 					mintKeypair.publicKey,
 					tokenATA,
@@ -122,7 +133,10 @@ export const useCreateNFT = () => {
 
 			createAccountTx.partialSign(mintKeypair)
 			const accountSignature = await sendTransaction(createAccountTx, connection)
-			await connection.confirmTransaction({ signature: accountSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: accountSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			// Create the metadata account
 
@@ -163,7 +177,10 @@ export const useCreateNFT = () => {
 
 			const createdMetadataTx = new Transaction().add(createdMetadataIx)
 			const metadataSignature = await sendTransaction(createdMetadataTx, connection)
-			await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: metadataSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			const dataResponse = {
 				ownerAddress: ownerAddress.toBase58(),
@@ -176,9 +193,11 @@ export const useCreateNFT = () => {
 		},
 		onSuccess: () =>
 			Promise.all([
-				client.invalidateQueries({ queryKey: [SERVICES_KEY.NFT.GET_NFT, ownerAddress?.toBase58()] }),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.NFT.GET_NFT, ownerAddress?.toBase58()]
+				}),
+				client.invalidateQueries({
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -232,8 +251,19 @@ export const useCreateCollection = () => {
 					daltons,
 					programId: TOKEN_PROGRAM_ID
 				}),
-				createInitializeMintInstruction(mintKeypair.publicKey, 0, ownerAddress, ownerAddress, TOKEN_PROGRAM_ID),
-				createAssociatedTokenAccountInstruction(ownerAddress, tokenATA, ownerAddress, mintKeypair.publicKey),
+				createInitializeMintInstruction(
+					mintKeypair.publicKey,
+					0,
+					ownerAddress,
+					ownerAddress,
+					TOKEN_PROGRAM_ID
+				),
+				createAssociatedTokenAccountInstruction(
+					ownerAddress,
+					tokenATA,
+					ownerAddress,
+					mintKeypair.publicKey
+				),
 				createMintToInstruction(
 					mintKeypair.publicKey,
 					tokenATA,
@@ -247,7 +277,10 @@ export const useCreateCollection = () => {
 
 			createAccountTx.partialSign(mintKeypair)
 			const accountSignature = await sendTransaction(createAccountTx, connection)
-			await connection.confirmTransaction({ signature: accountSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: accountSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			// Create the metadata account
 
@@ -291,7 +324,10 @@ export const useCreateCollection = () => {
 
 			const createdMetadataTx = new Transaction().add(createdMetadataIx)
 			const metadataSignature = await sendTransaction(createdMetadataTx, connection)
-			await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: metadataSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			const dataResponse = {
 				ownerAddress: ownerAddress.toBase58(),
@@ -304,16 +340,22 @@ export const useCreateCollection = () => {
 		},
 		onSuccess: () =>
 			Promise.all([
-				client.invalidateQueries({ queryKey: [SERVICES_KEY.NFT.GET_COLLECTION, ownerAddress?.toBase58()] }),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.NFT.GET_COLLECTION, ownerAddress?.toBase58()]
+				}),
+				client.invalidateQueries({
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
 }
 
 export const useValidateOffChainMetadata = () =>
-	useMutation<TValidateMetadataSuccessResponse, TValidateMetadataErrorResponse, TValidateMetadataOffChainPayload>({
+	useMutation<
+		TValidateMetadataSuccessResponse,
+		TValidateMetadataErrorResponse,
+		TValidateMetadataOffChainPayload
+	>({
 		mutationKey: ['validate-metadata'],
 		mutationFn: async (payload) => {
 			try {

@@ -5,9 +5,8 @@ import { sentenceCase } from 'text-case'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { TFormattedTransactionData } from '@/features/liquidityPool/types'
 import { getExplorerAddress, shortenAddress } from '@/lib/utils'
-
-import { MintInfo } from '../types'
 
 type TypeValue = 'BUY' | 'SELL' | 'REMOVE' | 'ADD' | 'UNKNOWN'
 
@@ -21,17 +20,7 @@ type SelectTypePopoverProps = {
 	onChange: (value: TypeValue[] | undefined) => void
 }
 
-export interface TransactionListProps {
-	baseAmountInUSD: number
-	quoteAmountInUSD: number
-	wallet: string
-	time: string
-	type: TypeValue
-	baseAmount: number
-	quoteAmount: number
-	baseToken: MintInfo
-	quoteToken: MintInfo
-}
+export type TransactionListProps = TFormattedTransactionData
 
 const typeOptions: TypeValue[] = ['BUY', 'SELL', 'ADD', 'REMOVE', 'UNKNOWN']
 
@@ -82,7 +71,12 @@ function SelectTypePopover({ value = [], onChange }: SelectTypePopoverProps) {
 			<PopoverContent className="w-40 rounded-[4px] bg-white dark:bg-[#171717] p-2 space-y-2">
 				<div className="flex justify-end px-1">
 					{value?.length > 0 && (
-						<Button variant="ghost" size="sm" className="text-xs text-red-500 p-0 h-auto" onClick={clearAll}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="text-xs text-red-500 p-0 h-auto"
+							onClick={clearAll}
+						>
 							Clear
 						</Button>
 					)}
@@ -90,7 +84,11 @@ function SelectTypePopover({ value = [], onChange }: SelectTypePopoverProps) {
 				<div className="space-y-1">
 					{typeOptions.map((type) => (
 						<div key={type} className="flex items-center space-x-2">
-							<Checkbox id={type} checked={isSelected(type)} onCheckedChange={() => toggleType(type)} />
+							<Checkbox
+								id={type}
+								checked={isSelected(type)}
+								onCheckedChange={() => toggleType(type)}
+							/>
 							<label htmlFor={type} className="text-sm font-normal text-main-black">
 								{sentenceCase(type)}
 							</label>
@@ -111,14 +109,19 @@ export const getTransactionListColumns = (
 		header: () => <h3 className="pl-4">Time</h3>
 	},
 	{
-		accessorKey: 'type',
+		accessorKey: 'transactionType',
 		header: ({ column }) => (
 			<SelectTypePopover
 				value={column.getFilterValue() as TypeValue[]}
 				onChange={(val) => column.setFilterValue(val)}
 			/>
 		),
-		cell: ({ row }) => <TypeDisplay baseTokenSymbol={row.original.baseToken.name} typeValue={row.getValue('type')} />,
+		cell: ({ row }) => (
+			<TypeDisplay
+				baseTokenSymbol={row.original.mintA.name}
+				typeValue={row.getValue('transactionType')}
+			/>
+		),
 		filterFn: (row, columnId, filterValue: TypeValue[]) => {
 			if (!filterValue?.length) return true
 			return filterValue.includes(row.getValue(columnId))
@@ -126,36 +129,36 @@ export const getTransactionListColumns = (
 		enableColumnFilter: true
 	},
 	{
-		accessorKey: 'baseAmount',
+		accessorKey: 'mintAAmount',
 		header: baseTokenSymbol,
-		cell: ({ row }) => <p>{row.original.baseAmount.toLocaleString()}</p>
+		cell: ({ row }) => <p>{row.original.mintAAmount.toLocaleString()}</p>
 	},
 	{
-		accessorKey: 'quoteAmount',
+		accessorKey: 'mintBAmount',
 		header: quoteTokenSymbol,
-		cell: ({ row }) => <p>{row.original.quoteAmount.toLocaleString()}</p>
+		cell: ({ row }) => <p>{row.original.mintAAmount.toLocaleString()}</p>
 	},
 	{
-		accessorKey: 'baseAmountInUSD',
+		accessorKey: 'mintAAmountPrice',
 		header: `${baseTokenSymbol} in USDT`,
-		cell: ({ row }) => <p>${row.original.baseAmountInUSD.toLocaleString()}</p>
+		cell: ({ row }) => <p>${row.original.mintAAmountPrice.toLocaleString()}</p>
 	},
 	{
-		accessorKey: 'quoteAmountInUSD',
+		accessorKey: 'mintBAmountPrice',
 		header: `${quoteTokenSymbol} in USDT`,
-		cell: ({ row }) => <p>${row.original.quoteAmountInUSD.toLocaleString()}</p>
+		cell: ({ row }) => <p>${row.original.mintBAmountPrice.toLocaleString()}</p>
 	},
 	{
-		accessorKey: 'wallet',
+		accessorKey: 'ownerAddress',
 		header: () => <h3 className="pr-6 text-right">Wallet</h3>,
 		cell: ({ row }) => (
 			<a
 				className="hover:text-main-green"
-				href={getExplorerAddress(row.original.wallet)}
+				href={getExplorerAddress(row.original.ownerAddress)}
 				target="_blank"
 				rel="noopener noreferrer"
 			>
-				{shortenAddress(row.original.wallet)}
+				{shortenAddress(row.original.ownerAddress)}
 			</a>
 		)
 	}

@@ -15,17 +15,16 @@ import SettingDialog from '@/features/swap/components/SettingDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
 import {
 	useGetSwapQuote,
-	useGetUserBalanceByMint,
 	useExecuteSwap,
 	useCanSwap,
-	useGetSwapRoute,
-	useGetCoinGeckoTokenPrice
+	useGetSwapRoute
 } from '@/features/swap/services'
-import { getCoinGeckoId } from '@/features/swap/utils'
 import TradeableTokenListDialog from '@/features/tokens/components/TradeableTokenListDialog'
-import { useGetTradeableTokens } from '@/features/tokens/services'
+import { useGetTradeableTokens, useGetTokenPriceByCoinGeckoId } from '@/features/tokens/services'
 import { TTradeableTokenProps } from '@/features/tokens/types'
+import { getCoinGeckoId } from '@/lib/token'
 import { cn } from '@/lib/utils'
+import { useGetTokenBalanceByMint } from '@/services/wallet'
 import StaticTokens from '@/staticData/tokens'
 
 export default function Swap() {
@@ -101,20 +100,26 @@ export default function Swap() {
 	const isSwapQuoteLoading = swapQuoteQuery.isLoading || swapQuoteQuery.isRefetching
 
 	// Check if swap is possible
-	const canSwapQuery = useCanSwap(fromTokenProps.address, toTokenProps.address)
+	const canSwapQuery = useCanSwap({
+		inputMint: fromTokenProps.address,
+		outputMint: toTokenProps.address
+	})
 
 	// Get swap route information
-	const swapRouteQuery = useGetSwapRoute(fromTokenProps.address, toTokenProps.address)
+	const swapRouteQuery = useGetSwapRoute({
+		inputMint: fromTokenProps.address,
+		outputMint: toTokenProps.address
+	})
 
 	// Get user balances
-	const getMintABalance = useGetUserBalanceByMint({ mintAddress: fromTokenProps.address })
-	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: toTokenProps.address })
+	const getMintABalance = useGetTokenBalanceByMint({ mintAddress: fromTokenProps.address })
+	const getMintBBalance = useGetTokenBalanceByMint({ mintAddress: toTokenProps.address })
 
 	// Get token prices (fallback to external API if needed)
-	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
+	const getMintATokenPrice = useGetTokenPriceByCoinGeckoId({
 		coinGeckoId: getCoinGeckoId(fromTokenProps.address)
 	})
-	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
+	const getMintBTokenPrice = useGetTokenPriceByCoinGeckoId({
 		coinGeckoId: getCoinGeckoId(toTokenProps.address)
 	})
 
@@ -123,8 +128,8 @@ export default function Swap() {
 
 	// Computed values
 	const swapQuote = swapQuoteQuery.data
-	const mintABalance = getMintABalance.data?.balance ?? 0
-	const mintBBalance = getMintBBalance.data?.balance ?? 0
+	const mintABalance = getMintABalance.data ?? 0
+	const mintBBalance = getMintBBalance.data ?? 0
 	const mintAInitialPrice = getMintATokenPrice.data ?? 0
 	const mintBInitialPrice = getMintBTokenPrice.data ?? 0
 

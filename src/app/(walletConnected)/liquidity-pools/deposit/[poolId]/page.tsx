@@ -16,16 +16,20 @@ import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog
 import {
 	useDepositToPool,
 	useGetPoolById,
-	useGetUserPoolStatsById
+	useGetUserPoolStats
 } from '@/features/liquidityPool/services'
-import { PoolData } from '@/features/liquidityPool/types'
+import { MintInfo } from '@/features/liquidityPool/types'
+import {
+	calculateOptimalAmountADeposit,
+	calculateOptimalAmountBDeposit
+} from '@/features/liquidityPool/utils'
 import SwapItem from '@/features/swap/components/SwapItem'
-import { useGetUserBalanceByMint, useGetCoinGeckoTokenPrice } from '@/features/swap/services'
-import { TTokenProps } from '@/features/swap/types'
-import { getCoinGeckoId } from '@/features/swap/utils'
+import { useGetTokenPriceByCoinGeckoId } from '@/features/tokens/services'
+import { formatTokenBalance, formatTokenToDaltons, getCoinGeckoId } from '@/lib/token'
 import { cn } from '@/lib/utils'
+import { useGetTokenBalanceByMint } from '@/services/wallet'
 
-const initialTokeProps: TTokenProps = {
+const initialTokeProps: MintInfo = {
 	chainId: 101,
 	address: '',
 	programId: '',
@@ -37,50 +41,15 @@ const initialTokeProps: TTokenProps = {
 	extensions: {}
 }
 
-// Helper function to calculate optimal amount B from amount A
-const calculateOptimalAmountB = (
-	amountA: string,
-	reserveA: bigint,
-	reserveB: bigint,
-	decimalsA: number,
-	decimalsB: number
-): string => {
-	if (!amountA || Number(amountA) === 0 || reserveA === BigInt(0)) return ''
-
-	const amountADaltons = BigInt(Math.floor(Number(amountA) * Math.pow(10, decimalsA)))
-	const amountBDaltons = (amountADaltons * reserveB) / reserveA
-	const amountB = Number(amountBDaltons) / Math.pow(10, decimalsB)
-
-	return amountB.toFixed(6)
-}
-
-// Helper function to calculate optimal amount A from amount B
-const calculateOptimalAmountA = (
-	amountB: string,
-	reserveA: bigint,
-	reserveB: bigint,
-	decimalsA: number,
-	decimalsB: number
-): string => {
-	if (!amountB || Number(amountB) === 0 || reserveB === BigInt(0)) return ''
-
-	const amountBDaltons = BigInt(Math.floor(Number(amountB) * Math.pow(10, decimalsB)))
-	const amountADaltons = (amountBDaltons * reserveA) / reserveB
-	const amountA = Number(amountADaltons) / Math.pow(10, decimalsA)
-
-	return amountA.toFixed(6)
-}
-
-// Helper function to check if data is PoolData type
-const isPoolData = (data: any): data is PoolData => {
-	return data && typeof data === 'object' && 'week' in data
-}
-
 export default function LiquidityPoolDeposit({ params }: { params: { poolId: string } }) {
 	const poolId = params.poolId
+	const router = useRouter()
+
 	const getPoolByIdQuery = useGetPoolById({ poolId })
 	const poolDetailData = getPoolByIdQuery.data?.data
-	const router = useRouter()
+
+	const getUserPoolStats = useGetUserPoolStats({ pool: poolDetailData })
+	const userStatsData = getUserPoolStats.data?.data
 
 	const [fromAmount, setFromAmount] = useState<string>('')
 	const [toAmount, setToAmount] = useState<string>('')
@@ -96,33 +65,30 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 		totalValue: string
 	} | null>(null)
 
-	const getMintABalance = useGetUserBalanceByMint({
+	const getMintABalance = useGetTokenBalanceByMint({
 		mintAddress: poolDetailData?.mintA.address ?? ''
 	})
-	const getMintBBalance = useGetUserBalanceByMint({
+	const getMintBBalance = useGetTokenBalanceByMint({
 		mintAddress: poolDetailData?.mintB.address ?? ''
 	})
+
 	// Get token prices from CoinGecko
-	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
-		coinGeckoId: poolDetailData?.mintA.address
-			? getCoinGeckoId(poolDetailData.mintA.address)
-			: undefined
+	const getMintATokenPrice = useGetTokenPriceByCoinGeckoId({
+		coinGeckoId: getCoinGeckoId(poolDetailData?.mintA.address ?? '')
 	})
-	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
-		coinGeckoId: poolDetailData?.mintB.address
-			? getCoinGeckoId(poolDetailData.mintB.address)
-			: undefined
+	const getMintBTokenPrice = useGetTokenPriceByCoinGeckoId({
+		coinGeckoId: getCoinGeckoId(poolDetailData?.mintB.address ?? '')
 	})
 
 	// Convert balance from daltons to UI units using token decimals
-	const mintABalance =
-		getMintABalance.data && poolDetailData
-			? getMintABalance.data.balance / Math.pow(10, poolDetailData.mintA.decimals)
-			: 0
-	const mintBBalance =
-		getMintBBalance.data && poolDetailData
-			? getMintBBalance.data.balance / Math.pow(10, poolDetailData.mintB.decimals)
-			: 0
+	const mintABalance = formatTokenBalance(
+		getMintABalance.data ?? 0,
+		poolDetailData?.mintA.decimals ?? 0
+	)
+	const mintBBalance = formatTokenBalance(
+		getMintBBalance.data ?? 0,
+		poolDetailData?.mintB.decimals ?? 0
+	)
 
 	// Get unit prices from CoinGecko API
 	const mintAUnitPrice = getMintATokenPrice.data ?? 0
@@ -134,59 +100,19 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 
 	const depositMutation = useDepositToPool()
 
-	const mintAPoolAmount = poolDetailData
-		? isPoolData(poolDetailData)
-			? poolDetailData.mintAmountA
-			: Number(poolDetailData.reserveA) / Math.pow(10, poolDetailData.mintA.decimals)
-		: 0
-
-	const mintBPoolAmount = poolDetailData
-		? isPoolData(poolDetailData)
-			? poolDetailData.mintAmountB
-			: Number(poolDetailData.reserveB) / Math.pow(10, poolDetailData.mintB.decimals)
-		: 0
-
-	const getUserStats = useGetUserPoolStatsById({
-		poolId,
-		reserveA: mintAPoolAmount,
-		reserveB: mintBPoolAmount,
-		mintA: poolDetailData?.mintA,
-		mintB: poolDetailData?.mintB,
-		feeRate: poolDetailData?.feeRate ?? 0,
-		volume24h: !poolDetailData
-			? 0
-			: isPoolData(poolDetailData)
-				? poolDetailData.day.volume
-				: poolDetailData.volume24h,
-		isUserStats: true
-	})
-
 	// Auto-calculate optimal ratio
 	useEffect(() => {
 		if (!poolDetailData || isCalculating) return
 
-		const pool = isPoolData(poolDetailData) ? poolDetailData : (poolDetailData as any)
-
-		let reserveA: bigint, reserveB: bigint
-
-		if (isPoolData(poolDetailData)) {
-			reserveA = BigInt(
-				Math.floor(poolDetailData.mintAmountA * Math.pow(10, poolDetailData.mintA.decimals))
-			)
-			reserveB = BigInt(
-				Math.floor(poolDetailData.mintAmountB * Math.pow(10, poolDetailData.mintB.decimals))
-			)
-		} else {
-			reserveA = pool.reserveA || BigInt(0)
-			reserveB = pool.reserveB || BigInt(0)
-		}
+		const reserveA = poolDetailData.reserveA
+		const reserveB = poolDetailData.reserveB
 
 		if (reserveA === BigInt(0) || reserveB === BigInt(0)) return
 
 		setIsCalculating(true)
 
 		if (lastChangedField === 'from' && fromAmount) {
-			const optimalB = calculateOptimalAmountB(
+			const optimalB = calculateOptimalAmountBDeposit(
 				fromAmount,
 				reserveA,
 				reserveB,
@@ -197,7 +123,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 				setToAmount(optimalB)
 			}
 		} else if (lastChangedField === 'to' && toAmount) {
-			const optimalA = calculateOptimalAmountA(
+			const optimalA = calculateOptimalAmountADeposit(
 				toAmount,
 				reserveA,
 				reserveB,
@@ -241,36 +167,15 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 
 		try {
 			const result = await depositMutation.mutateAsync({
-				pool: isPoolData(poolDetailData)
-					? {
-							address: (poolDetailData as any).id || '',
-							programId: poolDetailData.programId,
-							swapData: {} as any,
-							mintA: poolDetailData.mintA,
-							mintB: poolDetailData.mintB,
-							tokenAccountA: '',
-							tokenAccountB: '',
-							reserveA: BigInt(
-								Math.floor(poolDetailData.mintAmountA * Math.pow(10, poolDetailData.mintA.decimals))
-							),
-							reserveB: BigInt(
-								Math.floor(poolDetailData.mintAmountB * Math.pow(10, poolDetailData.mintB.decimals))
-							),
-							feeRate: poolDetailData.feeRate,
-							tvl: poolDetailData.tvl,
-							volume24h: poolDetailData.day?.volume ?? 0,
-							fees24h: poolDetailData.day?.volumeFee ?? 0,
-							apr24h: poolDetailData.day?.apr ?? 0
-						}
-					: poolDetailData,
-				amountA: fromAmount,
-				amountB: toAmount,
+				pool: poolDetailData,
+				mintAAmount: parseFloat(fromAmount),
+				mintBAmount: parseFloat(toAmount),
 				slippage
 			})
 
 			// Show success dialog with transaction details
 			setSuccessData({
-				signature: result.signature,
+				signature: result.data.signature,
 				amountA: fromAmount,
 				amountB: toAmount,
 				totalValue: (baseTokenPrice + quoteTokenPrice).toFixed(2)
@@ -441,46 +346,14 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 							<div className="flex justify-between items-center">
 								<h4 className="text-sm text-dark-grey">Total APR 7D</h4>
 								<p className="text-lg font-bold text-main-black">
-									{poolDetailData
-										? isPoolData(poolDetailData)
-											? `${poolDetailData.week.apr.toFixed(2)}%`
-											: `${poolDetailData.apr24h.toFixed(2)}%`
-										: '0.00%'}
+									{`${poolDetailData?.apr24h.toFixed(2) ?? 0.0}%`}
 								</p>
 							</div>
 							<div className="flex flex-col space-y-3">
 								<div className="flex justify-between items-center text-sm text-dark-grey">
 									<h4>Fees</h4>
-									<p>
-										{poolDetailData
-											? isPoolData(poolDetailData)
-												? `${poolDetailData.week.feeApr}%`
-												: `${(poolDetailData.feeRate * 100).toFixed(2)}%`
-											: '0.00%'}
-									</p>
+									<p>{`${(poolDetailData?.feeRate ?? 0 * 100).toFixed(2)}%`}</p>
 								</div>
-								{poolDetailData &&
-									isPoolData(poolDetailData) &&
-									poolDetailData.week &&
-									poolDetailData.week.rewardApr.length > 0 &&
-									poolDetailData.week.rewardApr.map((value, index) => (
-										<div
-											key={index}
-											className="flex justify-between items-center text-sm text-dark-grey"
-										>
-											<section className="flex items-center space-x-[3px]">
-												<h4>Rewards</h4>
-												<Image
-													className="rounded-full"
-													src={poolDetailData.rewardDefaultInfos[index].mint.logoURI ?? ''}
-													width={11}
-													height={11}
-													alt={`${poolDetailData.rewardDefaultInfos[index].mint.name} - icon`}
-												/>
-											</section>
-											<p>{value.toFixed(2)}%</p>
-										</div>
-									))}
 							</div>
 							<div className="flex flex-col space-y-3">
 								<div className="flex justify-between items-center text-sm text-main-black">
@@ -499,14 +372,10 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 										/>
 									</section>
 									<p>
-										{poolDetailData
-											? isPoolData(poolDetailData)
-												? poolDetailData.mintAmountA.toLocaleString()
-												: (
-														Number(poolDetailData.reserveA) /
-														Math.pow(10, poolDetailData.mintA.decimals)
-													).toLocaleString()
-											: '0'}
+										{formatTokenBalance(
+											Number(poolDetailData?.reserveA ?? 0),
+											poolDetailData?.mintA.decimals ?? 0
+										).toLocaleString()}
 									</p>
 								</div>
 								<div className="flex justify-between items-center text-sm text-dark-grey">
@@ -521,14 +390,10 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 										/>
 									</section>
 									<p>
-										{poolDetailData
-											? isPoolData(poolDetailData)
-												? poolDetailData.mintAmountB.toLocaleString()
-												: (
-														Number(poolDetailData.reserveB) /
-														Math.pow(10, poolDetailData.mintB.decimals)
-													).toLocaleString()
-											: '0'}
+										{formatTokenBalance(
+											Number(poolDetailData?.reserveB ?? 0),
+											poolDetailData?.mintB.decimals ?? 0
+										).toLocaleString()}
 									</p>
 								</div>
 							</div>
@@ -538,13 +403,13 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						<CardContent className="p-0 flex flex-col space-y-[18px]">
 							<div className="flex justify-between font-normal text-sm text-dark-grey">
 								<h4>My Position</h4>
-								<p>${getUserStats.data?.userReserveTotal.toLocaleString()}</p>
+								<p>${userStatsData?.userReserveTotalPrice.toLocaleString()}</p>
 							</div>
 							<div className="flex flex-col space-y-3 text-dark-grey">
 								<h3 className="text-main-black">LP Token Balances</h3>
 								<div className="flex justify-between">
 									<h4>Staked/Unstaked</h4>
-									<p>{getUserStats.data?.userLPToken} LP</p>
+									<p>{userStatsData?.userLPToken} LP</p>
 								</div>
 							</div>
 						</CardContent>

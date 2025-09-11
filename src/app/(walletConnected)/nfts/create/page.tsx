@@ -11,17 +11,35 @@ import { capitalCase } from 'text-case'
 
 import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle
+} from '@/components/ui/card'
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import CreateCollectionDialog from '@/features/nfts/components/CreateCollectionDialog'
 import SelectCollection, { SelectedItem } from '@/features/nfts/components/SelectCollection'
 import { LoadingDialog, SuccessDialogNFT } from '@/features/nfts/components/StatusDialog'
-import { useGetCollections, useCreateNFT, useValidateOffChainMetadata } from '@/features/nfts/services'
+import {
+	useGetCollections,
+	useCreateNFT,
+	useValidateOffChainMetadata
+} from '@/features/nfts/services'
 import { TCreateNFTPayload, TCreateNFTDialogProps } from '@/features/nfts/types'
 import { CreateNFTValidation } from '@/features/nfts/validation'
-import { useGetBalance } from '@/services/wallet'
+import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 const initialDialogContent: TCreateNFTDialogProps = {
@@ -45,15 +63,17 @@ export default function CreateNFT() {
 	const createNFTMutation = useCreateNFT()
 	const getCollectionQuery = useGetCollections()
 	const validateMetadataMutation = useValidateOffChainMetadata()
-	const getBalanceQuery = useGetBalance()
+	const getBalanceQuery = useGetBBABalance()
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
 	const [isCreateCollection, setIsCreateCollection] = useState<boolean>(false)
 	const [isSuccessDialog, setIsSuccessDialog] = useState<boolean>(false)
-	const [successDialogProps, setSuccessDialogProps] = useState<TCreateNFTDialogProps>(initialDialogContent)
+	const [successDialogProps, setSuccessDialogProps] =
+		useState<TCreateNFTDialogProps>(initialDialogContent)
 	const [isLoadingDialog, setIsLoadingDialog] = useState<boolean>(false)
-	const [loadingDialogProps, setLoadingDialogProps] = useState<TCreateNFTDialogProps>(initialDialogContent)
+	const [loadingDialogProps, setLoadingDialogProps] =
+		useState<TCreateNFTDialogProps>(initialDialogContent)
 	const [selectedCollection, setSelectedCollection] = useState<SelectedItem | null>(null)
 
 	const collectionListData = useMemo(() => {
@@ -198,7 +218,9 @@ export default function CreateNFT() {
 						onSubmit={form.handleSubmit(onCreateNFT)}
 						className="flex md:w-[600px] mx-auto w-full flex-col md:space-y-6 space-y-3"
 					>
-						<h3 className="text-center text-main-black font-medium text-[32px]">Metadata Preview</h3>
+						<h3 className="text-center text-main-black font-medium text-[32px]">
+							Metadata Preview
+						</h3>
 						<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 							<CardContent className="flex flex-col space-y-3 p-0">
 								{/* eslint-disable-next-line @next/next/no-img-element*/}
@@ -226,7 +248,9 @@ export default function CreateNFT() {
 													key={attribute.trait_type}
 													className="bg-box w-auto text-sm px-3 h-8 py-1.5 rounded-[8px] flex items-center space-x-1.5"
 												>
-													<h4 className="font-semibold  text-sm text-main-black">{attribute.trait_type}</h4>
+													<h4 className="font-semibold  text-sm text-main-black">
+														{attribute.trait_type}
+													</h4>
 													<span className="text-light-grey  text-base">:</span>
 													<p className="text-light-grey text-xs">{attribute.value}</p>
 												</div>
@@ -237,7 +261,9 @@ export default function CreateNFT() {
 							</CardContent>
 						</Card>
 						<div>
-							<Label className="text-main-black text-sm font-medium">Assign to a Collection (optional)</Label>
+							<Label className="text-main-black text-sm font-medium">
+								Assign to a Collection (optional)
+							</Label>
 							<SelectCollection
 								selected={selectedCollection}
 								setSelected={setSelectedCollection}
@@ -263,10 +289,14 @@ export default function CreateNFT() {
 						className="md:w-[600px] mx-auto w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 						onSubmit={form.handleSubmit(onValidateMetadata)}
 					>
-						<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">Mint New NFT</h1>
+						<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
+							Mint New NFT
+						</h1>
 						<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 							<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Upload Metadata</CardTitle>
+								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
+									Upload Metadata
+								</CardTitle>
 								<CardDescription className="md:text-xl pt-2.5 text-base text-light-grey">
 									Upload or link to your JSON metadata files hosted on IPFS or Arweave.
 								</CardDescription>

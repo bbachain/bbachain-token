@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AiOutlineInfo } from 'react-icons/ai'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { IoIosSwap } from 'react-icons/io'
@@ -25,15 +25,11 @@ import { TransactionDataTable } from '@/features/liquidityPool/components/Transa
 import {
 	useGetPoolById,
 	useGetTransactionsByPoolId,
-	useGetUserPoolStatsById
+	useGetUserPoolStats
 } from '@/features/liquidityPool/services'
-import { PoolData } from '@/features/liquidityPool/types'
 import { useIsMobile } from '@/hooks/isMobile'
+import { formatTokenBalance } from '@/lib/token'
 import { cn, getExplorerAddress, shortenAddress } from '@/lib/utils'
-
-const isPoolData = (data: any): data is PoolData => {
-	return data && typeof data === 'object' && 'week' in data
-}
 
 function PoolAmountBar({
 	mintAAmount,
@@ -135,7 +131,6 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	const poolId = params.poolId
 
 	const [isReversed, setIsReversed] = useState<boolean>(false)
-	const [isMyStats, setIsMyStats] = useState<boolean>(false)
 	const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true)
 	const isMobile = useIsMobile()
 
@@ -143,83 +138,27 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		setIsReversed((prev) => !prev)
 	}
 
-	const getPoolById = useGetPoolById({ poolId })
+	const getPoolById = useGetPoolById({ poolId, isReversed })
+	const pool = getPoolById?.data?.data
 
-	const { data: poolDetailData } = getPoolById?.data ?? {}
-
-	const baseMint = isReversed ? poolDetailData?.mintB : poolDetailData?.mintA
-	const quoteMint = isReversed ? poolDetailData?.mintA : poolDetailData?.mintB
-
-	const getTransactionsByPoolId = useGetTransactionsByPoolId({
-		poolId,
-		baseMint,
-		quoteMint,
-		isFilteredByOwner: isMyStats
-	})
-	const transactionData = getTransactionsByPoolId.data ? getTransactionsByPoolId.data.data : []
-
+	const getTransactionsByPoolId = useGetTransactionsByPoolId({ pool })
+	const transactions = getTransactionsByPoolId?.data?.data ?? []
 	const transactionColumn = getTransactionListColumns(
-		baseMint?.symbol ?? '',
-		quoteMint?.symbol ?? ''
+		pool?.mintA?.symbol ?? '',
+		pool?.mintB?.symbol ?? ''
 	)
 
-	const mintAPoolAmount = useMemo(() => {
-		if (!poolDetailData) return 0
+	const getUserStats = useGetUserPoolStats({ pool })
+	const userStats = getUserStats.data?.data
 
-		if (isPoolData(poolDetailData)) {
-			return isReversed ? poolDetailData.mintAmountB : poolDetailData.mintAmountA
-		}
-
-		const reserve = isReversed ? poolDetailData.reserveB : poolDetailData.reserveA
-		const decimals = isReversed ? poolDetailData.mintB.decimals : poolDetailData.mintA.decimals
-
-		return Number(reserve) / Math.pow(10, decimals)
-	}, [poolDetailData, isReversed])
-
-	const mintBPoolAmount = useMemo(() => {
-		if (!poolDetailData) return 0
-
-		if (isPoolData(poolDetailData)) {
-			return isReversed ? poolDetailData.mintAmountA : poolDetailData.mintAmountB
-		}
-
-		const reserve = isReversed ? poolDetailData.reserveA : poolDetailData.reserveB
-		const decimals = isReversed ? poolDetailData.mintA.decimals : poolDetailData.mintB.decimals
-
-		return Number(reserve) / Math.pow(10, decimals)
-	}, [poolDetailData, isReversed])
-
-	const getUserStats = useGetUserPoolStatsById({
-		poolId,
-		reserveA: mintAPoolAmount,
-		reserveB: mintBPoolAmount,
-		mintA: baseMint,
-		mintB: quoteMint,
-		feeRate: poolDetailData?.feeRate ?? 0,
-		volume24h: !poolDetailData
-			? 0
-			: isPoolData(poolDetailData)
-				? poolDetailData.day.volume
-				: poolDetailData.volume24h,
-		isUserStats: isMyStats
-	})
-
-	const apr7Day = !poolDetailData
-		? '0.00%'
-		: `${(isPoolData(poolDetailData) ? poolDetailData.week.apr : poolDetailData.apr24h).toFixed(2)}%`
-
-	const fee24H = !poolDetailData
-		? '$0'
-		: `$${(isPoolData(poolDetailData) ? poolDetailData.day.feeApr : poolDetailData.fees24h).toFixed(3)}`
-
-	const volume24H = !poolDetailData
-		? '$0'
-		: `$${(isPoolData(poolDetailData) ? poolDetailData.day.volume : poolDetailData.volume24h).toFixed(3)}`
-
-	const mintAImage =
-		baseMint?.logoURI && baseMint?.logoURI !== '' ? baseMint.logoURI : '/icon-placeholder.svg'
-	const mintBImage =
-		quoteMint?.logoURI && quoteMint?.logoURI !== '' ? quoteMint.logoURI : '/icon-placeholder.svg'
+	const mintAAmount = formatTokenBalance(
+		Number(pool?.reserveA ?? 0),
+		Number(pool?.mintA?.decimals ?? 0)
+	)
+	const mintBAmount = formatTokenBalance(
+		Number(pool?.reserveB ?? 0),
+		Number(pool?.mintB?.decimals ?? 0)
+	)
 
 	useEffect(() => {
 		if (getTransactionsByPoolId.isSuccess) {
@@ -271,35 +210,35 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				<section className="flex space-x-3 items-center">
 					<section className="flex items-center flex-shrink-0 relative">
 						<Image
-							src={mintAImage}
+							src={pool?.mintA?.logoURI ?? '/icon-placeholder.svg'}
 							width={isMobile ? 24 : 28}
 							height={isMobile ? 24 : 28}
 							className="rounded-full relative"
-							alt={`${baseMint?.name} icon`}
+							alt={`${pool?.mintA?.name} icon`}
 							onError={(e) => {
 								e.currentTarget.src = '/icon-placeholder.svg'
 							}}
 						/>
 						<Image
-							src={mintBImage}
+							src={pool?.mintB?.logoURI ?? '/icon-placeholder.svg'}
 							width={isMobile ? 24 : 28}
 							height={isMobile ? 24 : 28}
 							className="rounded-full relative -ml-2"
-							alt={`${quoteMint?.name} icon`}
+							alt={`${pool?.mintB?.name} icon`}
 							onError={(e) => {
 								e.currentTarget.src = '/icon-placeholder.svg'
 							}}
 						/>
-						<h4 className="md:text-2xl text-xl text-main-black">{`${baseMint?.symbol}-${quoteMint?.symbol}`}</h4>
+						<h4 className="md:text-2xl text-xl text-main-black">{`${pool?.mintA?.symbol}-${pool?.mintB?.symbol}`}</h4>
 					</section>
 					<section className="flex items-center gap-1">
 						<p
 							className={cn(
 								'text-xs text-center text-dark-grey px-1.5 py-0.5 rounded font-medium',
-								getFeeTierColor(poolDetailData?.feeRate ?? 0)
+								getFeeTierColor(pool?.feeRate ?? 0)
 							)}
 						>
-							{(poolDetailData?.feeRate ?? 0 * 100).toFixed(2)}%
+							{(pool?.feeRate ?? 0 * 100).toFixed(2)}%
 						</p>
 					</section>
 					<Button size="icon" type="button" variant="ghost" onClick={onReverse}>
@@ -308,7 +247,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				</section>
 				<section className="flex space-x-2.5 items-center">
 					<Link
-						href={`/swap?from=${baseMint?.address}&to=${quoteMint?.address}`}
+						href={`/swap?from=${pool?.mintA?.address}&to=${pool?.mintB?.address}`}
 						className={cn(
 							buttonVariants({ size: 'lg', variant: 'outline' }),
 							'border-main-green hover:text-hover-green px-6 py-3 text-main-green font-medium text-lg rounded-[26px]'
@@ -330,10 +269,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				</section>
 			</div>
 			<div className="bg-box-3 mt-6 md:p-6 p-3 rounded-[8px]">
-				<Tabs
-					defaultValue="pool-stats"
-					onValueChange={(value) => setIsMyStats(value === 'my-stats')}
-				>
+				<Tabs defaultValue="pool-stats">
 					<TabsList className="flex md:w-40 w-full mb-[18px] rounded-md bg-light-grey !p-0">
 						<TabsTrigger
 							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
@@ -380,10 +316,10 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								</Tooltip>
 							</section>
 							<PoolAmountBar
-								mintAAmount={mintAPoolAmount}
-								mintBAmount={mintBPoolAmount}
-								mintASymbol={baseMint?.symbol ?? ''}
-								mintBSymbol={quoteMint?.symbol ?? ''}
+								mintAAmount={mintAAmount}
+								mintBAmount={mintBAmount}
+								mintASymbol={pool?.mintA?.symbol ?? ''}
+								mintBSymbol={pool?.mintB?.symbol ?? ''}
 								isLoading={getPoolById.isLoading}
 							/>
 						</div>
@@ -392,28 +328,28 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								isLoading={getPoolById.isLoading}
 								title="APR(7 days)"
 								info="Weekly Percentage Rate earned by liquidity providers from trading fees and rewards."
-								content={apr7Day}
+								content={`${pool?.apr24h.toFixed(2) ?? 0.0}%`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
 								isLoading={getPoolById.isLoading}
 								title="TVL"
 								info="The total dollar value of assets locked in this liquidity pool."
-								content={`$${poolDetailData?.tvl.toLocaleString() ?? 0}`}
+								content={`$${pool?.tvl.toLocaleString() ?? 0}`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
 								isLoading={getPoolById.isLoading}
 								title="Fees(24h)"
 								info="Trading fees generated by this pool in the past 24 hours."
-								content={fee24H}
+								content={`$${pool?.fees24h.toFixed(3) ?? 0}`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
 								isLoading={getPoolById.isLoading}
 								title="Volume(24h)"
 								info="Total swap volume (trades) processed in this pool within the last 24 hours."
-								content={volume24H}
+								content={`$${pool?.volume24h.toFixed(3) ?? 0}`}
 							/>
 						</div>
 						<div className="md:mt-9 mt-6">
@@ -424,53 +360,56 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								<section className="flex items-center md:space-x-3 md:justify-normal justify-between">
 									<section className="flex items-center space-x-1.5">
 										<Image
-											src={mintAImage}
+											src={pool?.mintA?.logoURI ?? '/icon-placeholder.svg'}
 											width={isMobile ? 24 : 28}
 											height={isMobile ? 24 : 28}
 											className="rounded-full relative"
-											alt={`${baseMint?.name} icon`}
+											alt={`${pool?.mintA?.name} icon`}
 											onError={(e) => {
 												e.currentTarget.src = '/icon-placeholder.svg'
 											}}
 										/>
-										<h4 className="md:text-xl text-sm text-main-black">{baseMint?.symbol}</h4>
+										<h4 className="md:text-xl text-sm text-main-black">{pool?.mintA?.symbol}</h4>
 									</section>
 									<section className="flex items-center space-x-1">
 										<a
 											className="text-main-green hover:text-hover-green md:text-lg text-sm"
-											href={getExplorerAddress(baseMint?.address ?? '')}
+											href={getExplorerAddress(pool?.mintA?.address ?? '')}
 											target="_blank"
 											rel="noopener noreferrer"
 										>
-											{shortenAddress(baseMint?.address ?? '', 7)}
+											{shortenAddress(pool?.mintA?.address ?? '', 7)}
 										</a>
-										<CopyButton secretValue={baseMint?.address ?? ''} iconSize="xs" />
+										<CopyButton
+											secretValue={getExplorerAddress(pool?.mintA?.address ?? '')}
+											iconSize="xs"
+										/>
 									</section>
 								</section>
 								<section className="flex items-center md:space-x-3 md:justify-normal justify-between">
 									<section className="flex items-center space-x-1.5">
 										<Image
-											src={mintBImage}
+											src={pool?.mintB?.logoURI ?? '/icon-placeholder.svg'}
 											width={isMobile ? 24 : 28}
 											height={isMobile ? 24 : 28}
 											className="rounded-full relative"
-											alt={`${quoteMint?.name} icon`}
+											alt={`${pool?.mintB?.name} icon`}
 											onError={(e) => {
 												e.currentTarget.src = '/icon-placeholder.svg'
 											}}
 										/>
-										<h4 className="md:text-xl text-sm text-main-black">{quoteMint?.symbol}</h4>
+										<h4 className="md:text-xl text-sm text-main-black">{pool?.mintB?.symbol}</h4>
 									</section>
 									<section className="flex items-center space-x-1">
 										<a
 											className="text-main-green hover:text-hover-green md:text-lg text-sm"
-											href={getExplorerAddress(quoteMint?.address ?? '')}
+											href={getExplorerAddress(pool?.mintB?.address ?? '')}
 											target="_blank"
 											rel="noopener noreferrer"
 										>
-											{shortenAddress(quoteMint?.address ?? '', 7)}
+											{shortenAddress(pool?.mintB?.address ?? '', 7)}
 										</a>
-										<CopyButton secretValue={quoteMint?.address ?? ''} iconSize="xs" />
+										<CopyButton secretValue={pool?.mintB?.address ?? ''} iconSize="xs" />
 									</section>
 								</section>
 							</div>
@@ -498,10 +437,10 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								</Tooltip>
 							</section>
 							<PoolAmountBar
-								mintAAmount={getUserStats.data?.userMintAReserve ?? 0}
-								mintBAmount={getUserStats.data?.userMintBReserve ?? 0}
-								mintASymbol={baseMint?.symbol ?? ''}
-								mintBSymbol={quoteMint?.symbol ?? ''}
+								mintAAmount={userStats?.userReserveA ?? 0}
+								mintBAmount={userStats?.userReserveB ?? 0}
+								mintASymbol={pool?.mintA?.symbol ?? ''}
+								mintBSymbol={pool?.mintB?.symbol ?? ''}
 								isLoading={getUserStats.isLoading}
 							/>
 						</div>
@@ -510,28 +449,28 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								isLoading={getUserStats.isLoading}
 								title="My Pool Share (%)"
 								info="This is the percentage of the total liquidity pool that you currently own."
-								content={`${getUserStats.data?.userShare.toFixed(2) ?? 0}%`}
+								content={`${userStats?.userShare.toFixed(2) ?? 0}%`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
 								isLoading={getUserStats.isLoading}
 								title="My Liquidity Value"
 								info="The estimated dollar value of the tokens you've contributed to this pool."
-								content={`$${getUserStats.data?.userReserveTotal.toLocaleString() ?? 0}`}
+								content={`$${userStats?.userReserveTotalPrice.toLocaleString() ?? 0}`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
 								isLoading={getUserStats.isLoading}
 								title="LP Tokens Held"
 								info="The total number of LP (liquidity provider) tokens you own — including both staked and unstaked."
-								content={`${getUserStats.data?.userLPToken.toLocaleString() ?? 0} LP`}
+								content={`${userStats?.userLPToken.toLocaleString() ?? 0} LP`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
 								isLoading={getUserStats.isLoading}
 								title="Fee Earnings(24h)"
 								info="Total amount you've earned from trading fees within the last 24 hours."
-								content={`$${getUserStats.data?.dailyFeeEarnings.toFixed(3) ?? 0}`}
+								content={`$${userStats?.dailyFeeEarnings.toFixed(3) ?? 0}`}
 							/>
 						</div>
 					</TabsContent>
@@ -542,7 +481,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				{getTransactionsByPoolId.isLoading ? (
 					<PoolDetailTransactionSkeleton />
 				) : (
-					<TransactionDataTable columns={transactionColumn} data={transactionData} />
+					<TransactionDataTable columns={transactionColumn} data={transactions} />
 				)}
 			</div>
 		</div>

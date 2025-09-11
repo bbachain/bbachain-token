@@ -8,18 +8,28 @@ import { useForm } from 'react-hook-form'
 import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import FileInput from '@/features/tokens/components/form/FileInput'
-import FormProgressLine, { type CreateTokenStepProps } from '@/features/tokens/components/form/FormProgressLine'
+import FormProgressLine, {
+	type CreateTokenStepProps
+} from '@/features/tokens/components/form/FormProgressLine'
 import SuccessDialog from '@/features/tokens/components/form/SuccessDialog'
 import CreateTokenOverview from '@/features/tokens/components/form/TokenOverview'
 import { useCreateToken } from '@/features/tokens/services'
 import { TCreateTokenDataResponse, TCreateTokenPayload } from '@/features/tokens/types'
 import { CreateTokenValidation } from '@/features/tokens/validation'
-import { useGetBalance } from '@/services/wallet'
+import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type FieldName = keyof TCreateTokenPayload
@@ -65,7 +75,7 @@ export default function CreateToken() {
 
 	const watchTokenSupply = form.watch('supply')
 	const createTokenMutation = useCreateToken()
-	const getBalanceQuery = useGetBalance()
+	const getBalanceQuery = useGetBBABalance()
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [currentStep, setCurrentStep] = useState<number>(0)
@@ -198,7 +208,9 @@ export default function CreateToken() {
 
 	return (
 		<Form {...form}>
-			{responseData && <SuccessDialog isOpen={isSuccessOpen} onOpenChange={setIsSuccessOpen} data={responseData} />}
+			{responseData && (
+				<SuccessDialog isOpen={isSuccessOpen} onOpenChange={setIsSuccessOpen} data={responseData} />
+			)}
 			<form
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="xl:px-48 md:px-16 px-[15px] w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
@@ -213,7 +225,9 @@ export default function CreateToken() {
 				{currentStep === 0 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Token Details</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
+								Token Details
+							</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Basic details about your token
 							</CardDescription>
@@ -316,7 +330,9 @@ export default function CreateToken() {
 				{currentStep === 1 && (
 					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Token Icon</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
+								Token Icon
+							</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Enhance your token with a stunning icon!
 							</CardDescription>
@@ -337,7 +353,9 @@ export default function CreateToken() {
 				{currentStep === 2 && (
 					<Card className="w-full border-hover-green border-[1px] md:p-9 p-3 rounded-[16px] drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Features</CardTitle>
+							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
+								Features
+							</CardTitle>
 							<CardDescription className="md:text-xl text-base text-light-grey">
 								Extra feature for your token
 							</CardDescription>
@@ -349,9 +367,12 @@ export default function CreateToken() {
 								render={({ field }) => (
 									<FormItem className="flex items-center justify-between">
 										<div className="w-full">
-											<FormLabel className="text-lg font-normal text-main-black">Revoke Freeze</FormLabel>
+											<FormLabel className="text-lg font-normal text-main-black">
+												Revoke Freeze
+											</FormLabel>
 											<FormDescription className="text-[15px] text-light-grey">
-												To create a liquidity pool, it&apos;s necessary to Revoke Freeze Authority of the Token.
+												To create a liquidity pool, it&apos;s necessary to Revoke Freeze Authority
+												of the Token.
 											</FormDescription>
 										</div>
 										<FormControl>
@@ -370,9 +391,12 @@ export default function CreateToken() {
 								render={({ field }) => (
 									<FormItem className="flex items-center justify-between">
 										<div className="w-full">
-											<FormLabel className="text-lg font-normal text-main-black">Revoke Mint</FormLabel>
+											<FormLabel className="text-lg font-normal text-main-black">
+												Revoke Mint
+											</FormLabel>
 											<FormDescription className="text-[15px] text-light-grey">
-												Another essential step to ensure reliability among users is revoking the mint authority.
+												Another essential step to ensure reliability among users is revoking the
+												mint authority.
 											</FormDescription>
 										</div>
 										<FormControl>
@@ -391,7 +415,9 @@ export default function CreateToken() {
 								render={({ field }) => (
 									<FormItem className="flex items-center justify-between">
 										<div className="w-full">
-											<FormLabel className="text-lg font-normal text-main-black">Immutable Metadata</FormLabel>
+											<FormLabel className="text-lg font-normal text-main-black">
+												Immutable Metadata
+											</FormLabel>
 											<FormDescription className="text-[15px] text-light-grey">
 												Enhance security and trust by locking token metadata.
 											</FormDescription>

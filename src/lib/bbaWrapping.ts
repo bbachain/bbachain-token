@@ -190,20 +190,10 @@ export async function addBBAToPoolAccount(
  * Calculate expected output using constant product formula
  * Helper function from examples
  */
-export function calculateExpectedOutput(amountIn: number, reserveIn: number, reserveOut: number): number {
+export function calculateExpectedOutput(
+	amountIn: number,
+	reserveIn: number,
+	reserveOut: number
+): number {
 	return (amountIn * reserveOut) / (reserveIn + amountIn)
-}
-
-/**
- * Convert BBA amount to daltons
- */
-export function bbaTodaltons(bbaAmount: number): number {
-	return Math.floor(bbaAmount * BBA_DALTON_UNIT)
-}
-
-/**
- * Convert daltons to BBA amount
- */
-export function daltonsToBBA(daltons: number): number {
-	return daltons / BBA_DALTON_UNIT
 }

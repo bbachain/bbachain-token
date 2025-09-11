@@ -6,37 +6,13 @@ import {
 	NATIVE_MINT
 } from '@bbachain/spl-token'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@bbachain/web3.js'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { SystemProgram, Transaction, TransactionInstruction } from '@bbachain/web3.js'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import SERVICES_KEY from '@/constants/service'
-import { bbaTodaltons } from '@/lib/bbaWrapping'
+import { TUnwrapResponse, TWrapPayload, TWrapResponse } from '@/features/wrapping/types'
+import { getDaltonsFromBBA } from '@/lib/token'
 import StaticTokens from '@/staticData/tokens'
-
-import { TGetUserBalanceData } from '../swap/types'
-
-import { TUnwrapResponse, TWrapPayload, TWrapResponse } from './types'
-
-export function useGetWBBABalance() {
-	const { publicKey: ownerAddress } = useWallet()
-	const { connection } = useConnection()
-	return useQuery<TGetUserBalanceData>({
-		queryKey: [SERVICES_KEY.WRAPPING.GET_WBBA_BALANCE, ownerAddress?.toBase58()],
-		queryFn: async () => {
-			if (!ownerAddress) throw new Error('No wallet connected')
-
-			try {
-				const mint = new PublicKey(NATIVE_MINT.toBase58())
-				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
-				const balanceAmount = await connection.getTokenAccountBalance(ata)
-				return { balance: Number(balanceAmount.value.amount) }
-			} catch (e) {
-				console.error('Balance fetch error:', e)
-				return { balance: 0 }
-			}
-		}
-	})
-}
 
 export function useWrapBBA() {
 	const { publicKey: ownerAddress, sendTransaction } = useWallet()
@@ -49,7 +25,7 @@ export function useWrapBBA() {
 
 			try {
 				const wrapTxInstructions: TransactionInstruction[] = []
-				const bbaAmountDaltons = bbaTodaltons(payload.amount)
+				const bbaAmountDaltons = getDaltonsFromBBA(payload.amount)
 				const wbbaAccount = await getAssociatedTokenAddress(NATIVE_MINT, ownerAddress)
 				const wbbaAccountInfo = await connection.getAccountInfo(wbbaAccount)
 
@@ -86,7 +62,7 @@ export function useWrapBBA() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+				queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 			})
 			queryClient.invalidateQueries({
 				queryKey: [SERVICES_KEY.WRAPPING.GET_WBBA_BALANCE, ownerAddress?.toBase58()]
@@ -137,7 +113,7 @@ export function useUnwrapBBA() {
 				if (!isUnwrapAll) {
 					// 🔹 CASE Unwrap partial
 					const remainingWBBAAmounts = Number(formattedWBBABalance) - payload.amount
-					const remainingWBBADaltons = bbaTodaltons(remainingWBBAAmounts)
+					const remainingWBBADaltons = getDaltonsFromBBA(remainingWBBAAmounts)
 
 					const createWBBAIx = createAssociatedTokenAccountInstruction(
 						ownerAddress,
@@ -172,7 +148,7 @@ export function useUnwrapBBA() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+				queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 			})
 			queryClient.invalidateQueries({
 				queryKey: [SERVICES_KEY.WRAPPING.GET_WBBA_BALANCE, ownerAddress?.toBase58()]

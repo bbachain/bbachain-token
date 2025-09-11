@@ -8,14 +8,32 @@ import { useForm } from 'react-hook-form'
 
 import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle
+} from '@/components/ui/card'
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { LoadingDialog, SuccessDialogCollection, SuccessDialogNFT } from '@/features/nfts/components/StatusDialog'
+import {
+	LoadingDialog,
+	SuccessDialogCollection,
+	SuccessDialogNFT
+} from '@/features/nfts/components/StatusDialog'
 import { useCreateCollection, useValidateOffChainMetadata } from '@/features/nfts/services'
 import { TCreateCollectionPayload, TCreateNFTDialogProps } from '@/features/nfts/types'
 import { CreateCollectionValidation } from '@/features/nfts/validation'
-import { useGetBalance } from '@/services/wallet'
+import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type FieldName = keyof TCreateCollectionPayload
@@ -33,7 +51,7 @@ export default function CreateCollection() {
 
 	const createCollectionMutation = useCreateCollection()
 	const validateMetadataMutation = useValidateOffChainMetadata()
-	const getBalanceQuery = useGetBalance()
+	const getBalanceQuery = useGetBBABalance()
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [step, setStep] = useState<number>(0)
@@ -54,7 +72,8 @@ export default function CreateCollection() {
 		validateMetadataMutation.mutate({ uri: form.getValues('uri') })
 	}
 
-	const onCreateCollection = async (payload: TCreateCollectionPayload) => createCollectionMutation.mutate(payload)
+	const onCreateCollection = async (payload: TCreateCollectionPayload) =>
+		createCollectionMutation.mutate(payload)
 
 	const { openErrorDialog } = useErrorDialog()
 
@@ -75,7 +94,10 @@ export default function CreateCollection() {
 			setIsSuccessDialogMetadata(true)
 			form.setValue('name', validateMetadataMutation.data.data.name)
 			form.setValue('symbol', validateMetadataMutation.data.data.symbol)
-			form.setValue('sellerFeeBasisPoints', validateMetadataMutation.data.data.seller_fee_basis_points.toString())
+			form.setValue(
+				'sellerFeeBasisPoints',
+				validateMetadataMutation.data.data.seller_fee_basis_points.toString()
+			)
 			setStep(1)
 		}
 	}, [form, validateMetadataMutation.data, validateMetadataMutation.isSuccess])
@@ -166,7 +188,9 @@ export default function CreateCollection() {
 					{step === 1 && (
 						<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 							<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Upload Metadata</CardTitle>
+								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
+									Upload Metadata
+								</CardTitle>
 								<CardDescription className="md:text-xl pt-2.5 text-base text-light-grey">
 									<Image
 										src={validateMetadataMutation.data?.data.image ?? ''}
@@ -247,7 +271,9 @@ export default function CreateCollection() {
 					{step === 0 && (
 						<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
 							<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
-								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">Upload Metadata</CardTitle>
+								<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
+									Upload Metadata
+								</CardTitle>
 								<CardDescription className="md:text-xl pt-2.5 text-base text-light-grey">
 									Upload or link to your JSON metadata files hosted on IPFS or Arweave.
 								</CardDescription>

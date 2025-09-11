@@ -7,10 +7,9 @@ import { useEffect, useState } from 'react'
 
 import { buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useGetPoolById } from '@/features/liquidityPool/services'
+import { TOnchainPoolData } from '@/features/liquidityPool/types'
 import { cn } from '@/lib/utils'
-
-import { OnchainPoolData } from '../onchain'
-import { useGetPoolById } from '../services'
 
 import { getFeeTierColor, formatCurrency } from './Columns'
 
@@ -18,7 +17,7 @@ export default function DetailPoolDialog() {
 	const queryKey = useSearchParams()
 	const poolId = queryKey.get('poolId')
 	const getPoolByIdQuery = useGetPoolById({ poolId: poolId ?? '' })
-	const data = getPoolByIdQuery.data?.data as OnchainPoolData
+	const data = getPoolByIdQuery.data?.data as TOnchainPoolData
 
 	const [isOpen, setIsOpen] = useState<boolean>(false)
 
@@ -46,7 +45,9 @@ export default function DetailPoolDialog() {
 									<div className="flex items-center justify-center w-full flex-shrink-0 mr-3 relative">
 										<Image
 											src={
-												data.mintA.logoURI && data.mintA.logoURI !== '' ? data.mintA.logoURI : '/icon-placeholder.svg'
+												data.mintA.logoURI && data.mintA.logoURI !== ''
+													? data.mintA.logoURI
+													: '/icon-placeholder.svg'
 											}
 											width={44}
 											height={44}
@@ -58,7 +59,9 @@ export default function DetailPoolDialog() {
 										/>
 										<Image
 											src={
-												data.mintB.logoURI && data.mintB.logoURI !== '' ? data.mintB.logoURI : '/icon-placeholder.svg'
+												data.mintB.logoURI && data.mintB.logoURI !== ''
+													? data.mintB.logoURI
+													: '/icon-placeholder.svg'
 											}
 											width={44}
 											height={44}

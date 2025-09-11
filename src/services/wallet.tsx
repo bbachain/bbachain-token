@@ -6,6 +6,7 @@ import { BBA_DALTON_UNIT, PublicKey } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import SERVICES_KEY from '@/constants/service'
+import { isNativeBBA } from '@/lib/token'
 import { TSuccessMessage } from '@/types'
 import { TRequestAirdropPayload } from '@/types/wallet'
 
@@ -36,17 +37,42 @@ export function useGetWBBABalance() {
 				const mint = new PublicKey(NATIVE_MINT.toBase58())
 				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
 				const balanceAmount = await connection.getTokenAccountBalance(ata)
-				const balance = Number(balanceAmount.value.amount)
-				return balance
+				return Number(balanceAmount.value.amount)
 			} catch (e) {
 				console.error('WBBA balance fetch error:', e)
 				return 0
 			}
-		}
+		},
+		enabled: !!ownerAddress
 	})
 }
 
-export function useGetTokenBalanceByMint({ mintAddress }: { mintAddress: string }) {}
+export function useGetTokenBalanceByMint({ mintAddress }: { mintAddress: string }) {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useQuery<number>({
+		queryKey: [SERVICES_KEY.WALLET.GET_TOKEN_BALANCE_BY_MINT, mintAddress],
+		queryFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			try {
+				// Handle native BBA token differently
+				if (isNativeBBA(mintAddress)) {
+					const balance = await connection.getBalance(ownerAddress)
+					return balance
+				}
+				const mint = new PublicKey(mintAddress)
+				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
+				const balanceAmount = await connection.getTokenAccountBalance(ata)
+				return Number(balanceAmount.value.amount)
+			} catch (e) {
+				console.error('Balance fetch error:', e)
+				return 0
+			}
+		},
+		enabled: !!mintAddress && !!ownerAddress
+	})
+}
 
 export function useRequestAirdrop() {
 	const { publicKey: address } = useWallet()

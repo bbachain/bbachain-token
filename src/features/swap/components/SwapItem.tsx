@@ -6,13 +6,12 @@ import { capitalCase } from 'text-case'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import type { TTradeableTokenProps } from '@/features/tokens/types'
 import { cn } from '@/lib/utils'
-
-import { TTokenProps } from '../types'
 
 interface SwapItemProps {
 	type: 'from' | 'to'
-	tokenProps: TTokenProps
+	tokenProps: TTradeableTokenProps
 	inputAmount: string
 	balance: number
 	price: number

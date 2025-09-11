@@ -20,7 +20,7 @@ import {
 } from '@bbachain/spl-token-metadata'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
 import ENDPOINTS from '@/constants/endpoint'
@@ -38,9 +38,14 @@ import {
 	TMintTokenPayload,
 	TGetTradeableTokenResponse
 } from '@/features/tokens/types'
-import { getTokenData, getTokenMetadata, getLPTokenData } from '@/features/tokens/utils'
+import {
+	getTokenData,
+	getTokenMetadata,
+	getLPTokenData,
+	getTokenPriceByCoinGeckoId
+} from '@/features/tokens/utils'
 import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/pinata'
-import { getTokenAccounts } from '@/lib/tokenAccount'
+import { getTokenAccounts } from '@/lib/token'
 import { TSuccessMessage } from '@/types'
 
 export const useGetTradeableTokens = (searchQuery?: string) =>
@@ -111,6 +116,72 @@ export const useGetTokenDetail = ({ mintAddress }: { mintAddress: string }) => {
 			}
 		},
 		enabled: !!ownerAddress
+	})
+}
+
+export const useGetLPTokens = () => {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useQuery<TGetTokenResponse>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_LP_TOKEN, ownerAddress?.toBase58()],
+		queryFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			const tokenAccounts = await getTokenAccounts(connection, ownerAddress)
+			const lpTokenData = await Promise.all(
+				tokenAccounts.map(async (account) => {
+					const mintKey = new PublicKey(account.mintAddress)
+					return await getLPTokenData(connection, mintKey)
+				})
+			)
+
+			const filteredLPTokenData = lpTokenData.filter(
+				(token): token is TGetTokenDataResponse => token !== null
+			)
+
+			return {
+				message: `Successfully get LP tokens with address ${ownerAddress.toBase58()}`,
+				data: filteredLPTokenData
+			}
+		},
+		enabled: !!ownerAddress,
+		staleTime: 30000, // 30 seconds
+		gcTime: 5 * 60 * 1000 // 5 minutes
+	})
+}
+
+export const useGetTokenPriceByCoinGeckoId = ({ coinGeckoId }: { coinGeckoId?: string }) => {
+	return useQuery<number>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_PRICE_BY_COIN_GECKO_ID, coinGeckoId],
+		queryFn: async () => {
+			if (!coinGeckoId) return 0
+			const tokenPriceRes = await getTokenPriceByCoinGeckoId(coinGeckoId)
+			const usdRate = tokenPriceRes[coinGeckoId].usd
+			return usdRate
+		},
+		enabled: !!coinGeckoId,
+		refetchInterval: 300000,
+		staleTime: 60000
+	})
+}
+
+export const useGetMultipleTokenPrices = ({
+	coinGeckoIds
+}: {
+	coinGeckoIds: (string | undefined)[]
+}) => {
+	return useQueries({
+		queries: coinGeckoIds.map((id) => ({
+			queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_PRICE_BY_COIN_GECKO_ID, id],
+			queryFn: async () => {
+				if (!id) return 0
+				const tokenPriceRes = await getTokenPriceByCoinGeckoId(id)
+				return tokenPriceRes[id].usd
+			},
+			enabled: !!id,
+			refetchInterval: 300000,
+			staleTime: 60000
+		}))
 	})
 }
 
@@ -299,7 +370,7 @@ export const useCreateToken = () => {
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN, ownerAddress?.toBase58()]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -417,7 +488,7 @@ export const useUpdateTokenMetadata = ({ mintAddress }: { mintAddress: string })
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -483,7 +554,7 @@ export const useLockMetadata = ({ mintAddress }: { mintAddress: string }) => {
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -522,7 +593,7 @@ export const useRevokeMintAuthority = ({ mintAddress }: { mintAddress: string })
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -561,7 +632,7 @@ export const useRevokeFreezeAuthority = ({ mintAddress }: { mintAddress: string 
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -605,7 +676,7 @@ export const useBurnTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -649,39 +720,8 @@ export const useMintTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
-	})
-}
-
-export const useGetLPTokens = () => {
-	const { publicKey: ownerAddress } = useWallet()
-	const { connection } = useConnection()
-	return useQuery<TGetTokenResponse>({
-		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN, 'LP_TOKENS', ownerAddress?.toBase58()],
-		queryFn: async () => {
-			if (!ownerAddress) throw new Error('No wallet connected')
-
-			const tokenAccounts = await getTokenAccounts(connection, ownerAddress)
-			const lpTokenData = await Promise.all(
-				tokenAccounts.map(async (account) => {
-					const mintKey = new PublicKey(account.mintAddress)
-					return await getLPTokenData(connection, mintKey)
-				})
-			)
-
-			const filteredLPTokenData = lpTokenData.filter(
-				(token): token is TGetTokenDataResponse => token !== null
-			)
-
-			return {
-				message: `Successfully get LP tokens with address ${ownerAddress.toBase58()}`,
-				data: filteredLPTokenData
-			}
-		},
-		enabled: !!ownerAddress,
-		staleTime: 30000, // 30 seconds
-		gcTime: 5 * 60 * 1000 // 5 minutes
 	})
 }
