@@ -174,9 +174,14 @@ export const useGetMultipleTokenPrices = ({
 		queries: coinGeckoIds.map((id) => ({
 			queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_PRICE_BY_COIN_GECKO_ID, id],
 			queryFn: async () => {
-				if (!id) return 0
-				const tokenPriceRes = await getTokenPriceByCoinGeckoId(id)
-				return tokenPriceRes[id].usd
+				try {
+					if (!id) return 0
+					const tokenPriceRes = await getTokenPriceByCoinGeckoId(id)
+					return tokenPriceRes[id]?.usd ?? 0 // ✅ fallback if missing
+				} catch (e) {
+					console.warn(`Failed to fetch price for ${id}, defaulting to 0`)
+					return 0 // ✅ ensure query resolves, not rejects
+				}
 			},
 			enabled: !!id,
 			refetchInterval: 300000,

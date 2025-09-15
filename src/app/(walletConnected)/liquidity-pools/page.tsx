@@ -2,8 +2,7 @@
 
 import { Loader2, Plus } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 
 import { NoBalanceAlert } from '@/components/common/Alert'
@@ -65,6 +64,10 @@ export default function LiquidityPools() {
 	const getBalanceQuery = useGetBBABalance()
 	const { openErrorDialog } = useErrorDialog()
 	const isMobile = useIsMobile()
+
+	useEffect(() => {
+		if (getPoolsQuery.isSuccess && getPoolsQuery.data) console.log(getPoolsQuery.data?.data)
+	}, [getPoolsQuery.data, getPoolsQuery.isSuccess])
 
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const allPoolsData = getPoolsQuery.data ? formatOnchainPoolsForUI(getPoolsQuery.data.data) : []

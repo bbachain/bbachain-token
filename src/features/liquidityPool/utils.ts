@@ -235,7 +235,10 @@ export async function processPoolAccount(
 	connection: Connection,
 	pubkey: PublicKey,
 	accountData: Buffer
-): Promise<Omit<TOnchainPoolData, 'tvl' | 'volume24h' | 'fees24h' | 'apr24h'> | null> {
+): Promise<Omit<
+	TOnchainPoolData,
+	'mintAPrice' | 'mintBPrice' | 'tvl' | 'volume24h' | 'fees24h' | 'apr24h'
+> | null> {
 	try {
 		// Parse the raw swap data
 		const parsedData = parsePoolData(pubkey, accountData)

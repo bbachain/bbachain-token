@@ -1,5 +1,6 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -25,7 +26,8 @@ import { TransactionDataTable } from '@/features/liquidityPool/components/Transa
 import {
 	useGetPoolById,
 	useGetTransactionsByPoolId,
-	useGetUserPoolStats
+	useGetUserPoolStats,
+	useReversePool
 } from '@/features/liquidityPool/services'
 import { useIsMobile } from '@/hooks/isMobile'
 import { formatTokenBalance } from '@/lib/token'
@@ -126,20 +128,21 @@ function StatsItem({
 	)
 }
 
+const tabsTriggerClass =
+	'flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal data-[state=active]:bg-main-green hover:bg-main-green data-[state=active]:text-main-white data-[state=inactive]:text-box hover:!text-main-white'
+
 export default function PoolDetail({ params }: { params: { poolId: string } }) {
+	const { publicKey: ownerAddress } = useWallet()
 	const router = useRouter()
 	const poolId = params.poolId
 
-	const [isReversed, setIsReversed] = useState<boolean>(false)
 	const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true)
+	const [isOwnerTab, setIsOwnerTab] = useState<boolean>(false)
 	const isMobile = useIsMobile()
 
-	const onReverse = () => {
-		setIsReversed((prev) => !prev)
-	}
-
-	const getPoolById = useGetPoolById({ poolId, isReversed })
+	const getPoolById = useGetPoolById({ poolId })
 	const pool = getPoolById?.data?.data
+	const onReversePoolMutation = useReversePool()
 
 	const getTransactionsByPoolId = useGetTransactionsByPoolId({ pool })
 	const transactions = getTransactionsByPoolId?.data?.data ?? []
@@ -147,9 +150,6 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		pool?.mintA?.symbol ?? '',
 		pool?.mintB?.symbol ?? ''
 	)
-
-	const getUserStats = useGetUserPoolStats({ pool })
-	const userStats = getUserStats.data?.data
 
 	const mintAAmount = formatTokenBalance(
 		Number(pool?.reserveA ?? 0),
@@ -159,6 +159,15 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		Number(pool?.reserveB ?? 0),
 		Number(pool?.mintB?.decimals ?? 0)
 	)
+
+	// owner spesific data by address
+	const ownerTransactions = ownerAddress
+		? transactions.filter((tx) => tx.ownerAddress === ownerAddress.toBase58())
+		: []
+	const getUserStats = useGetUserPoolStats({ pool })
+	const userStats = getUserStats.data?.data
+
+	const onReverse = () => onReversePoolMutation.mutate(pool)
 
 	useEffect(() => {
 		if (getTransactionsByPoolId.isSuccess) {
@@ -269,28 +278,15 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				</section>
 			</div>
 			<div className="bg-box-3 mt-6 md:p-6 p-3 rounded-[8px]">
-				<Tabs defaultValue="pool-stats">
+				<Tabs
+					defaultValue="pool-stats"
+					onValueChange={(value) => setIsOwnerTab(value === 'my-stats')}
+				>
 					<TabsList className="flex md:w-40 w-full mb-[18px] rounded-md bg-light-grey !p-0">
-						<TabsTrigger
-							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
-               data-[state=active]:bg-main-green
-			   hover:bg-main-green 
-               data-[state=active]:text-main-white
-			   data-[state=inactive]:text-box
-			   hover:!text-main-white"
-							value="pool-stats"
-						>
+						<TabsTrigger className={tabsTriggerClass} value="pool-stats">
 							Pool Stats
 						</TabsTrigger>
-						<TabsTrigger
-							className="flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal 
-               data-[state=active]:bg-main-green
-			   hover:bg-main-green 
-               data-[state=active]:text-main-white
-			   data-[state=inactive]:text-box
-			   hover:!text-main-white"
-							value="my-stats"
-						>
+						<TabsTrigger className={tabsTriggerClass} value="my-stats">
 							My Stats
 						</TabsTrigger>
 					</TabsList>
@@ -449,7 +445,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								isLoading={getUserStats.isLoading}
 								title="My Pool Share (%)"
 								info="This is the percentage of the total liquidity pool that you currently own."
-								content={`${userStats?.userShare.toFixed(2) ?? 0}%`}
+								content={`${((userStats?.userShare ?? 0) * 100).toFixed(2)}%`}
 							/>
 							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
 							<StatsItem
@@ -481,7 +477,10 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				{getTransactionsByPoolId.isLoading ? (
 					<PoolDetailTransactionSkeleton />
 				) : (
-					<TransactionDataTable columns={transactionColumn} data={transactions} />
+					<TransactionDataTable
+						columns={transactionColumn}
+						data={isOwnerTab ? ownerTransactions : transactions}
+					/>
 				)}
 			</div>
 		</div>

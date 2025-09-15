@@ -36,6 +36,8 @@ export type TOnchainPoolData = {
 	swapData: RawTokenSwap
 	mintA: MintInfo
 	mintB: MintInfo
+	mintAPrice: number
+	mintBPrice: number
 	tokenAccountA: string
 	tokenAccountB: string
 	reserveA: bigint
@@ -119,6 +121,8 @@ export type TFormattedTransactionData = {
 	transactionType: TransactionType
 	mintA: MintInfo
 	mintB: MintInfo
+	mintADelta: number
+	mintBDelta: number
 	mintAAmount: number
 	mintBAmount: number
 	mintAAmountPrice: number

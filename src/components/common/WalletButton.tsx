@@ -14,7 +14,7 @@ import { useWalletListDialog } from '@/stores/walletDialog'
 
 function BalanceValue() {
 	const getBalanceQuery = useGetBBABalance()
-	const balance = getBalanceQuery.data ? getBBAFromDaltons(getBalanceQuery.data) : '...'
+	const balance = getBalanceQuery.data ? getBBAFromDaltons(getBalanceQuery.data).toFixed(4) : '...'
 	return (
 		<div className="bg-light-green px-[5px] rounded-[6px]">
 			<h4 className="text-[#333333] text-sm">{balance} BBA</h4>

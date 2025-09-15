@@ -24,6 +24,10 @@ export type TransactionListProps = TFormattedTransactionData
 
 const typeOptions: TypeValue[] = ['BUY', 'SELL', 'ADD', 'REMOVE', 'UNKNOWN']
 
+function hasAccessorKey<T>(col: ColumnDef<T>): col is ColumnDef<T> & { accessorKey: string } {
+	return 'accessorKey' in col
+}
+
 function TypeDisplay({ baseTokenSymbol, typeValue }: TypeDisplayProps) {
 	const typeConfig: Record<TypeValue, { text: (token: string) => string; className: string }> = {
 		BUY: {
@@ -103,52 +107,66 @@ function SelectTypePopover({ value = [], onChange }: SelectTypePopoverProps) {
 export const getTransactionListColumns = (
 	baseTokenSymbol: string,
 	quoteTokenSymbol: string
-): ColumnDef<TransactionListProps>[] => [
-	{
-		accessorKey: 'time',
-		header: () => <h3 className="pl-4">Time</h3>
-	},
-	{
-		accessorKey: 'transactionType',
-		header: ({ column }) => (
-			<SelectTypePopover
-				value={column.getFilterValue() as TypeValue[]}
-				onChange={(val) => column.setFilterValue(val)}
-			/>
-		),
-		cell: ({ row }) => (
-			<TypeDisplay
-				baseTokenSymbol={row.original.mintA.name}
-				typeValue={row.getValue('transactionType')}
-			/>
-		),
-		filterFn: (row, columnId, filterValue: TypeValue[]) => {
-			if (!filterValue?.length) return true
-			return filterValue.includes(row.getValue(columnId))
+): ColumnDef<TransactionListProps>[] => {
+	const columns: ColumnDef<TransactionListProps>[] = [
+		{
+			accessorKey: 'time',
+			header: () => <h3 className="pl-4">Time</h3>
 		},
-		enableColumnFilter: true
-	},
-	{
-		accessorKey: 'mintAAmount',
-		header: baseTokenSymbol,
-		cell: ({ row }) => <p>{row.original.mintAAmount.toLocaleString()}</p>
-	},
-	{
-		accessorKey: 'mintBAmount',
-		header: quoteTokenSymbol,
-		cell: ({ row }) => <p>{row.original.mintAAmount.toLocaleString()}</p>
-	},
-	{
-		accessorKey: 'mintAAmountPrice',
-		header: `${baseTokenSymbol} in USDT`,
-		cell: ({ row }) => <p>${row.original.mintAAmountPrice.toLocaleString()}</p>
-	},
-	{
-		accessorKey: 'mintBAmountPrice',
-		header: `${quoteTokenSymbol} in USDT`,
-		cell: ({ row }) => <p>${row.original.mintBAmountPrice.toLocaleString()}</p>
-	},
-	{
+		{
+			accessorKey: 'transactionType',
+			header: ({ column }) => (
+				<SelectTypePopover
+					value={column.getFilterValue() as TypeValue[]}
+					onChange={(val) => column.setFilterValue(val)}
+				/>
+			),
+			cell: ({ row }) => (
+				<TypeDisplay
+					baseTokenSymbol={row.original.mintA.name}
+					typeValue={row.getValue('transactionType')}
+				/>
+			),
+			filterFn: (row, columnId, filterValue: TypeValue[]) => {
+				if (!filterValue?.length) return true
+				return filterValue.includes(row.getValue(columnId))
+			},
+			enableColumnFilter: true
+		},
+		{
+			accessorKey: 'mintAAmount',
+			header: baseTokenSymbol,
+			cell: ({ row }) => <p>{row.original.mintAAmount.toLocaleString()}</p>
+		},
+		{
+			accessorKey: 'mintBAmount',
+			header: quoteTokenSymbol,
+			cell: ({ row }) => <p>{row.original.mintBAmount.toLocaleString()}</p>
+		}
+	]
+
+	if (baseTokenSymbol !== 'USDT') {
+		const index = columns.findIndex((c) => hasAccessorKey(c) && c.accessorKey === 'mintBAmount')
+		columns.splice(index + 1, 0, {
+			accessorKey: 'mintAAmountPrice',
+			header: `${baseTokenSymbol} in USDT`,
+			cell: ({ row }) => <p>${row.original.mintAAmountPrice.toLocaleString()}</p>
+		})
+	}
+
+	if (quoteTokenSymbol !== 'USDT') {
+		const index = columns.findIndex(
+			(c) => hasAccessorKey(c) && c.accessorKey === 'mintAAmountPrice'
+		)
+		const insertIndex = index >= 0 ? index + 1 : columns.length
+		columns.splice(insertIndex, 0, {
+			accessorKey: 'mintBAmountPrice',
+			header: `${quoteTokenSymbol} in USDT`,
+			cell: ({ row }) => <p>${row.original.mintBAmountPrice.toLocaleString()}</p>
+		})
+	}
+
+	columns.push({
 		accessorKey: 'ownerAddress',
 		header: () => <h3 className="pr-6 text-right">Wallet</h3>,
 		cell: ({ row }) => (
@@ -161,5 +179,7 @@ export const getTransactionListColumns = (
 				{shortenAddress(row.original.ownerAddress)}
 			</a>
 		)
-	}
-]
+	})
+
+	return columns
+}

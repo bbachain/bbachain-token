@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import BN from 'bn.js'
 import moment from 'moment'
+import { useEffect } from 'react'
 
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
@@ -58,6 +59,7 @@ import {
 	useGetMultipleTokenPrices,
 	useGetTokenPriceByCoinGeckoId
 } from '@/features/tokens/services'
+import { getTokenPriceByCoinGeckoId } from '@/features/tokens/utils'
 import {
 	formatTokenToDaltons,
 	getBBAFromDaltons,
@@ -67,10 +69,11 @@ import {
 	formatTokenBalance
 } from '@/lib/token'
 import { confirmTransactionWithTimeout, sendTransactionWithRetry } from '@/lib/wallet'
+import { TSuccessMessage } from '@/types'
 
 export const useGetPools = () => {
 	const { connection } = useConnection()
-	const poolsQuery = useQuery({
+	return useQuery<TGetPoolsResponse>({
 		queryKey: [SERVICES_KEY.POOL.GET_POOLS],
 		queryFn: async () => {
 			const poolAccounts = await getPoolAccounts(connection)
@@ -85,106 +88,81 @@ export const useGetPools = () => {
 				pools.push(...(batchResults.filter(Boolean) as TOnchainPoolData[]))
 			}
 
-			return pools
-		}
-	})
+			const poolsWithPrices = await Promise.all(
+				pools.map(async (pool) => {
+					const mintACoinGeckoId = getCoinGeckoId(pool.mintA.address)
+					const mintBCoinGeckoId = getCoinGeckoId(pool.mintB.address)
 
-	const coinGeckoIds =
-		poolsQuery.data?.flatMap((pool) => [
-			getCoinGeckoId(pool.mintA.address),
-			getCoinGeckoId(pool.mintB.address)
-		]) ?? []
+					const [getMintAPrice, getMintBPrice] = await Promise.all([
+						mintACoinGeckoId && getTokenPriceByCoinGeckoId(mintACoinGeckoId),
+						mintBCoinGeckoId && getTokenPriceByCoinGeckoId(mintBCoinGeckoId)
+					])
 
-	const getMintPrices = useGetMultipleTokenPrices({ coinGeckoIds })
-	const poolsWithPriceQuery = useQuery<TGetPoolsResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOLS, 'WITH-PRICES', coinGeckoIds],
-		queryFn: async () => {
-			if (!poolsQuery.data) return { message: 'No pool found', data: [] }
+					const mintAPrice =
+						mintACoinGeckoId && getMintAPrice ? getMintAPrice?.[mintACoinGeckoId]?.usd : 0
+					const mintBPrice =
+						mintBCoinGeckoId && getMintBPrice ? getMintBPrice?.[mintBCoinGeckoId]?.usd : 0
 
-			const pools = poolsQuery.data.map((pool, i) => {
-				const mintAPrice = getMintPrices[i * 2]?.data ?? 0
-				const mintBPrice = getMintPrices[i * 2 + 1]?.data ?? 0
+					const tvl = calculateTVL(
+						pool.reserveA,
+						pool.reserveB,
+						pool.mintA,
+						pool.mintB,
+						mintAPrice,
+						mintBPrice
+					)
+					const metrics = calculatePoolMetrics(tvl, pool.feeRate)
 
-				const tvl = calculateTVL(
-					pool.reserveA,
-					pool.reserveB,
-					pool.mintA,
-					pool.mintB,
-					mintAPrice,
-					mintBPrice
-				)
-				const metrics = calculatePoolMetrics(tvl, pool.feeRate)
-
-				return { ...pool, tvl, ...metrics } satisfies TOnchainPoolData
-			})
-
-			return { message: `Successfully get ${pools.length} pools`, data: pools }
+					return { ...pool, mintAPrice, mintBPrice, tvl, ...metrics } satisfies TOnchainPoolData
+				})
+			)
+			return { message: 'Successfully get pools data', data: poolsWithPrices }
 		},
-		enabled: !!poolsQuery.data && getMintPrices.every((q) => q.isSuccess),
-		staleTime: 60000,
-		refetchInterval: 300000
+		refetchInterval: 300000,
+		staleTime: 60000
 	})
-
-	return poolsWithPriceQuery
 }
 
-export const useGetPoolById = ({
-	poolId,
-	isReversed
-}: {
-	poolId: string
-	isReversed?: boolean
-}) => {
+export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 	const { connection } = useConnection()
-
-	const poolQuery = useQuery({
-		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId, isReversed],
+	return useQuery<TGetPoolByIdResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId],
 		queryFn: async () => {
 			const pubKey = new PublicKey(poolId)
 			const accountInfo = await connection.getAccountInfo(pubKey)
-			if (!accountInfo) return null
+			if (!accountInfo) return { message: 'Pool no found', data: null }
 
 			const pool = await processPoolAccount(connection, pubKey, accountInfo.data)
-			if (!pool) return null
+			if (!pool) return { message: 'Pool no found', data: null }
 
-			return pool
-		}
-	})
+			const mintACoinGeckoId = getCoinGeckoId(pool?.mintA.address)
+			const mintBCoinGeckoId = getCoinGeckoId(pool?.mintB.address)
+			const [getMintAPrice, getMintBPrice] = await Promise.all([
+				mintACoinGeckoId && getTokenPriceByCoinGeckoId(mintACoinGeckoId),
+				mintBCoinGeckoId && getTokenPriceByCoinGeckoId(mintBCoinGeckoId)
+			])
+			const mintAPrice =
+				mintACoinGeckoId && getMintAPrice ? getMintAPrice?.[mintACoinGeckoId]?.usd : 0
+			const mintBPrice =
+				mintBCoinGeckoId && getMintBPrice ? getMintBPrice?.[mintBCoinGeckoId]?.usd : 0
 
-	const pool = poolQuery.data
-	const mintAAddress = isReversed ? pool?.mintB.address : pool?.mintA.address
-	const mintBAddress = isReversed ? pool?.mintA.address : pool?.mintB.address
-
-	const mintACoinGeckoId = getCoinGeckoId(mintAAddress ?? '')
-	const mintBCoinGeckoId = getCoinGeckoId(mintBAddress ?? '')
-
-	const getMintAPriceQuery = useGetTokenPriceByCoinGeckoId({ coinGeckoId: mintACoinGeckoId })
-	const getMintBPriceQuery = useGetTokenPriceByCoinGeckoId({ coinGeckoId: mintBCoinGeckoId })
-
-	const poolWithPriceQuery = useQuery<TGetPoolByIdResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, 'WITH-PRICE', poolId],
-		queryFn: async () => {
-			if (!pool) return { message: `No pool found with id ${poolId}`, data: null }
-
-			const mintA = isReversed ? pool?.mintB : pool?.mintA
-			const mintB = isReversed ? pool?.mintA : pool?.mintB
-			const reserveA = isReversed ? pool?.reserveB : pool?.reserveA
-			const reserveB = isReversed ? pool?.reserveA : pool?.reserveB
-			const mintAPrice = getMintAPriceQuery.data ?? 0
-			const mintBPrice = getMintBPriceQuery.data ?? 0
-
-			const tvl = calculateTVL(reserveA, reserveB, mintA, mintB, mintAPrice, mintBPrice)
-
+			const tvl = calculateTVL(
+				pool.reserveA,
+				pool.reserveB,
+				pool.mintA,
+				pool.mintB,
+				mintAPrice,
+				mintBPrice
+			)
 			const metrics = calculatePoolMetrics(tvl, pool.feeRate)
 
-			const data = { ...pool, tvl, ...metrics } satisfies TOnchainPoolData
+			const data: TOnchainPoolData = { ...pool, mintAPrice, mintBPrice, tvl, ...metrics }
 
 			return { message: `Successfully get pool data by id ${data.address}`, data }
 		},
-		enabled: !!pool && getMintAPriceQuery.isSuccess && getMintBPriceQuery.isSuccess
+		refetchInterval: 300000,
+		staleTime: 60000
 	})
-
-	return poolWithPriceQuery
 }
 
 // Enhanced pool statistics hook
@@ -227,14 +205,6 @@ export const useGetUserPoolStats = ({ pool }: { pool: TOnchainPoolData | null | 
 	const { connection } = useConnection()
 	const { publicKey: ownerAddress } = useWallet()
 
-	const mintACoinGeckoId = getCoinGeckoId(pool?.mintA.address ?? '')
-	const mintBCoinGeckoId = getCoinGeckoId(pool?.mintB.address ?? '')
-	const getMintAPriceQuery = useGetTokenPriceByCoinGeckoId({ coinGeckoId: mintACoinGeckoId })
-	const getMintBPriceQuery = useGetTokenPriceByCoinGeckoId({ coinGeckoId: mintBCoinGeckoId })
-
-	const mintAPrice = getMintAPriceQuery.data ?? 0
-	const mintBPrice = getMintBPriceQuery.data ?? 0
-
 	return useQuery<TGetUserPoolStatsResponse>({
 		queryKey: [SERVICES_KEY.POOL.GET_USER_POOL_STATS, pool?.address, ownerAddress?.toBase58()],
 		queryFn: async () => {
@@ -254,8 +224,9 @@ export const useGetUserPoolStats = ({ pool }: { pool: TOnchainPoolData | null | 
 			// value of how much user's reserves in this pool
 			const userReserveA = userShare * reserveA
 			const userReserveB = userShare * reserveB
-			const userReserveAPrice = userReserveA * mintAPrice
-			const userReserveBPrice = userReserveB * mintBPrice
+
+			const userReserveAPrice = userReserveA * pool.mintAPrice
+			const userReserveBPrice = userReserveB * pool.mintBPrice
 			const userReserveTotalPrice = userReserveAPrice + userReserveBPrice
 
 			// value of daily fees that user gets
@@ -276,7 +247,9 @@ export const useGetUserPoolStats = ({ pool }: { pool: TOnchainPoolData | null | 
 				data
 			}
 		},
-		enabled: !!pool
+		enabled: !!pool,
+		refetchInterval: 300000,
+		staleTime: 60000
 	})
 }
 
@@ -326,24 +299,15 @@ export const useGetTransactionsByPoolId = ({
 	pool
 }: {
 	pool: TOnchainPoolData | null | undefined
-}) => {
-	const { publicKey: ownerAddress } = useWallet()
-
-	const mintACoinGeckoId = getCoinGeckoId(pool?.mintA.address ?? '')
-	const mintBCoinGeckoId = getCoinGeckoId(pool?.mintB.address ?? '')
-	const getMintAPriceQuery = useGetTokenPriceByCoinGeckoId({ coinGeckoId: mintACoinGeckoId })
-	const getMintBPriceQuery = useGetTokenPriceByCoinGeckoId({ coinGeckoId: mintBCoinGeckoId })
-
-	const mintAPrice = getMintAPriceQuery.data ?? 0
-	const mintBPrice = getMintBPriceQuery.data ?? 0
-
-	return useQuery<TGetPoolTransactionResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, pool?.address, ownerAddress],
+}) =>
+	useQuery<TGetPoolTransactionResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, pool?.address],
 		queryFn: async () => {
 			if (!pool) return { message: 'No pool transactions found', data: [] }
 			try {
 				const { data } = await axios.get(`${ENDPOINTS.BBASCAN.GET_DATA_BY_ADDRESS}/${pool.address}`)
 				const transactionData = data.transactions as TransactionData[]
+
 				const responseData = transactionData
 					.map((tx) => {
 						const wallet = getSignerWallet(tx)
@@ -379,8 +343,9 @@ export const useGetTransactionsByPoolId = ({
 
 						const mintAAmount = Math.abs(mintADelta)
 						const mintBAmount = Math.abs(mintBDelta)
-						const mintAAmountPrice = mintAAmount * mintAPrice
-						const mintBAmountPrice = mintBAmount * mintBPrice
+
+						const mintAAmountPrice = mintAAmount * pool.mintAPrice
+						const mintBAmountPrice = mintBAmount * pool.mintBPrice
 
 						return {
 							ownerAddress: wallet,
@@ -388,6 +353,8 @@ export const useGetTransactionsByPoolId = ({
 							transactionType: type,
 							mintA: pool.mintA,
 							mintB: pool.mintB,
+							mintADelta,
+							mintBDelta,
 							mintAAmount,
 							mintBAmount,
 							mintAAmountPrice,
@@ -400,6 +367,83 @@ export const useGetTransactionsByPoolId = ({
 				console.error('Failed to fetch transactions:', e)
 				return { message: 'Failed to fetch transactions', data: [] }
 			}
+		},
+		refetchInterval: 300000,
+		staleTime: 60000
+	})
+
+export const useReversePool = () => {
+	const queryClient = useQueryClient()
+	const { publicKey: ownerAddress } = useWallet()
+	return useMutation<TSuccessMessage, Error, TOnchainPoolData | null | undefined>({
+		mutationKey: [SERVICES_KEY.POOL.ON_REVERSE_POOL],
+		mutationFn: async (payload) => {
+			const pool = payload
+			if (!pool) throw new Error('No pool found')
+
+			// reverse pool detail by id
+			queryClient.setQueryData<TGetPoolByIdResponse>(
+				[SERVICES_KEY.POOL.GET_POOL_BY_ID, pool.address],
+				(oldData) => {
+					if (!oldData?.data) return oldData
+					const basePool = oldData.data
+					const reversedPool: TOnchainPoolData = {
+						...basePool,
+						mintA: basePool.mintB,
+						mintB: basePool.mintA,
+						mintAPrice: basePool.mintBPrice,
+						mintBPrice: basePool.mintAPrice,
+						reserveA: basePool.reserveB,
+						reserveB: basePool.reserveA
+					}
+
+					return { ...oldData, data: reversedPool }
+				}
+			)
+
+			// reverse transactions by pool id
+			queryClient.setQueryData<TGetPoolTransactionResponse>(
+				[SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, pool.address],
+				(oldData) => {
+					if (!oldData?.data) return oldData
+					const baseTransaction = oldData.data
+					const reverseBaseTransaction = baseTransaction?.map((tx) => {
+						const type = classifyType(tx.mintBDelta, tx.mintADelta)
+						const reversed: TFormattedTransactionData = {
+							...tx,
+							mintA: tx.mintB,
+							mintB: tx.mintA,
+							mintADelta: tx.mintBDelta,
+							mintBDelta: tx.mintADelta,
+							mintAAmount: tx.mintBAmount,
+							mintBAmount: tx.mintAAmount,
+							mintAAmountPrice: tx.mintBAmountPrice,
+							mintBAmountPrice: tx.mintAAmountPrice,
+							transactionType: type
+						}
+						return reversed
+					})
+					return { ...oldData, data: reverseBaseTransaction }
+				}
+			)
+
+			// reverse user stats
+			queryClient.setQueryData<TGetUserPoolStatsResponse>(
+				[SERVICES_KEY.POOL.GET_USER_POOL_STATS, pool.address, ownerAddress?.toBase58()],
+				(oldData) => {
+					if (!oldData?.data) return oldData
+					const baseUserStats = oldData.data
+
+					const reversedUserStats: TUserPoolStatsData = {
+						...baseUserStats,
+						userReserveA: baseUserStats.userReserveB,
+						userReserveB: baseUserStats.userReserveA
+					}
+
+					return { ...oldData, data: reversedUserStats }
+				}
+			)
+			return { message: 'Successfully reverse pool' }
 		}
 	})
 }

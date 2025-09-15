@@ -51,6 +51,7 @@ const POOL_SERVICE_KEY = {
 	GET_USER_POOL_STATS: 'get-user-pool-stats',
 	GET_POOLS_SYNC: 'get-pool-sync',
 	GET_TRANSACTIONS_BY_POOL_ID: 'get-transations-by-pool-id',
+	ON_REVERSE_POOL: 'on-reverse-pool',
 	DEPOSIT_LIQUIDITY: 'deposit-liquidity'
 } as const
 
