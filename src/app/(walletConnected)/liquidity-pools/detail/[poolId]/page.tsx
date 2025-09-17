@@ -215,68 +215,84 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 				<HiOutlineArrowNarrowLeft />
 				<h4>Pools</h4>
 			</Button>
-			<div className="flex md:flex-row flex-col md:space-y-0 space-y-6 justify-between md:items-center">
-				<section className="flex space-x-3 items-center">
-					<section className="flex items-center flex-shrink-0 relative">
-						<Image
-							src={pool?.mintA?.logoURI ?? '/icon-placeholder.svg'}
-							width={isMobile ? 24 : 28}
-							height={isMobile ? 24 : 28}
-							className="rounded-full relative"
-							alt={`${pool?.mintA?.name} icon`}
-							onError={(e) => {
-								e.currentTarget.src = '/icon-placeholder.svg'
-							}}
-						/>
-						<Image
-							src={pool?.mintB?.logoURI ?? '/icon-placeholder.svg'}
-							width={isMobile ? 24 : 28}
-							height={isMobile ? 24 : 28}
-							className="rounded-full relative -ml-2"
-							alt={`${pool?.mintB?.name} icon`}
-							onError={(e) => {
-								e.currentTarget.src = '/icon-placeholder.svg'
-							}}
-						/>
-						<h4 className="md:text-2xl text-xl text-main-black">{`${pool?.mintA?.symbol}-${pool?.mintB?.symbol}`}</h4>
+			{getPoolById.isLoading ? (
+				<div className="flex flex-wrap items-center justify-between gap-4">
+					<div className="flex items-center gap-2">
+						<Skeleton className="h-7 w-7 rounded-full" />
+						<Skeleton className="h-7 w-7 rounded-full -ml-4" />
+						<Skeleton className="h-7 w-32" />
+						<Skeleton className="h-7 w-12 rounded-md" />
+					</div>
+					<div className="flex items-center gap-2">
+						<Skeleton className="h-10 w-28 rounded-full" />
+						<Skeleton className="h-10 w-44 rounded-full" />
+					</div>
+				</div>
+			) : (
+				<div className="flex md:flex-row flex-col md:space-y-0 space-y-6 justify-between md:items-center">
+					<section className="flex space-x-3 items-center">
+						<section className="flex items-center flex-shrink-0 relative">
+							<Image
+								src={pool?.mintA?.logoURI ?? '/icon-placeholder.svg'}
+								width={isMobile ? 24 : 28}
+								height={isMobile ? 24 : 28}
+								className="rounded-full relative"
+								alt={`${pool?.mintA?.name} icon`}
+								onError={(e) => {
+									e.currentTarget.src = '/icon-placeholder.svg'
+								}}
+							/>
+							<Image
+								src={pool?.mintB?.logoURI ?? '/icon-placeholder.svg'}
+								width={isMobile ? 24 : 28}
+								height={isMobile ? 24 : 28}
+								className="rounded-full relative -ml-2"
+								alt={`${pool?.mintB?.name} icon`}
+								onError={(e) => {
+									e.currentTarget.src = '/icon-placeholder.svg'
+								}}
+							/>
+							<h4 className="md:text-2xl text-xl text-main-black">{`${pool?.mintA?.symbol}-${pool?.mintB?.symbol}`}</h4>
+						</section>
+						<section className="flex items-center gap-1">
+							<p
+								className={cn(
+									'text-xs text-center text-dark-grey px-1.5 py-0.5 rounded font-medium',
+									getFeeTierColor(pool?.feeRate ?? 0)
+								)}
+							>
+								{(pool?.feeRate ?? 0 * 100).toFixed(2)}%
+							</p>
+						</section>
+						<Button size="icon" type="button" variant="ghost" onClick={onReverse}>
+							<LuArrowUpDown />
+						</Button>
 					</section>
-					<section className="flex items-center gap-1">
-						<p
+					<section className="flex space-x-2.5 items-center">
+						<Link
+							href={`/swap?from=${pool?.mintA?.address}&to=${pool?.mintB?.address}`}
 							className={cn(
-								'text-xs text-center text-dark-grey px-1.5 py-0.5 rounded font-medium',
-								getFeeTierColor(pool?.feeRate ?? 0)
+								buttonVariants({ size: 'lg', variant: 'outline' }),
+								'border-main-green hover:text-hover-green px-6 py-3 text-main-green font-medium text-lg rounded-[26px]'
 							)}
 						>
-							{(pool?.feeRate ?? 0 * 100).toFixed(2)}%
-						</p>
+							<IoIosSwap />
+							Swap
+						</Link>
+						<Link
+							href={`/liquidity-pools/deposit/${poolId}`}
+							className={cn(
+								buttonVariants({ size: 'lg', variant: 'default' }),
+								'bg-main-green hover:bg-hover-green px-6 py-3 text-main-white font-medium text-lg rounded-[26px]'
+							)}
+						>
+							<IoAdd />
+							Add Liquidity
+						</Link>
 					</section>
-					<Button size="icon" type="button" variant="ghost" onClick={onReverse}>
-						<LuArrowUpDown />
-					</Button>
-				</section>
-				<section className="flex space-x-2.5 items-center">
-					<Link
-						href={`/swap?from=${pool?.mintA?.address}&to=${pool?.mintB?.address}`}
-						className={cn(
-							buttonVariants({ size: 'lg', variant: 'outline' }),
-							'border-main-green hover:text-hover-green px-6 py-3 text-main-green font-medium text-lg rounded-[26px]'
-						)}
-					>
-						<IoIosSwap />
-						Swap
-					</Link>
-					<Link
-						href={`/liquidity-pools/deposit/${poolId}`}
-						className={cn(
-							buttonVariants({ size: 'lg', variant: 'default' }),
-							'bg-main-green hover:bg-hover-green px-6 py-3 text-main-white font-medium text-lg rounded-[26px]'
-						)}
-					>
-						<IoAdd />
-						Add Liquidity
-					</Link>
-				</section>
-			</div>
+				</div>
+			)}
+
 			<div className="bg-box-3 mt-6 md:p-6 p-3 rounded-[8px]">
 				<Tabs
 					defaultValue="pool-stats"

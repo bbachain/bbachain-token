@@ -36,7 +36,9 @@ import {
 	TUpdateTokenMetadataResponse,
 	TBurnTokenPayload,
 	TMintTokenPayload,
-	TGetTradeableTokenResponse
+	TGetTradeableTokenResponse,
+	TExtendedTradeableTokenProps,
+	TGetAllTokenPrices
 } from '@/features/tokens/types'
 import {
 	getTokenData,
@@ -155,17 +157,22 @@ export const useGetTokenPriceByCoinGeckoId = ({ coinGeckoId }: { coinGeckoId?: s
 		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_PRICE_BY_COIN_GECKO_ID, coinGeckoId],
 		queryFn: async () => {
 			if (!coinGeckoId) return 0
-			const tokenPriceRes = await getTokenPriceByCoinGeckoId(coinGeckoId)
-			const usdRate = tokenPriceRes[coinGeckoId].usd
-			return usdRate
+			try {
+				const tokenPriceRes = await getTokenPriceByCoinGeckoId(coinGeckoId)
+				const usdRate = tokenPriceRes[coinGeckoId].usd
+				return usdRate
+			} catch (e) {
+				console.error('failed to get price ', e)
+				return 0
+			}
 		},
-		enabled: !!coinGeckoId,
-		refetchInterval: 300000,
-		staleTime: 60000
+		refetchInterval: 1000 * 60,
+		staleTime: 1000 * 60,
+		meta: { persist: true }
 	})
 }
 
-export const useGetMultipleTokenPrices = ({
+export const useGetMultipleTokenPricesByCoinGeckoIds = ({
 	coinGeckoIds
 }: {
 	coinGeckoIds: (string | undefined)[]
@@ -189,6 +196,35 @@ export const useGetMultipleTokenPrices = ({
 		}))
 	})
 }
+
+// really useful to prevent coin gecko api price from 429 too many requests
+export const useGetAllTokenPrices = () =>
+	useQuery<TGetAllTokenPrices>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_ALL_TOKEN_PRICES],
+		queryFn: async () => {
+			const getTradeableTokens = await axios.get(ENDPOINTS.API.GET_TRADEABLE_TOKENS)
+			const tradeableTokens = getTradeableTokens.data.data as TExtendedTradeableTokenProps[]
+			const filteredTokens = tradeableTokens.filter((token) => !token.isNative)
+
+			const tradeableTokensWithPrices = await Promise.all(
+				filteredTokens.map(async (token) => {
+					if (!token.coinGeckoId) return { [token.symbol]: 0 }
+					const getPrice = await getTokenPriceByCoinGeckoId(token.coinGeckoId)
+					const price = getPrice[token.coinGeckoId].usd
+					return { [token.symbol]: price }
+				})
+			)
+
+			const prices = tradeableTokensWithPrices.reduce<Record<string, number>>(
+				(acc, curr) => ({ ...acc, ...curr }),
+				{}
+			)
+
+			return prices
+		},
+		meta: { persist: true },
+		refetchInterval: 1000 * 60
+	})
 
 export const useCreateToken = () => {
 	const { connection } = useConnection()

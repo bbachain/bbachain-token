@@ -1,6 +1,9 @@
 import { NATIVE_MINT } from '@bbachain/spl-token'
+import { PublicKey } from '@bbachain/web3.js'
 
 import { type TExtendedTradeableTokenProps } from '@/features/tokens/types'
+
+export const USDT_MINT = new PublicKey('C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf')
 
 const StaticTradeableTokens: TExtendedTradeableTokenProps[] = [
 	{
@@ -27,7 +30,7 @@ const StaticTradeableTokens: TExtendedTradeableTokenProps[] = [
 		name: 'Tether USD',
 		symbol: 'USDT',
 		coinGeckoId: 'tether',
-		address: 'C5CpKwRY2Q5kPYhx78XimCg2eRT3YUgPFAoocFF7Vgf',
+		address: USDT_MINT.toBase58(),
 		logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
 		decimals: 6,
 		isNative: false,

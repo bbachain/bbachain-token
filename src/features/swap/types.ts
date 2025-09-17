@@ -66,9 +66,14 @@ export type TGetSwapRoutePayload = {
 	outputMint: string
 }
 
-export type TCanSwapPayload = TGetSwapRoutePayload
+export type TCanSwapPayload = {
+	pool: TOnchainPoolData | undefined
+	inputMint: string
+	outputMint: string
+}
 
 export type TGetSwapQuotePayload = {
+	pool: TOnchainPoolData | undefined
 	inputMint: string
 	outputMint: string
 	inputAmount: string
@@ -96,11 +101,11 @@ export type TGetSwapRouteResponse = {
 }
 
 export type TExecuteSwapPayload = {
+	pool: TOnchainPoolData | undefined
 	inputMint: string
 	outputMint: string
 	inputAmount: string
 	slippage: number
-	poolAddress: string
 }
 
 export type TExecuteSwapResponseData = {

@@ -79,6 +79,10 @@ export type TGetTokenPriceByCoinGeckoIdData = {
 	}
 }
 
+export type TGetAllTokenPrices = {
+	[key: string]: number
+}
+
 export type TGetTradeableTokenResponse = TSuccessMessage & {
 	data: TExtendedTradeableTokenProps[]
 }

@@ -18,6 +18,7 @@ const TOKEN_SERVICE_KEY = {
 	GET_TRADEABLE_TOKEN: 'get-tradeable-token',
 	GET_LP_TOKEN: 'get-lp-token',
 	GET_TOKEN_PRICE_BY_COIN_GECKO_ID: 'get-token-price-by-coin-gecko-id',
+	GET_ALL_TOKEN_PRICES: 'get-all-token-prices',
 	UPDATE_TOKEN_METADATA: 'update-token-metadata',
 	REVOKE_FREEZE: 'revoke-freeze',
 	REVOKE_MINT: 'revoke-mint',

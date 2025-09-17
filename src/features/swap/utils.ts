@@ -25,7 +25,6 @@ export function calculateOutputAmount(
 	// Constant product formula: (x + dx) * (y - dy) = x * y
 	// Solving for dy: dy = (y * dx) / (x + dx)
 	const outputAmount = (outputReserve * inputAmountWithFee) / (inputReserve + inputAmountWithFee)
-
 	const result = Math.max(0, outputAmount)
 
 	return result
@@ -72,16 +71,24 @@ export function findBestPool(
 	inputMint: string,
 	outputMint: string
 ): TOnchainPoolData | null {
-	const availablePools = pools.filter((pool) => {
-		const hasInputToken = pool.mintA.address === inputMint || pool.mintB.address === inputMint
-		const hasOutputToken = pool.mintA.address === outputMint || pool.mintB.address === outputMint
-		return hasInputToken && hasOutputToken && pool.tvl > 0
-	})
+	const availablePools = pools
+		.filter((pool) => {
+			const hasInputToken = pool.mintA.address === inputMint || pool.mintB.address === inputMint
+			const hasOutputToken = pool.mintA.address === outputMint || pool.mintB.address === outputMint
+			return hasInputToken && hasOutputToken && pool.tvl > 0
+		})
+		.map((pool) => {
+			const tvlScore = pool.tvl
+			const feeScore = 1 - pool.feeRate
+			const volumeScore = pool.volume24h
+			// (50% tvl, 30% fee, 20% volume)
+			const score = tvlScore * 0.5 + feeScore * 0.3 + volumeScore * 0.2
+			return { ...pool, score }
+		})
 
 	if (availablePools.length === 0) return null
+	availablePools.sort((a, b) => b.score - a.score)
 
-	// Sort by TVL (Total Value Locked) to find the most liquid pool
-	availablePools.sort((a, b) => b.tvl - a.tvl)
-
+	// Return pool terbaik
 	return availablePools[0]
 }

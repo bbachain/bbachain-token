@@ -1,5 +1,4 @@
 import { useWallet } from '@bbachain/wallet-adapter-react'
-import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { CiWallet } from 'react-icons/ci'

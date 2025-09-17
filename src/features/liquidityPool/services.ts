@@ -22,7 +22,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import BN from 'bn.js'
 import moment from 'moment'
-import { useEffect } from 'react'
 
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
@@ -55,17 +54,12 @@ import {
 	isBBAPool,
 	getBBAPositionInPool
 } from '@/features/liquidityPool/utils'
-import {
-	useGetMultipleTokenPrices,
-	useGetTokenPriceByCoinGeckoId
-} from '@/features/tokens/services'
-import { getTokenPriceByCoinGeckoId } from '@/features/tokens/utils'
+import { useGetAllTokenPrices } from '@/features/tokens/services'
 import {
 	formatTokenToDaltons,
 	getBBAFromDaltons,
 	getDaltonsFromBBA,
 	isNativeBBA,
-	getCoinGeckoId,
 	formatTokenBalance
 } from '@/lib/token'
 import { confirmTransactionWithTimeout, sendTransactionWithRetry } from '@/lib/wallet'
@@ -73,8 +67,10 @@ import { TSuccessMessage } from '@/types'
 
 export const useGetPools = () => {
 	const { connection } = useConnection()
-	return useQuery<TGetPoolsResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOLS],
+	const getAllTokenPrices = useGetAllTokenPrices()
+	const allTokenPrices = getAllTokenPrices.data
+	const getPoolsWithPrices = useQuery<TGetPoolsResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOLS, allTokenPrices],
 		queryFn: async () => {
 			const poolAccounts = await getPoolAccounts(connection)
 			const batchSize = 10
@@ -90,18 +86,8 @@ export const useGetPools = () => {
 
 			const poolsWithPrices = await Promise.all(
 				pools.map(async (pool) => {
-					const mintACoinGeckoId = getCoinGeckoId(pool.mintA.address)
-					const mintBCoinGeckoId = getCoinGeckoId(pool.mintB.address)
-
-					const [getMintAPrice, getMintBPrice] = await Promise.all([
-						mintACoinGeckoId && getTokenPriceByCoinGeckoId(mintACoinGeckoId),
-						mintBCoinGeckoId && getTokenPriceByCoinGeckoId(mintBCoinGeckoId)
-					])
-
-					const mintAPrice =
-						mintACoinGeckoId && getMintAPrice ? getMintAPrice?.[mintACoinGeckoId]?.usd : 0
-					const mintBPrice =
-						mintBCoinGeckoId && getMintBPrice ? getMintBPrice?.[mintBCoinGeckoId]?.usd : 0
+					const mintAPrice = allTokenPrices ? allTokenPrices[pool.mintA.symbol] : 0
+					const mintBPrice = allTokenPrices ? allTokenPrices[pool.mintB.symbol] : 0
 
 					const tvl = calculateTVL(
 						pool.reserveA,
@@ -118,15 +104,24 @@ export const useGetPools = () => {
 			)
 			return { message: 'Successfully get pools data', data: poolsWithPrices }
 		},
+		enabled: !!allTokenPrices,
 		refetchInterval: 300000,
 		staleTime: 60000
 	})
+
+	return {
+		...getPoolsWithPrices,
+		isLoading: getAllTokenPrices.isLoading || getPoolsWithPrices.isLoading
+	}
 }
 
 export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 	const { connection } = useConnection()
-	return useQuery<TGetPoolByIdResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId],
+	const getAllTokenPrices = useGetAllTokenPrices()
+	const allTokenPrices = getAllTokenPrices.data
+
+	const getPoolWithPricesQuery = useQuery<TGetPoolByIdResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId, allTokenPrices],
 		queryFn: async () => {
 			const pubKey = new PublicKey(poolId)
 			const accountInfo = await connection.getAccountInfo(pubKey)
@@ -135,16 +130,8 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 			const pool = await processPoolAccount(connection, pubKey, accountInfo.data)
 			if (!pool) return { message: 'Pool no found', data: null }
 
-			const mintACoinGeckoId = getCoinGeckoId(pool?.mintA.address)
-			const mintBCoinGeckoId = getCoinGeckoId(pool?.mintB.address)
-			const [getMintAPrice, getMintBPrice] = await Promise.all([
-				mintACoinGeckoId && getTokenPriceByCoinGeckoId(mintACoinGeckoId),
-				mintBCoinGeckoId && getTokenPriceByCoinGeckoId(mintBCoinGeckoId)
-			])
-			const mintAPrice =
-				mintACoinGeckoId && getMintAPrice ? getMintAPrice?.[mintACoinGeckoId]?.usd : 0
-			const mintBPrice =
-				mintBCoinGeckoId && getMintBPrice ? getMintBPrice?.[mintBCoinGeckoId]?.usd : 0
+			const mintAPrice = allTokenPrices ? allTokenPrices[pool.mintA.symbol] : 0
+			const mintBPrice = allTokenPrices ? allTokenPrices[pool.mintB.symbol] : 0
 
 			const tvl = calculateTVL(
 				pool.reserveA,
@@ -160,9 +147,15 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 
 			return { message: `Successfully get pool data by id ${data.address}`, data }
 		},
+		enabled: !!allTokenPrices,
 		refetchInterval: 300000,
 		staleTime: 60000
 	})
+
+	return {
+		...getPoolWithPricesQuery,
+		isLoading: getAllTokenPrices.isLoading || getPoolWithPricesQuery.isLoading
+	}
 }
 
 // Enhanced pool statistics hook
@@ -382,8 +375,8 @@ export const useReversePool = () => {
 			if (!pool) throw new Error('No pool found')
 
 			// reverse pool detail by id
-			queryClient.setQueryData<TGetPoolByIdResponse>(
-				[SERVICES_KEY.POOL.GET_POOL_BY_ID, pool.address],
+			queryClient.setQueriesData<TGetPoolByIdResponse>(
+				{ queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, pool.address] },
 				(oldData) => {
 					if (!oldData?.data) return oldData
 					const basePool = oldData.data
