@@ -11,6 +11,8 @@ import { IoCheckmarkCircle } from 'react-icons/io5'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import DepositDetailSkeleton from '@/features/liquidityPool/components/DepositDetailSkeleton'
 import LPSlippageDialog from '@/features/liquidityPool/components/LPSlippageDialog'
 import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
 import {
@@ -25,7 +27,7 @@ import {
 } from '@/features/liquidityPool/utils'
 import SwapItem from '@/features/swap/components/SwapItem'
 import { useGetTokenPriceByCoinGeckoId } from '@/features/tokens/services'
-import { formatTokenBalance, formatTokenToDaltons, getCoinGeckoId } from '@/lib/token'
+import { formatTokenBalance, getCoinGeckoId } from '@/lib/token'
 import { cn } from '@/lib/utils'
 import { useGetTokenBalanceByMint } from '@/services/wallet'
 
@@ -72,14 +74,6 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 		mintAddress: poolDetailData?.mintB.address ?? ''
 	})
 
-	// Get token prices from CoinGecko
-	const getMintATokenPrice = useGetTokenPriceByCoinGeckoId({
-		coinGeckoId: getCoinGeckoId(poolDetailData?.mintA.address ?? '')
-	})
-	const getMintBTokenPrice = useGetTokenPriceByCoinGeckoId({
-		coinGeckoId: getCoinGeckoId(poolDetailData?.mintB.address ?? '')
-	})
-
 	// Convert balance from daltons to UI units using token decimals
 	const mintABalance = formatTokenBalance(
 		getMintABalance.data ?? 0,
@@ -91,12 +85,14 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 	)
 
 	// Get unit prices from CoinGecko API
-	const mintAUnitPrice = getMintATokenPrice.data ?? 0
-	const mintBUnitPrice = getMintBTokenPrice.data ?? 0
-
-	// Calculate total USD values for current input amounts
-	const baseTokenPrice = Number(fromAmount) > 0 ? Number(fromAmount) * mintAUnitPrice : 0
-	const quoteTokenPrice = Number(toAmount) > 0 ? Number(toAmount) * mintBUnitPrice : 0
+	const getMintACoinGeckoId = getCoinGeckoId(poolDetailData?.mintA.address ?? '')
+	const getMintBCoinGeckoId = getCoinGeckoId(poolDetailData?.mintB.address ?? '')
+	const getMintAPrice = useGetTokenPriceByCoinGeckoId({ coinGeckoId: getMintACoinGeckoId })
+	const getMintBPrice = useGetTokenPriceByCoinGeckoId({ coinGeckoId: getMintBCoinGeckoId })
+	const mintAPrice = getMintAPrice.data ?? 0
+	const mintBPrice = getMintBPrice.data ?? 0
+	const inputAmountPrice = mintAPrice * Number(fromAmount)
+	const outputAmountPrice = mintBPrice * Number(toAmount)
 
 	const depositMutation = useDepositToPool()
 
@@ -178,7 +174,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 				signature: result.data.signature,
 				amountA: fromAmount,
 				amountB: toAmount,
-				totalValue: (baseTokenPrice + quoteTokenPrice).toFixed(2)
+				totalValue: (inputAmountPrice + outputAmountPrice).toFixed(2)
 			})
 
 			setFromAmount('')
@@ -198,6 +194,8 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 			setIsSuccessDialogOpen(true)
 		}
 	}, [depositMutation.data, depositMutation.isSuccess])
+
+	if (getPoolByIdQuery.isLoading) return <DepositDetailSkeleton />
 
 	return (
 		<div className="w-full px-[15px]">
@@ -247,7 +245,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 								type="from"
 								tokenProps={poolDetailData?.mintA ?? initialTokeProps}
 								balance={userMintABalance}
-								price={mintAUnitPrice}
+								price={inputAmountPrice}
 								inputAmount={fromAmount}
 								setInputAmount={handleFromAmountChange}
 							/>
@@ -256,7 +254,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 								type="to"
 								tokenProps={poolDetailData?.mintB ?? initialTokeProps}
 								balance={userMintBBalance}
-								price={mintBUnitPrice}
+								price={outputAmountPrice}
 								inputAmount={toAmount}
 								setInputAmount={handleToAmountChange}
 							/>
@@ -285,7 +283,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						<div className="p-2.5 my-4 text-sm flex justify-between items-center w-full rounded-[10px] bg-light-blue">
 							<h5 className="font-medium text-main-blue text-xs">Total Deposit Value</h5>
 							<p className="font-semibold text-main-black text-xs">
-								${(baseTokenPrice + quoteTokenPrice).toFixed(2)}
+								${(inputAmountPrice + outputAmountPrice).toFixed(2)}
 							</p>
 						</div>
 
@@ -296,7 +294,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 								<span className="text-dark-grey">
 									~
 									{(
-										((baseTokenPrice + quoteTokenPrice) / (poolDetailData?.tvl || 1)) *
+										((inputAmountPrice + outputAmountPrice) / (poolDetailData?.tvl || 1)) *
 										100
 									).toFixed(4)}
 									%
@@ -401,15 +399,23 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 					</Card>
 					<Card className="md:w-80 w-full border-hover-green border-[1px] rounded-[12px] p-6 drop-shadow-lg">
 						<CardContent className="p-0 flex flex-col space-y-[18px]">
-							<div className="flex justify-between font-normal text-sm text-dark-grey">
+							<div className="flex justify-between items-center font-normal text-sm text-dark-grey">
 								<h4>My Position</h4>
-								<p>${userStatsData?.userReserveTotalPrice.toLocaleString()}</p>
+								{getUserPoolStats.isLoading ? (
+									<Skeleton className="h-4 w-12" />
+								) : (
+									<p>${userStatsData?.userReserveTotalPrice.toLocaleString()}</p>
+								)}
 							</div>
 							<div className="flex flex-col space-y-3 text-dark-grey">
 								<h3 className="text-main-black">LP Token Balances</h3>
-								<div className="flex justify-between">
+								<div className="flex items-center justify-between">
 									<h4>Staked/Unstaked</h4>
-									<p>{userStatsData?.userLPToken} LP</p>
+									{getUserPoolStats.isLoading ? (
+										<Skeleton className="h-4 w-12" />
+									) : (
+										<p>{userStatsData?.userLPToken} LP</p>
+									)}
 								</div>
 							</div>
 						</CardContent>

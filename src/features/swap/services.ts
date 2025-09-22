@@ -159,7 +159,8 @@ export const useCanSwap = ({ pool, inputMint, outputMint }: TCanSwapPayload) =>
 export const useGetSwapRoute = ({ inputMint, outputMint }: TGetSwapRoutePayload) => {
 	const getPoolsQuery = useGetPools()
 	const pools = getPoolsQuery.data?.data
-	return useQuery<TGetSwapRouteResponse | null>({
+
+	const getSwapRoute = useQuery<TGetSwapRouteResponse | null>({
 		queryKey: [
 			SERVICES_KEY.SWAP.GET_SWAP_ROUTE,
 			pools?.map((pool) => pool.address),
@@ -187,6 +188,12 @@ export const useGetSwapRoute = ({ inputMint, outputMint }: TGetSwapRoutePayload)
 		staleTime: 10000, // 10 seconds
 		refetchInterval: 15000 // Refresh every 15 seconds
 	})
+
+	return {
+		...getSwapRoute,
+		isLoading: getPoolsQuery.isLoading || getSwapRoute.isLoading,
+		isRefetching: getPoolsQuery.isRefetching || getSwapRoute.isRefetching
+	}
 }
 
 export const useExecuteSwap = () => {
