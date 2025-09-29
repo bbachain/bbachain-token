@@ -26,8 +26,39 @@ export function calculateOutputAmount(
 	// Solving for dy: dy = (y * dx) / (x + dx)
 	const outputAmount = (outputReserve * inputAmountWithFee) / (inputReserve + inputAmountWithFee)
 	const result = Math.max(0, outputAmount)
-
+	if (result >= outputReserve) throw new Error('Not enough liquidity for minimum output')
 	return result
+}
+
+/**
+ * Calculate required input amount to get a desired output
+ * using constant product formula (x * y = k)
+ * @param desiredOutput - Target output amount
+ * @param inputReserve - Reserve of input token in pool
+ * @param outputReserve - Reserve of output token in pool
+ * @param feeRate - Pool fee rate (e.g., 0.003 for 0.3%)
+ * @returns Required input amount after accounting for fees
+ */
+export function calculateInputAmount(
+	desiredOutput: number,
+	inputReserve: number,
+	outputReserve: number,
+	feeRate: number
+): number {
+	if (desiredOutput <= 0 || inputReserve <= 0 || outputReserve <= 0) {
+		console.log('❌ Invalid input parameters for inverse calculation')
+		return 0
+	}
+
+	// 🚨 Hard guard: user cannot request more than pool liquidity
+	if (desiredOutput >= outputReserve) throw new Error('Not enough liquidity for desired output')
+
+	// Inverse formula (safe since desiredOutput < outputReserve)
+	const numerator = inputReserve * desiredOutput
+	const denominator = (outputReserve - desiredOutput) * (1 - feeRate)
+
+	const inputAmount = numerator / denominator
+	return Math.max(0, inputAmount)
 }
 
 /**

@@ -7,7 +7,6 @@ import { capitalCase } from 'text-case'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { TTradeableTokenProps } from '@/features/tokens/types'
-import { cn } from '@/lib/utils'
 
 interface SwapItemProps {
 	type: 'from' | 'to'
@@ -18,14 +17,12 @@ interface SwapItemProps {
 	setInputAmount: (inputAmount: string) => void
 	setTokenProps?: () => void
 	noTitle?: boolean
-	noCheckBalance?: boolean
 	disable?: boolean
 }
 
 export default function SwapItem({
 	type,
 	noTitle = false,
-	noCheckBalance = false,
 	disable = false,
 	tokenProps,
 	inputAmount,
@@ -34,10 +31,6 @@ export default function SwapItem({
 	setTokenProps,
 	setInputAmount
 }: SwapItemProps) {
-	const isBalanceNotEnough = !noCheckBalance && Number(inputAmount) > balance
-	const isAmountPositive = Number(inputAmount) >= 0
-	const isInValid = isBalanceNotEnough || !isAmountPositive
-
 	const onMaxClick = () => setInputAmount(balance.toString())
 
 	return (
@@ -75,10 +68,7 @@ export default function SwapItem({
 				)}
 				<div className="flex relative justify-end space-x-0.5">
 					<Input
-						className={cn(
-							'!text-xl remove-arrow-input p-0 text-main-black bg-transparent border-none text-right outline-none focus-visible:outline-none focus-visible:ring-0',
-							isInValid && '!text-error'
-						)}
+						className="!text-xl remove-arrow-input p-0 text-main-black bg-transparent border-none text-right outline-none focus-visible:outline-none focus-visible:ring-0"
 						placeholder="0.00"
 						min={0}
 						disabled={disable}
@@ -96,14 +86,6 @@ export default function SwapItem({
 							Max
 						</Button>
 					)}
-					{isBalanceNotEnough && (
-						<p className="text-error absolute right-0 top-7 text-[10px]">Balance is not enough</p>
-					)}
-					{!isAmountPositive && (
-						<p className="text-error absolute right-0 top-7 text-[10px]">
-							Amount can not be negative
-						</p>
-					)}
 				</div>
 			</section>
 			<section className="w-full flex justify-between">
@@ -119,7 +101,7 @@ export default function SwapItem({
 					≈${' '}
 					{price.toLocaleString(undefined, {
 						minimumFractionDigits: 2,
-						maximumFractionDigits: 12
+						maximumFractionDigits: 6
 					})}
 				</p>
 			</section>

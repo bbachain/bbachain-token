@@ -2,6 +2,7 @@
 
 import {
 	BBA_DALTON_UNIT,
+	Blockhash,
 	Connection,
 	PublicKey,
 	SystemProgram,
@@ -72,10 +73,8 @@ export const sendTransactionWithRetry = async (
 	for (let attempt = 1; attempt <= RETRY_CONFIG.attempts; attempt++) {
 		try {
 			console.log(`📤 Sending transaction (attempt ${attempt}/${RETRY_CONFIG.attempts})...`)
-
 			const signature = await sendTransaction(transaction, connection, options)
 			console.log(`✅ Transaction sent successfully:`, signature)
-
 			return signature
 		} catch (error: any) {
 			console.error(`❌ Transaction attempt ${attempt} failed:`, error)
@@ -96,7 +95,10 @@ export const sendTransactionWithRetry = async (
 export const confirmTransactionWithTimeout = async (
 	connection: Connection,
 	signature: string,
-	latestBlockhash: any,
+	latestBlockhash: Readonly<{
+		blockhash: Blockhash
+		lastValidBlockHeight: number
+	}>,
 	timeoutMs = 30000
 ) => {
 	console.log(`⏳ Confirming transaction: ${signature}`)

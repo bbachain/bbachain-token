@@ -39,7 +39,7 @@ const NFT_SERVICE_KEY = {
 const SWAP_SERVICE_KEY = {
 	GET_SWAP_QUOTE: 'get-swap-quote',
 	GET_SWAP_ROUTE: 'get-swap-route',
-	CAN_SWAP: 'can-swap',
+	VALIDATE_SWAP: 'validate-swap',
 	EXECUTE_SWAP: 'execute-swap'
 } as const
 

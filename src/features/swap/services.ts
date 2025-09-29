@@ -20,35 +20,35 @@ import {
 } from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import REGEX from '@/constants/regex'
 import SERVICES_KEY from '@/constants/service'
 import { useGetPools } from '@/features/liquidityPool/services'
 import type {
-	TCanSwapPayload,
 	TExecuteSwapPayload,
 	TExecuteSwapResponse,
 	TExecuteSwapResponseData,
 	TGetSwapQuotePayload,
 	TGetSwapQuoteResponse,
 	TGetSwapRoutePayload,
-	TGetSwapRouteResponse
+	TGetSwapRouteResponse,
+	TSwapValidationPayload,
+	TSwapValidationResponse
 } from '@/features/swap/types'
-import { calculateOutputAmount, calculatePriceImpact, findBestPool } from '@/features/swap/utils'
 import {
-	isNativeBBA,
-	getBBAFromDaltons,
-	getDaltonsFromBBA,
-	formatTokenBalance,
-	getCoinGeckoId
-} from '@/lib/token'
-
-import { useGetTokenPriceByCoinGeckoId } from '../tokens/services'
+	calculateInputAmount,
+	calculateOutputAmount,
+	calculatePriceImpact,
+	findBestPool
+} from '@/features/swap/utils'
+import { isNativeBBA, getBBAFromDaltons, getDaltonsFromBBA, formatTokenBalance } from '@/lib/token'
 
 export const useGetSwapQuote = ({
 	pool,
 	inputMint,
 	outputMint,
 	inputAmount,
-	slippage = 0.5
+	slippage = 0.5,
+	inputType = 'from'
 }: TGetSwapQuotePayload) => {
 	return useQuery<TGetSwapQuoteResponse | null, Error>({
 		queryKey: [
@@ -57,7 +57,8 @@ export const useGetSwapQuote = ({
 			inputMint,
 			outputMint,
 			inputAmount,
-			slippage
+			slippage,
+			inputType
 		],
 		queryFn: async () => {
 			if (!pool) throw new Error('No pool found')
@@ -65,7 +66,7 @@ export const useGetSwapQuote = ({
 			if (inputMint === outputMint) return null
 
 			try {
-				// Determine which token is A and which is B
+				// determine which side is A vs B
 				const isInputTokenA = pool.mintA.address === inputMint
 
 				const inputReserve = isInputTokenA
@@ -75,51 +76,62 @@ export const useGetSwapQuote = ({
 					? formatTokenBalance(Number(pool.reserveB), pool.mintB.decimals)
 					: formatTokenBalance(Number(pool.reserveA), pool.mintA.decimals)
 
-				// Validate reserves
 				if (inputReserve <= 0 || outputReserve <= 0) throw new Error('Pool has invalid reserves')
 
-				const inputAmountNumber = Number(inputAmount)
-
-				// Convert fee rate from percentage to decimal (1.0% -> 0.01)
+				const amount = Number(inputAmount)
 				const feeRateDecimal = pool.feeRate > 1 ? pool.feeRate / 100 : pool.feeRate
 
-				const outputAmount = calculateOutputAmount(
-					inputAmountNumber,
-					inputReserve,
-					outputReserve,
-					feeRateDecimal
-				)
+				let baseAmount: number // always "from" side
+				let quoteAmount: number // always "to" side
+
+				if (inputType === 'from') {
+					// user typed in base → normal forward calculation
+					baseAmount = amount
+					quoteAmount = calculateOutputAmount(
+						baseAmount,
+						inputReserve,
+						outputReserve,
+						feeRateDecimal
+					)
+				} else {
+					// user typed in quote → back-calc base amount
+					quoteAmount = amount
+					baseAmount = calculateInputAmount(
+						quoteAmount,
+						inputReserve,
+						outputReserve,
+						feeRateDecimal
+					)
+				}
+
 				const priceImpact = calculatePriceImpact(
-					inputAmountNumber,
+					baseAmount,
 					inputReserve,
 					outputReserve,
 					feeRateDecimal
 				)
 
-				// Validate calculation results
-				if (outputAmount <= 0) throw new Error('Cannot calculate valid output amount')
-
-				// Calculate minimum received with slippage
+				// slippage handling
 				const slippageMultiplier = 1 - slippage / 100
-				const minimumReceived = outputAmount * slippageMultiplier
+				const minimumReceived = quoteAmount * slippageMultiplier
+				const maximumInput = baseAmount / slippageMultiplier
 
-				// Calculate exchange rate
-				const exchangeRate = outputAmount / inputAmountNumber
+				// exchange rate always from → to
+				const exchangeRate = quoteAmount / baseAmount
 
-				const result = {
-					inputAmount: inputAmountNumber,
-					outputAmount,
+				return {
+					inputAmount: baseAmount, // base side
+					outputAmount: quoteAmount, // quote side
 					minimumReceived,
+					maximumInput,
 					priceImpact,
 					exchangeRate,
-					feeRate: pool.feeRate * 100, // Convert to percentage
+					feeRate: pool.feeRate * 100,
 					poolAddress: pool.address,
 					poolTvl: pool.tvl,
 					inputToken: isInputTokenA ? pool.mintA : pool.mintB,
 					outputToken: isInputTokenA ? pool.mintB : pool.mintA
 				} as TGetSwapQuoteResponse
-
-				return result
 			} catch (error) {
 				console.error('❌ Error in swap quote calculation:', error)
 				throw error
@@ -132,26 +144,14 @@ export const useGetSwapQuote = ({
 			!!inputAmount &&
 			Number(inputAmount) > 0 &&
 			inputMint !== outputMint,
-		staleTime: 10000, // 10 seconds
-		refetchInterval: 15000, // Refresh every 15 seconds
+		staleTime: 10000,
+		refetchInterval: 15000,
 		retry: (failureCount, error) => {
 			console.log('🔄 Retrying swap quote:', { failureCount, error: error?.message })
-			return failureCount < 2 // Retry up to 2 times
+			return failureCount < 2
 		}
 	})
 }
-
-export const useCanSwap = ({ pool, inputMint, outputMint }: TCanSwapPayload) =>
-	useQuery<boolean>({
-		queryKey: [SERVICES_KEY.SWAP.CAN_SWAP, pool?.address, inputMint, outputMint],
-		queryFn: async () => {
-			if (!pool) return false
-			if (!inputMint || !outputMint || inputMint === outputMint) return false
-			return !!pool
-		},
-		enabled: !!pool && !!inputMint && !!outputMint && inputMint !== outputMint,
-		staleTime: 30000 // 30 seconds
-	})
 
 /**
  * Hook to get swap route information
@@ -169,8 +169,6 @@ export const useGetSwapRoute = ({ inputMint, outputMint }: TGetSwapRoutePayload)
 		],
 		queryFn: async () => {
 			if (!pools) return null
-			if (!inputMint || !outputMint || inputMint === outputMint) return null
-
 			const directPool = findBestPool(pools, inputMint, outputMint)
 			if (directPool) {
 				return {

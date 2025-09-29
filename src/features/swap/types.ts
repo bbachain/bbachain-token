@@ -66,10 +66,12 @@ export type TGetSwapRoutePayload = {
 	outputMint: string
 }
 
-export type TCanSwapPayload = {
+export type TSwapValidationPayload = {
 	pool: TOnchainPoolData | undefined
 	inputMint: string
 	outputMint: string
+	inputAmount: number
+	userBalance: number
 }
 
 export type TGetSwapQuotePayload = {
@@ -78,12 +80,14 @@ export type TGetSwapQuotePayload = {
 	outputMint: string
 	inputAmount: string
 	slippage?: number
+	inputType?: 'from' | 'to'
 }
 
 export type TGetSwapQuoteResponse = {
 	inputAmount: number
 	outputAmount: number
-	minimumReceived: number
+	minimumReceived?: number
+	maximumInput?: number
 	priceImpact: number
 	exchangeRate: number
 	feeRate: number
@@ -98,6 +102,12 @@ export type TGetSwapRouteResponse = {
 	pools: TOnchainPoolData[]
 	route: string[]
 	totalFeeRate: number
+}
+
+export type TSwapValidationResponse = {
+	isBalanceEnough: boolean
+	isInputPositive: boolean
+	isTokenPairValid: boolean
 }
 
 export type TExecuteSwapPayload = {
@@ -117,6 +127,7 @@ export type TExecuteSwapResponseData = {
 	executionTime: number
 	poolDetail?: TOnchainPoolData
 }
+
 
 export type TExecuteSwapResponse = TSuccessMessage & {
 	data: TExecuteSwapResponseData

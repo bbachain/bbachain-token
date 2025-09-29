@@ -430,6 +430,7 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 
 				{successData && poolDetailData && (
 					<LPSuccessDialog
+						isNewTab
 						isOpen={isSuccessDialogOpen}
 						onOpenChange={setIsSuccessDialogOpen}
 						title="Deposit Successful"

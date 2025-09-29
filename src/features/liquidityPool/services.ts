@@ -7,7 +7,8 @@ import {
 	createInitializeMintInstruction,
 	getMint,
 	NATIVE_MINT,
-	createSyncNativeInstruction
+	createSyncNativeInstruction,
+	createApproveInstruction
 } from '@bbachain/spl-token'
 import {
 	CurveType,
@@ -1384,13 +1385,35 @@ export const useDepositToPool = () => {
 				maximumTokenBAmount: maximumTokenBAmount.toString()
 			})
 
+			const transferAuthority = ownerAddress
+
+			// 2. Approve delegate to transfer tokens
+			const approveIxA = createApproveInstruction(
+				sourceA, // source token A account
+				transferAuthority, // delegate
+				ownerAddress, // owner of sourceA
+				amountADaltons // allowance
+			)
+
+			const approveIxB = createApproveInstruction(
+				sourceB,
+				transferAuthority,
+				ownerAddress,
+				amountBDaltons
+			)
+
+			// Add approvals before deposit
+			preInstructions.push(approveIxA, approveIxB)
+
+			console.log('✅ Added approve instructions for transfer authority')
+
 			// Create deposit instruction using library
 			console.log('🔧 Creating deposit instruction...')
 			const depositInstruction = createDepositAllTokenTypesInstruction(
 				{
 					tokenSwap: tokenSwapPubkey,
 					authority: swapAuthority,
-					userTransferAuthority: ownerAddress,
+					userTransferAuthority: transferAuthority,
 					sourceA,
 					sourceB,
 					intoA: tokenSwapState.tokenA,
@@ -1428,21 +1451,20 @@ export const useDepositToPool = () => {
 				}))
 			})
 
-			const latestBlockhash = await connection.getLatestBlockhash('confirmed')
-
 			try {
-				const signature = await sendTransactionWithRetry(transaction, connection, sendTransaction, {
+				const signature = await sendTransaction(transaction, connection, {
 					skipPreflight: false,
-					preflightCommitment: 'confirmed'
+					preflightCommitment: 'confirmed',
 				})
 				console.log('✅ Transaction sent successfully:', signature)
 
 				console.log('⏳ Confirming transaction...')
+				const latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				await confirmTransactionWithTimeout(connection, signature, latestBlockhash)
 
 				return {
 					message: `Successfully deposit to pool with address ${pool.address}`,
-					data: signature
+					data: { signature }
 				}
 			} catch (error: any) {
 				console.error('❌ Transaction failed:', error)
