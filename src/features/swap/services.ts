@@ -408,6 +408,15 @@ export const useExecuteSwap = () => {
 					getDaltonsFromBBA(inputAmountNumber)
 				)
 				transaction.add(approveIx)
+			} else {
+				// for other spl tokens
+				const approveIx = createApproveInstruction(
+					userInputTokenAccount,
+					publicKey,
+					publicKey,
+					inputAmountDaltons
+				)
+				transaction.add(approveIx)
 			}
 
 			// Add the main swap instruction
@@ -423,12 +432,10 @@ export const useExecuteSwap = () => {
 
 			// Send transaction
 			const signature = await sendTransaction(transaction, connection)
-
 			console.log('📤 Transaction sent with signature:', signature)
 
 			// Wait for confirmation
 			const confirmation = await connection.confirmTransaction(signature, 'confirmed')
-
 			if (confirmation.value.err) {
 				throw new Error(`Transaction failed: ${confirmation.value.err}`)
 			}
@@ -450,9 +457,11 @@ export const useExecuteSwap = () => {
 				poolDetail: pool
 			} as TExecuteSwapResponseData
 
+			const outputSymbol = isInputTokenA ? pool.mintB.symbol : pool.mintA.symbol
+
 			// Return execution result
 			return {
-				message: `Swap successful! Received ${responseData.actualOutputAmount.toFixed(6)} ${pool.mintB.symbol}`,
+				message: `Swap successful! Received ${responseData.actualOutputAmount.toFixed(6)} ${outputSymbol}`,
 				data: responseData
 			}
 		},
