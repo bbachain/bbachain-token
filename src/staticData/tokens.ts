@@ -35,16 +35,6 @@ const StaticTradeableTokens: TExtendedTradeableTokenProps[] = [
 		decimals: 6,
 		isNative: false,
 		tags: ['stablecoin']
-	},
-	{
-		name: 'SLSA',
-		symbol: 'SLSA',
-		coinGeckoId: '',
-		address: '2pCnkCrLZt4BTfsqABJpQCrynZZbtoqYmq86CusP4FbS',
-		logoURI: 'https://ipfs.io/ipfs/Qmd5CCuusYMDW7KDaed9x2LyeHesdzfthQg43gUuGgmbPD',
-		decimals: 6,
-		isNative: false,
-		tags: ['meme']
 	}
 ]
 
