@@ -15,7 +15,7 @@ export function TooltipComponent({ content }: { content: string }) {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button variant="ghost" size="icon">
+				<Button variant="ghost" size="icon" aria-label="info button">
 					<AiOutlineInfoCircle className="text-[#989898]" />
 				</Button>
 			</TooltipTrigger>

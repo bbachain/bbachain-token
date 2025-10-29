@@ -6,6 +6,7 @@ import { capitalCase } from 'text-case'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { TTradeableTokenProps } from '@/features/tokens/types'
 
 interface SwapItemProps {
@@ -16,12 +17,14 @@ interface SwapItemProps {
 	price: number
 	setInputAmount: (inputAmount: string) => void
 	setTokenProps?: () => void
+	isTokenLoading?: boolean
 	noTitle?: boolean
 	disable?: boolean
 }
 
 export default function SwapItem({
 	type,
+	isTokenLoading,
 	noTitle = false,
 	disable = false,
 	tokenProps,
@@ -37,7 +40,9 @@ export default function SwapItem({
 		<div className="bg-box rounded-[10px] p-2.5 flex flex-col space-y-1.5">
 			{!noTitle && <h5 className="text-xs text-main-black">{capitalCase(type)}</h5>}
 			<section className="flex justify-between items-center">
-				{setTokenProps ? (
+				{isTokenLoading ? (
+					<Skeleton className="w-36 h-8 rounded-lg" />
+				) : setTokenProps ? (
 					<Button
 						type="button"
 						onClick={setTokenProps}
@@ -71,7 +76,7 @@ export default function SwapItem({
 						className="!text-xl remove-arrow-input p-0 text-main-black bg-transparent border-none text-right outline-none focus-visible:outline-none focus-visible:ring-0"
 						placeholder="0.00"
 						min={0}
-						disabled={disable}
+						disabled={disable || isTokenLoading}
 						type="number"
 						value={inputAmount}
 						onChange={(e) => setInputAmount(e.target.value)}
@@ -82,6 +87,7 @@ export default function SwapItem({
 							type="button"
 							className="px-1 text-dark-grey text-xs font-normal"
 							onClick={onMaxClick}
+							disabled={isTokenLoading}
 						>
 							Max
 						</Button>
@@ -89,14 +95,20 @@ export default function SwapItem({
 				</div>
 			</section>
 			<section className="w-full flex justify-between">
-				<p className="text-xs text-main-black">
-					Balance:{' '}
-					{balance.toLocaleString(undefined, {
-						minimumFractionDigits: 0,
-						maximumFractionDigits: 6
-					})}{' '}
-					{tokenProps.symbol}
-				</p>
+				<div className="flex items-center space-x-1 text-xs text-main-black">
+					<p>Balance:</p>
+					{isTokenLoading ? (
+						<Skeleton className='h-4 w-14' />
+					) : (
+						<p>
+							{balance.toLocaleString(undefined, {
+								minimumFractionDigits: 0,
+								maximumFractionDigits: 6
+							})}{' '}
+							{tokenProps.symbol}
+						</p>
+					)}
+				</div>
 				<p className="text-dark-grey text-xs">
 					≈${' '}
 					{price.toLocaleString(undefined, {

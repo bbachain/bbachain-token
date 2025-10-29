@@ -70,9 +70,9 @@ export default function Wrapping() {
 				<h2 className="font-bold lg:text-[45px] md:text-3xl text-xl text-main-black">
 					BBA Wrapping
 				</h2>
-				<h5 className="font-normal lg:text-lg md:text-sm text-xs text-dark-grey">
+				<p className="font-normal lg:text-lg md:text-sm text-xs text-dark-grey">
 					Easily convert between BBA and WBBA. Use WBBA for swaps and liquidity pools.
-				</h5>
+				</p>
 			</section>
 			<section className="flex justify-between md:flex-row md:space-x-6 flex-col md:space-y-0 space-y-3 w-full items-center">
 				<WrapBalanceItem

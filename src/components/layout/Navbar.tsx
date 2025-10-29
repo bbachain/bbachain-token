@@ -1,5 +1,6 @@
 'use client'
 
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
@@ -8,15 +9,17 @@ import { IoMdClose } from 'react-icons/io'
 import { IoSunnySharp, IoMoonSharp } from 'react-icons/io5'
 import { RxHamburgerMenu } from 'react-icons/rx'
 
-import { useIsMobile } from '@/hooks/isMobile'
-import NavMenu from '@/staticData/navbar'
-
-import SelectCluster from '../common/SelectCluster'
-import ThemeImage from '../common/ThemeImage'
-import CustomWalletButton from '../common/WalletButton'
-import { useCluster } from '../providers/ClusterProvider'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion'
-import { Button } from '../ui/button'
+import SelectCluster from '@/components/common/SelectCluster'
+import ThemeImage from '@/components/common/ThemeImage'
+import CustomWalletButton from '@/components/common/WalletButton'
+import { useCluster } from '@/components/providers/ClusterProvider'
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger
+} from '@/components/ui/accordion'
+import { Button } from '@/components/ui/button'
 import {
 	Drawer,
 	DrawerClose,
@@ -24,7 +27,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 	DrawerTrigger
-} from '../ui/drawer'
+} from '@/components/ui/drawer'
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -32,34 +35,43 @@ import {
 	NavigationMenuLink,
 	NavigationMenuList,
 	NavigationMenuTrigger
-} from '../ui/navigation-menu'
-import { Skeleton } from '../ui/skeleton'
+} from '@/components/ui/navigation-menu'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useIsMobile } from '@/hooks/isMobile'
+import NavMenu from '@/staticData/navbar'
 
 function ThemeToggle() {
 	const { resolvedTheme, setTheme } = useTheme()
+	const isDark = resolvedTheme === 'dark'
 
 	return (
 		<Button
+			aria-label={isDark ? 'dark toggle' : 'white toggle'}
 			type="button"
 			variant="ghost"
 			className="[&_svg]:size-6"
-			onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+			onClick={() => setTheme(isDark ? 'light' : 'dark')}
 			size="icon"
 		>
-			{resolvedTheme === 'dark' ? <IoMoonSharp /> : <IoSunnySharp />}
+			{isDark ? <IoMoonSharp /> : <IoSunnySharp />}
 		</Button>
 	)
 }
 
 function MobileMenuDrawer() {
 	const { clusters, setCluster, cluster } = useCluster()
-
 	const handleSelect = (item: typeof cluster) => setCluster(item)
 
 	return (
 		<Drawer direction="right">
 			<DrawerTrigger asChild>
-				<Button type="button" variant="ghost" className="[&_svg]:size-6" size="icon">
+				<Button
+					aria-label="hamburger button"
+					type="button"
+					variant="ghost"
+					className="[&_svg]:size-6"
+					size="icon"
+				>
 					<RxHamburgerMenu />
 				</Button>
 			</DrawerTrigger>
@@ -68,9 +80,16 @@ function MobileMenuDrawer() {
 				className="h-screen rounded-none top-0 mt-0 right-0 left-auto w-4/6"
 			>
 				<DrawerHeader className="p-0 m-0">
-					<DrawerTitle></DrawerTitle>
+					<VisuallyHidden>
+						<DrawerTitle>Mobile Menu Title</DrawerTitle>
+					</VisuallyHidden>
 					<DrawerClose asChild>
-						<Button variant="ghost" className="absolute right-0 [&_svg]:size-6" size="icon">
+						<Button
+							aria-label="close button"
+							variant="ghost"
+							className="absolute right-0 [&_svg]:size-6"
+							size="icon"
+						>
 							<IoMdClose />
 						</Button>
 					</DrawerClose>
@@ -164,7 +183,7 @@ export default function Navbar() {
 	useEffect(() => setMounted(true), [])
 
 	return (
-		<nav className="2xl:px-24 xl:px-10 md:px-20 py-3.5  flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
+		<nav className="2xl:px-24 xl:px-10 md:px-20 py-3.5 h-24 flex items-center justify-between px-4 fixed !bg-main-white z-50 w-full">
 			<div className="flex items-center md:space-x-5 lg:space-x-[35px]">
 				<Link href="/">
 					<ThemeImage

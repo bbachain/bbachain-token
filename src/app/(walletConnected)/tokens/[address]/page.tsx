@@ -423,7 +423,7 @@ export default function TokenDetail({ params }: { params: { address: string } })
 						className={'md:flex hidden w-32 mb-3 text-main-black items-center space-x-2.5 text-xl'}
 					>
 						<HiOutlineArrowNarrowLeft />
-						<h4>Tokens</h4>
+						Tokens
 					</Button>
 					<h2 className="text-main-black text-center md:text-[32px] text-xl  font-medium">
 						Manage Token - {pageTitle}
@@ -493,7 +493,7 @@ export default function TokenDetail({ params }: { params: { address: string } })
 									<div key={optionData.label} className="flex flex-col space-y-2">
 										<section className="flex space-x-0.5 items-center">
 											<TooltipComponent content={optionData.tip} />
-											<h5 className="md:text-lg text-sm text-main-black">{optionData.label}</h5>
+											<h3 className="md:text-lg text-sm text-main-black">{optionData.label}</h3>
 										</section>
 										<section className="flex ml-9 space-x-2.5">
 											<div className="flex flex-col space-y-1">
@@ -530,7 +530,7 @@ export default function TokenDetail({ params }: { params: { address: string } })
 										<div className="flex items-center space-x-3">
 											<section className="flex space-x-0.5 items-center">
 												<TooltipComponent content={optionData.tip} />
-												<h5 className="md:text-lg text-sm text-main-black">{optionData.label}</h5>
+												<h3 className="md:text-lg text-sm text-main-black">{optionData.label}</h3>
 											</section>
 											<p className="text-sm text-main-green">{optionData.value}</p>
 										</div>

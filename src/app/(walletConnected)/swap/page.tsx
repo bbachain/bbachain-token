@@ -231,7 +231,7 @@ export default function Swap() {
 		}
 	}
 
-	const buttonDisplay = () => {
+	const buttonDisplay = useCallback(() => {
 		if (executeSwapMutation.isPending) return 'Swapping...'
 		else if (isSwapQuoteLoading) return 'Computing...'
 		else if (!isTokenPairValid) return 'Select Different Tokens'
@@ -240,16 +240,15 @@ export default function Swap() {
 		else if (!swapRouteData) return 'No Pool Available'
 		else if (isQuoteError) return 'Failed to Get Quote'
 		else return 'Swap'
-	}
-
-	if (isTokensLoading) {
-		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p className="text-gray-600 dark:text-gray-400">Loading Token List...</p>
-			</div>
-		)
-	}
+	}, [
+		executeSwapMutation.isPending,
+		isBalanceEnough,
+		isInputPositive,
+		isQuoteError,
+		isSwapQuoteLoading,
+		isTokenPairValid,
+		swapRouteData
+	])
 
 	return (
 		<div className="px-[15px] flex flex-col items-center lg:space-y-14 md:space-y-9 space-y-3">
@@ -276,6 +275,7 @@ export default function Swap() {
 						<div className="flex flex-col space-y-3">
 							<SwapItem
 								type="from"
+								isTokenLoading={isTokensLoading || getMintABalance.isLoading}
 								tokenProps={fromTokenProps}
 								balance={mintABalanceFormatted}
 								price={inputAmountPrice}
@@ -285,6 +285,7 @@ export default function Swap() {
 							/>
 							<SwapItem
 								type="to"
+								isTokenLoading={isTokensLoading || getMintBBalance.isLoading}
 								tokenProps={toTokenProps}
 								balance={mintBBalanceFormatted}
 								price={outputAmountPrice}

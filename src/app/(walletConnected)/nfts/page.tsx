@@ -1,7 +1,6 @@
 'use client'
 
 import { ColumnDef } from '@tanstack/react-table'
-import { Loader2 } from 'lucide-react'
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 
@@ -46,19 +45,12 @@ export default function NFTs() {
 		if (getNFTQuery.isError && getNFTQuery.error) toast.error(getNFTQuery.error.message)
 	}, [getNFTQuery.error, getNFTQuery.isError])
 
-	if (getNFTQuery.isPending) {
-		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Please wait...</p>
-			</div>
-		)
-	}
-
 	return (
 		<div className="xl:px-[90px] md:px-16 px-6 flex flex-col lg:space-y-14 md:space-y-9 space-y-3">
-			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">My NFTs</h1>
-			<NFTList data={nftMetadata} columns={columns} />
+			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
+				My NFTs
+			</h1>
+			<NFTList data={nftMetadata} columns={columns} isLoading={getNFTQuery.isPending} />
 		</div>
 	)
 }

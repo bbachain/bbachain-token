@@ -36,7 +36,6 @@ export const NftCard: React.FC<NftCardProps> = ({ image, name, collection, addre
 				onLoad={() => setIsLoading(false)}
 				priority
 			/>
-
 			{/* Overlay Text */}
 			<div className="absolute bottom-0 w-full bg-[rgba(0,0,0,0.20)] text-white p-3 space-y-1.5">
 				<h2 className="md:text-sm text-xs font-medium">{name}</h2>

@@ -28,8 +28,22 @@ import {
 	DropdownMenuLabel
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow
+} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { type TokenListProps } from '@/features/tokens/components/Columns'
 import { cn } from '@/lib/utils'
@@ -38,6 +52,7 @@ interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]
 	data: TData[]
 	onRefresh?: () => void
+	isLoading?: boolean
 	isRefreshing?: boolean
 	withoutAction?: boolean
 }
@@ -46,6 +61,7 @@ export function DataTable<TData, TValue>({
 	columns,
 	data,
 	onRefresh,
+	isLoading,
 	isRefreshing,
 	withoutAction
 }: DataTableProps<TData, TValue>) {
@@ -80,7 +96,8 @@ export function DataTable<TData, TValue>({
 	const filteredPools = table.getFilteredRowModel().rows.length
 	const currentPage = table.getState().pagination.pageIndex + 1
 	const totalPages = table.getPageCount()
-	const startIndex = table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
+	const startIndex =
+		table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
 	const endIndex = Math.min(startIndex + table.getState().pagination.pageSize - 1, filteredPools)
 
 	return (
@@ -92,13 +109,20 @@ export function DataTable<TData, TValue>({
 						placeholder="Search"
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
+						disabled={isLoading}
 						className="max-w-sm rounded-[10px] pl-9 md:h-12 h-9 border-[1.4px] border-[#989898] dark:border-[#C6C6C6]"
 					/>
 				</section>
 				<section className="flex items-center space-x-3">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="icon" className="[&_svg]:size-6">
+							<Button
+								aria-label="toggle columns button"
+								variant="ghost"
+								size="icon"
+								className="[&_svg]:size-6"
+								disabled={isLoading}
+							>
 								<TbColumns />
 							</Button>
 						</DropdownMenuTrigger>
@@ -123,7 +147,14 @@ export function DataTable<TData, TValue>({
 						<TooltipProvider>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<Button variant="ghost" size="icon" className="[&_svg]:size-5" onClick={onRefresh}>
+									<Button
+										aria-label="reload data button"
+										variant="ghost"
+										size="icon"
+										className="[&_svg]:size-5"
+										onClick={onRefresh}
+										disabled={isLoading}
+									>
 										<TfiReload className={cn(isRefreshing && 'animate-spin')} />
 									</Button>
 								</TooltipTrigger>
@@ -134,10 +165,16 @@ export function DataTable<TData, TValue>({
 				</section>
 			</div>
 			<div className="flex items-center justify-between">
-				<div className="flex text-main-black text-lg items-center gap-6">
-					<p className="md:block hidden">
-						{filteredPools === totalPools ? `${totalPools} total pools` : `${filteredPools} of ${totalPools} pools`}
-					</p>
+				<div className="md:flex hidden text-main-black text-lg items-center gap-6">
+					{isLoading ? (
+						<Skeleton className="h-7 w-40" />
+					) : (
+						<p className="md:block hidden">
+							{filteredPools === totalPools
+								? `${totalPools} total pools`
+								: `${filteredPools} of ${totalPools} pools`}
+						</p>
+					)}
 					{filteredPools > 0 && (
 						<p className="md:block hidden">
 							Showing{' '}
@@ -156,6 +193,7 @@ export function DataTable<TData, TValue>({
 						onValueChange={(value) => {
 							table.setPageSize(Number(value))
 						}}
+						disabled={isLoading}
 					>
 						<SelectTrigger className="h-8 w-16">
 							<SelectValue />
@@ -172,66 +210,96 @@ export function DataTable<TData, TValue>({
 			</div>
 			<div className="rounded-[12px] border border-light-grey overflow-hidden">
 				<div className="overflow-x-auto">
-					<Table className="w-full">
-						<TableHeader className="h-[58px]">
-							{table.getHeaderGroups().map((headerGroup) => (
-								<TableRow key={headerGroup.id}>
-									{headerGroup.headers.map((header) => {
-										return (
-											<TableHead key={header.id}>
-												{flexRender(header.column.columnDef.header, header.getContext())}
-											</TableHead>
-										)
-									})}
-								</TableRow>
+					{isLoading ? (
+						<>
+							<div className="grid h-[58px] grid-cols-5 border-b bg-muted px-4 items-center">
+								{['Token', 'Symbol', 'Token Supply', 'USDC', 'Created Date'].map((col) => (
+									<Skeleton key={col} className="h-5 w-16" />
+								))}
+							</div>
+							{/* Table rows */}
+							{[...Array(5)].map((_, row) => (
+								<div
+									key={row}
+									className="grid grid-cols-5 h-[58px] px-4 items-center border-b last:border-0"
+								>
+									{[...Array(5)].map((_, col) => (
+										<Skeleton key={col} className="h-5 w-16" />
+									))}
+								</div>
 							))}
-						</TableHeader>
-						<TableBody>
-							{table.getRowModel().rows?.length ? (
-								table.getRowModel().rows.map((row) => {
-									const mintAddress = (row.original as TokenListProps).id
+						</>
+					) : (
+						<Table className="w-full">
+							<TableHeader className="h-[58px]">
+								{table.getHeaderGroups().map((headerGroup) => (
+									<TableRow key={headerGroup.id}>
+										{headerGroup.headers.map((header) => {
+											return (
+												<TableHead key={header.id}>
+													{flexRender(header.column.columnDef.header, header.getContext())}
+												</TableHead>
+											)
+										})}
+									</TableRow>
+								))}
+							</TableHeader>
+							<TableBody>
+								{table.getRowModel().rows?.length ? (
+									table.getRowModel().rows.map((row) => {
+										const mintAddress = (row.original as TokenListProps).id
 
-									return (
-										<TableRow
-											key={row.id}
-											data-state={row.getIsSelected() && 'selected'}
-											className="h-[58px] cursor-pointer hover:bg-muted/50 transition"
-										>
-											{row.getVisibleCells().map((cell, index, arr) => (
-												<TableCell
-													className={cn(index === 0 && 'pl-5', index === arr.length - 1 && 'pr-5')}
-													key={cell.id}
-												>
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												</TableCell>
-											))}
-											{!withoutAction && (
-												<TableCell className="pr-5">
-													<Link
-														href={`/tokens/${mintAddress}`}
-														className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), '[&_svg]:size-5')}
+										return (
+											<TableRow
+												key={row.id}
+												data-state={row.getIsSelected() && 'selected'}
+												className="h-[58px] cursor-pointer hover:bg-muted/50 transition"
+											>
+												{row.getVisibleCells().map((cell, index, arr) => (
+													<TableCell
+														className={cn(
+															index === 0 && 'pl-5',
+															index === arr.length - 1 && 'pr-5'
+														)}
+														key={cell.id}
 													>
-														<IoIosArrowForward />
-													</Link>
-												</TableCell>
-											)}
-										</TableRow>
-									)
-								})
-							) : (
-								<TableRow>
-									<TableCell colSpan={columns.length} className="text-center pt-4">
-										No results.
-									</TableCell>
-								</TableRow>
-							)}
-						</TableBody>
-					</Table>
+														{flexRender(cell.column.columnDef.cell, cell.getContext())}
+													</TableCell>
+												))}
+												{!withoutAction && (
+													<TableCell className="pr-5">
+														<Link
+															aria-label="action button"
+															href={`/tokens/${mintAddress}`}
+															className={cn(
+																buttonVariants({ variant: 'ghost', size: 'icon' }),
+																'[&_svg]:size-5'
+															)}
+														>
+															<IoIosArrowForward />
+														</Link>
+													</TableCell>
+												)}
+											</TableRow>
+										)
+									})
+								) : (
+									<TableRow>
+										<TableCell colSpan={columns.length} className="text-center pt-4">
+											No results.
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
+					)}
 				</div>
 			</div>
-			{filteredPools > 0 && (
+			{isLoading && <Skeleton className="h-9 w-60 mx-auto" />}
+			{!isLoading && filteredPools > 0 && (
 				<div className="flex items-center justify-center gap-2">
 					<Button
+						aria-label="pagination back button"
 						variant="ghost"
 						size="icon"
 						className="[&_svg]:size-5"
@@ -273,6 +341,7 @@ export function DataTable<TData, TValue>({
 					</div>
 
 					<Button
+						aria-label="pagination next button"
 						variant="ghost"
 						size="icon"
 						className="[&_svg]:size-5"

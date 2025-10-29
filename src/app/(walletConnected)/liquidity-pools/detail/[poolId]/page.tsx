@@ -107,6 +107,7 @@ function StatsItem({
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
+							aria-label="info button"
 							variant="outline"
 							className="border-main-green bg-transparent rounded-full w-4 h-4 [&_svg]:size-3"
 							size="icon"
@@ -264,7 +265,13 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								{(pool?.feeRate ?? 0 * 100).toFixed(2)}%
 							</p>
 						</section>
-						<Button size="icon" type="button" variant="ghost" onClick={onReverse}>
+						<Button
+							aria-label="reverse button"
+							size="icon"
+							type="button"
+							variant="ghost"
+							onClick={onReverse}
+						>
 							<LuArrowUpDown />
 						</Button>
 					</section>
@@ -313,6 +320,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
+											aria-label="info button"
 											variant="outline"
 											className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
 											size="icon"
@@ -434,6 +442,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
+											aria-label="info button"
 											variant="outline"
 											className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
 											size="icon"

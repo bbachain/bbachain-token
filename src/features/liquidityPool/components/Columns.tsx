@@ -81,7 +81,8 @@ const formatPercentage = (
 // Helper function to get fee tier badge color
 export const getFeeTierColor = (fee: number): string => {
 	if (fee <= 0.001) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-	if (fee <= 0.003) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+	if (fee <= 0.003)
+		return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
 	if (fee <= 0.01) return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
 	return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
 }
@@ -112,7 +113,10 @@ function TokenPairDisplay({
 				<TooltipProvider>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+							<button
+								aria-label="star button"
+								className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+							>
 								<Star className="h-5 w-5 text-gray-400 hover:text-yellow-500 transition-colors" />
 							</button>
 						</TooltipTrigger>
@@ -130,7 +134,9 @@ function TokenPairDisplay({
 						<div className="flex items-center flex-shrink-0 mr-3 relative">
 							<div className="relative">
 								<Image
-									src={mintA.logoURI && mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'}
+									src={
+										mintA.logoURI && mintA.logoURI !== '' ? mintA.logoURI : '/icon-placeholder.svg'
+									}
 									width={30}
 									height={30}
 									className="rounded-full"
@@ -142,7 +148,9 @@ function TokenPairDisplay({
 							</div>
 							<div className="relative -ml-2">
 								<Image
-									src={mintB.logoURI && mintB.logoURI !== '' ? mintB.logoURI : '/icon-placeholder.svg'}
+									src={
+										mintB.logoURI && mintB.logoURI !== '' ? mintB.logoURI : '/icon-placeholder.svg'
+									}
 									width={30}
 									height={30}
 									className="rounded-full"
@@ -177,9 +185,9 @@ function TokenPairDisplay({
 			<div className="flex flex-col min-w-0 flex-1">
 				<div className="flex items-center gap-2 mb-1">
 					<Link href={`/liquidity-pools/detail/${id}`} className="truncate">
-						<h4 className="text-sm text-main-black hover:text-main-green transition-colors">
+						<p className="text-sm text-main-black hover:text-main-green transition-colors">
 							{mintA.symbol}-{mintB.symbol}
-						</h4>
+						</p>
 					</Link>
 				</div>
 				<div className="flex items-center gap-1">
@@ -205,7 +213,9 @@ function LiquidityDisplay({ value }: { value: number }) {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<div className="flex flex-col items-start">
-						<p className={cn('text-sm font-semibold text-main-black', healthColor)}>{formatCurrency(value)}</p>
+						<p className={cn('text-sm font-semibold text-main-black', healthColor)}>
+							{formatCurrency(value)}
+						</p>
 						<p className="text-xs text-dark-grey">{formatNumber(value)} TVL</p>
 					</div>
 				</TooltipTrigger>
@@ -273,7 +283,9 @@ function FeesDisplay({ value }: { value: number }) {
 					<div className="space-y-1">
 						<p className="font-semibold">24h Fees Generated</p>
 						<p className="text-sm">${value.toLocaleString()}</p>
-						<p className="text-xs text-gray-500 dark:text-gray-400">Revenue generated from trading fees</p>
+						<p className="text-xs text-gray-500 dark:text-gray-400">
+							Revenue generated from trading fees
+						</p>
 					</div>
 				</TooltipContent>
 			</Tooltip>
@@ -291,7 +303,9 @@ function APRDisplay({ value }: { value: number }) {
 				<TooltipTrigger asChild>
 					<div className="flex flex-col items-start">
 						<div className="text-sm flex items-center gap-1">
-							<section className={cn('rounded-[5px] h-4 w-4 flex items-center justify-center', bgColor)}>
+							<section
+								className={cn('rounded-[5px] h-4 w-4 flex items-center justify-center', bgColor)}
+							>
 								<TrendIcon className="w-2.5 h-2.5 text-main-white" />
 							</section>
 							<p className={cn('text-sm', color)}>{formatted}</p>
@@ -306,7 +320,13 @@ function APRDisplay({ value }: { value: number }) {
 						<p className="font-semibold">24h Annual Percentage Rate</p>
 						<p className="text-sm">Based on current fees and liquidity</p>
 						<p className="text-xs text-gray-500 dark:text-gray-400">
-							{value >= 20 ? 'High APR' : value >= 10 ? 'Medium APR' : value >= 5 ? 'Low APR' : 'Very Low APR'}
+							{value >= 20
+								? 'High APR'
+								: value >= 10
+									? 'Medium APR'
+									: value >= 5
+										? 'Low APR'
+										: 'Very Low APR'}
 						</p>
 					</div>
 				</TooltipContent>

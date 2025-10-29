@@ -56,7 +56,6 @@ export default function CreateNFT() {
 		}
 	})
 
-	const router = useRouter()
 	const query = useSearchParams()
 	const collectionKey = query.get('collectionKey')
 
@@ -176,14 +175,6 @@ export default function CreateNFT() {
 	}
 
 	const onCreateNFT = (payload: TCreateNFTPayload) => createNFTMutation.mutate(payload)
-
-	if (getBalanceQuery.isLoading)
-		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Please wait...</p>
-			</div>
-		)
 
 	return (
 		<div className="xl:px-24 md:px-16 px-[15px]">

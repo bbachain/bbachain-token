@@ -190,17 +190,9 @@ export default function CreateToken() {
 		if (supply > LIMIT_OF_SIXTH_DECIMALS) form.setValue('decimals', '6')
 	}, [form, watchTokenSupply])
 
-	if (getBalanceQuery.isLoading)
-		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Please wait...</p>
-			</div>
-		)
-
 	if (createTokenMutation.isPending)
 		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
+			<div className="h-full w-full flex flex-col space-y-3 items-center justify-center">
 				<Loader2 className="animate-spin" width={40} height={40} />
 				<p>Creating your token...</p>
 			</div>
@@ -213,17 +205,17 @@ export default function CreateToken() {
 			)}
 			<form
 				onSubmit={form.handleSubmit(onSubmit)}
-				className="xl:px-48 md:px-16 px-[15px] w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
+				className="xl:px-48 md:px-16 px-4 w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 			>
 				{isNoBalance && <NoBalanceAlert />}
-				<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
+				<h1 className="text-center md:text-5xl leading-tight text-xl font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
 				<div className="w-full mt-8 max-w-5xl mx-auto relative">
 					<FormProgressLine steps={createTokenSteps} currentStep={currentStep} />
 				</div>
 				{currentStep === 0 && (
-					<Card className="w-full border-hover-green border-[1px] rounded-[16px] md:p-9 p-3 drop-shadow-lg">
+					<Card className="w-full border-hover-green border-[1px] rounded-2xl md:p-9 p-3 drop-shadow-lg">
 						<CardHeader className="text-center space-y-0 p-0 md:pb-6 pb-3">
 							<CardTitle className="md:text-[28px] text-lg text-main-black font-medium">
 								Token Details
@@ -232,8 +224,8 @@ export default function CreateToken() {
 								Basic details about your token
 							</CardDescription>
 						</CardHeader>
-						<CardContent className="flex flex-col md:space-y-[25px] space-y-3 p-0">
-							<div className="grid md:grid-cols-2 md:gap-[25px] gap-3">
+						<CardContent className="flex flex-col md:space-y-6 space-y-3 p-0">
+							<div className="grid md:grid-cols-2 md:gap-6 gap-3">
 								<FormField
 									control={form.control}
 									name="name"
@@ -260,7 +252,7 @@ export default function CreateToken() {
 											<FormLabel>Token Symbol</FormLabel>
 											<FormControl>
 												<Input
-													className="focus-visible:ring-hover-green focus:border-hover-green rounded-[8px] w-full"
+													className="focus-visible:ring-hover-green focus:border-hover-green rounded-lg w-full"
 													type="text"
 													placeholder="Enter Token Symbol"
 													{...field}
