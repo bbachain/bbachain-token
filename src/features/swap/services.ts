@@ -1,4 +1,3 @@
-import * as BufferLayout from '@bbachain/buffer-layout'
 import {
 	getAssociatedTokenAddress,
 	TOKEN_PROGRAM_ID,
@@ -20,690 +19,204 @@ import {
 	type TransactionInstruction
 } from '@bbachain/web3.js'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
 
-import { TGetTokensResponse } from '@/app/api/tokens/route'
-import ENDPOINTS from '@/constants/endpoint'
+import REGEX from '@/constants/regex'
 import SERVICES_KEY from '@/constants/service'
-import { bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
-import { getTokenAccounts2 } from '@/lib/tokenAccount'
-import { ExtendedMintInfo, isNativeBBA } from '@/staticData/tokens'
-
-import { getAllPoolsFromOnchain, OnchainPoolData } from '../liquidityPool/onchain'
-import { TGetTokenDataResponse, TGetTokenResponse } from '../tokens/types'
-import { getTokenData } from '../tokens/utils'
-
+import { useGetPools } from '@/features/liquidityPool/services'
+import type {
+	TExecuteSwapPayload,
+	TExecuteSwapResponse,
+	TExecuteSwapResponseData,
+	TGetSwapQuotePayload,
+	TGetSwapQuoteResponse,
+	TGetSwapRoutePayload,
+	TGetSwapRouteResponse,
+	TSwapValidationPayload,
+	TSwapValidationResponse
+} from '@/features/swap/types'
 import {
-	TGetSwappableTokensResponse,
-	TGetTokenPriceData,
-	TGetUserBalanceData,
-	TGetSwapTransactionPayload,
-	TTokenProps,
-	TGetSwapTransactionData
-} from './types'
+	calculateInputAmount,
+	calculateOutputAmount,
+	calculatePriceImpact,
+	findBestPool
+} from '@/features/swap/utils'
+import { isNativeBBA, getBBAFromDaltons, getDaltonsFromBBA, formatTokenBalance } from '@/lib/token'
 
-interface RawTokenSwap {
-	version: number
-	isInitialized: boolean
-	bumpSeed: number
-	poolTokenProgramId: PublicKey
-	tokenAccountA: PublicKey
-	tokenAccountB: PublicKey
-	tokenPool: PublicKey
-	mintA: PublicKey
-	mintB: PublicKey
-	feeAccount: PublicKey
-	tradeFeeNumerator: bigint
-	tradeFeeDenominator: bigint
-	ownerTradeFeeNumerator: bigint
-	ownerTradeFeeDenominator: bigint
-	ownerWithdrawFeeNumerator: bigint
-	ownerWithdrawFeeDenominator: bigint
-	hostFeeNumerator: bigint
-	hostFeeDenominator: bigint
-	curveType: number
-	curveParameters: Uint8Array
-}
-
-export const publicKey = (property: string = 'publicKey') => {
-	return BufferLayout.blob(32, property)
-}
-
-/**
- * Layout for a 64bit unsigned value
- */
-export const uint64 = (property: string = 'uint64') => {
-	return BufferLayout.blob(8, property)
-}
-
-export const TokenSwapLayout = BufferLayout.struct<RawTokenSwap>([
-	BufferLayout.u8('version'),
-	BufferLayout.u8('isInitialized'),
-	BufferLayout.u8('bumpSeed'),
-	publicKey('tokenProgramId'),
-	publicKey('tokenAccountA'),
-	publicKey('tokenAccountB'),
-	publicKey('tokenPool'),
-	publicKey('mintA'),
-	publicKey('mintB'),
-	publicKey('feeAccount'),
-	uint64('tradeFeeNumerator'),
-	uint64('tradeFeeDenominator'),
-	uint64('ownerTradeFeeNumerator'),
-	uint64('ownerTradeFeeDenominator'),
-	uint64('ownerWithdrawFeeNumerator'),
-	uint64('ownerWithdrawFeeDenominator'),
-	uint64('hostFeeNumerator'),
-	uint64('hostFeeDenominator'),
-	BufferLayout.u8('curveType'),
-	BufferLayout.blob(32, 'curveParameters')
-])
-
-export const useGetSwappableTokens = () =>
-	useQuery<TGetSwappableTokensResponse>({
-		queryKey: [SERVICES_KEY.SWAP.GET_SWAPPABLE_TOKEN],
-		queryFn: async () => {
-			const res = await axios.get(ENDPOINTS.RAYDIUM.GET_MINT_LIST)
-			const swappableTokensData = res.data.data.mintList as TTokenProps[]
-			return { message: 'Successfully get swappable tokens data', data: swappableTokensData }
-		}
-	})
-
-/**
- * Hook to fetch tokens from internal API endpoint
- * This replaces the onchain token fetching for better performance and reliability
- */
-export const useGetTokensFromAPI = (searchQuery?: string) =>
-	useQuery<TGetTokensResponse>({
-		queryKey: [SERVICES_KEY.SWAP.GET_SWAPPABLE_TOKEN + '_api', searchQuery],
-		queryFn: async () => {
-			const params = new URLSearchParams()
-			if (searchQuery) {
-				params.append('search', searchQuery)
-				params.append('includeAddress', 'true')
-			}
-
-			const url = searchQuery
-				? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}`
-				: ENDPOINTS.API.GET_TOKENS
-
-			const res = await axios.get(url)
-			return res.data as TGetTokensResponse
-		},
-		staleTime: 5 * 60 * 1000, // 5 minutes
-		retry: 3
-	})
-
-export const useGetSwappableTokens2 = () => {
-	const { connection } = useConnection()
-	return useQuery<TGetTokenResponse>({
-		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN],
-		queryFn: async () => {
-			const tokenAccounts = await getTokenAccounts2(connection)
-			const tokenData = await Promise.all(
-				tokenAccounts.map(async (account) => {
-					const mintKey = new PublicKey(account.mintAddress)
-					return await getTokenData(connection, mintKey)
-				})
-			)
-
-			const filteredTokenData = tokenData.filter(
-				(token): token is TGetTokenDataResponse => token !== null
-			)
-
-			return {
-				message: `Successfully get token`,
-				data: filteredTokenData
-			}
-		}
-	})
-}
-
-export const useGetSwappableTokens3 = () => {
-	const { connection } = useConnection()
-	const { publicKey: ownerAddress } = useWallet()
-	return useQuery({
-		queryKey: ['get-swappable-token-3'],
-		queryFn: async () => {
-			if (!ownerAddress) throw new Error('No wallet connected')
-			const accountInfo = await connection.getAccountInfo(ownerAddress)
-			console.log('account info, ', accountInfo!.data)
-			if (accountInfo === null) {
-				throw new Error('Failed to find account')
-			}
-
-			if (!accountInfo.owner.equals(TOKEN_SWAP_PROGRAM_ID)) {
-				throw new Error(`Invalid owner: ${JSON.stringify(accountInfo.owner)}`)
-			}
-
-			const data = new Uint8Array(
-				accountInfo.data.buffer,
-				accountInfo.data.byteOffset,
-				accountInfo.data.byteLength
-			)
-			return { data: TokenSwapLayout.decode(data) }
-		}
-	})
-}
-
-export const useGetUserBalanceByMint = ({ mintAddress }: { mintAddress: string }) => {
-	const { publicKey: ownerAddress } = useWallet()
-	const { connection } = useConnection()
-	return useQuery<TGetUserBalanceData>({
-		queryKey: [SERVICES_KEY.SWAP.GET_USER_BALANCE_BY_MINT, mintAddress],
-		queryFn: async () => {
-			if (!ownerAddress) throw new Error('No wallet connected')
-
-			try {
-				// Import the native BBA detection function
-				const { isNativeBBA } = await import('@/staticData/tokens')
-
-				// Handle native BBA token differently
-				if (isNativeBBA(mintAddress)) {
-					console.log('🪙 Fetching native BBA balance...')
-					const balance = await connection.getBalance(ownerAddress)
-					console.log('💰 Native BBA balance:', balance, 'daltons')
-					return { balance }
-				}
-
-				// Handle SPL tokens (existing logic)
-				console.log('🪙 Fetching SPL token balance for:', mintAddress)
-				const mint = new PublicKey(mintAddress)
-				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
-				const balanceAmount = await connection.getTokenAccountBalance(ata)
-				console.log('💰 SPL token balance:', balanceAmount.value.amount, 'base units')
-
-				return { balance: Number(balanceAmount.value.amount) }
-			} catch (e) {
-				console.error('Balance fetch error:', e)
-				return { balance: 0 }
-			}
-		},
-		enabled: !!mintAddress && !!ownerAddress
-	})
-}
-
-export const useGetTokenPrice = ({ mintAddress }: { mintAddress: string }) =>
-	useQuery<TGetTokenPriceData>({
-		queryKey: [SERVICES_KEY.SWAP.GET_TOKEN_PRICE, mintAddress],
-		queryFn: async () => {
-			const res = await axios.get(ENDPOINTS.RAYDIUM.GET_TOKEN_PRICE_BY_MINT, {
-				params: {
-					mints: mintAddress
-				}
-			})
-			const usdRate = res.data.data[mintAddress] ?? 0
-			return { usdRate }
-		},
-		enabled: !!mintAddress,
-		refetchInterval: 60000
-	})
-
-export const useGetCoinGeckoTokenPrice = ({ coinGeckoId }: { coinGeckoId?: string }) =>
-	useQuery<number>({
-		queryKey: [SERVICES_KEY.SWAP.GET_COIN_GECKO_TOKEN_PRICE, coinGeckoId],
-		queryFn: async () => {
-			if (!coinGeckoId) return 0
-			const res = await axios.get(ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE, {
-				params: {
-					ids: coinGeckoId,
-					vs_currencies: 'usd'
-				}
-			})
-			const usdRate = res.data[coinGeckoId].usd ?? 0
-			// Only log price if it's actually different from previous value to reduce spam
-			console.log(`💰 ${coinGeckoId} price: $${usdRate}`)
-			return usdRate
-		},
-		enabled: !!coinGeckoId,
-		refetchInterval: 300000, // Reduced to 5 minutes to avoid spam
-		staleTime: 60000 // Cache for 1 minute
-	})
-
-export const useGetSwapTransactionByMint = ({
-	swapType,
-	inputMint,
-	outputMint,
-	amount,
-	decimals,
-	slippage
-}: TGetSwapTransactionPayload) => {
-	const amountPayload = Number(amount) * 10 ** decimals
-	const slippageBps = slippage * 100
-	return useQuery<TGetSwapTransactionData>({
-		queryKey: [
-			SERVICES_KEY.SWAP.GET_SWAP_TRANSACTION,
-			swapType,
-			inputMint,
-			outputMint,
-			amount,
-			decimals,
-			slippage
-		],
-		queryFn: async () => {
-			const baseType = swapType === 'BaseIn' ? 'in' : 'out'
-			const res = await axios.get(
-				ENDPOINTS.RAYDIUM.GET_SWAP_TRANSACTION_BY_MINT + `/swap-base-${baseType}`,
-				{
-					params: {
-						inputMint,
-						outputMint,
-						amount: amountPayload,
-						slippageBps,
-						txVersion: 'V0'
-					}
-				}
-			)
-			return res.data
-		},
-		enabled: !!amount || amount === '0',
-		refetchInterval: 60000
-	})
-}
-
-/**
- * Enhanced swap services for BBAChain using onchain liquidity pools
- */
-
-/**
- * Calculate output amount using constant product formula (x * y = k)
- * @param inputAmount - Amount to swap in
- * @param inputReserve - Reserve of input token in pool
- * @param outputReserve - Reserve of output token in pool
- * @param feeRate - Pool fee rate (e.g., 0.003 for 0.3%)
- * @returns Output amount after fees
- */
-export function calculateOutputAmount(
-	inputAmount: number,
-	inputReserve: number,
-	outputReserve: number,
-	feeRate: number
-): number {
-	if (inputAmount <= 0 || inputReserve <= 0 || outputReserve <= 0) {
-		console.log('❌ Invalid input parameters for calculation')
-		return 0
-	}
-
-	// Apply fee to input amount
-	const inputAmountWithFee = inputAmount * (1 - feeRate)
-
-	// Constant product formula: (x + dx) * (y - dy) = x * y
-	// Solving for dy: dy = (y * dx) / (x + dx)
-	const outputAmount = (outputReserve * inputAmountWithFee) / (inputReserve + inputAmountWithFee)
-
-	const result = Math.max(0, outputAmount)
-
-	return result
-}
-
-/**
- * Calculate price impact for a swap
- * @param inputAmount - Amount being swapped
- * @param inputReserve - Input token reserve
- * @param outputReserve - Output token reserve
- * @param feeRate - Pool fee rate
- * @returns Price impact as percentage
- */
-export function calculatePriceImpact(
-	inputAmount: number,
-	inputReserve: number,
-	outputReserve: number,
-	feeRate: number
-): number {
-	if (inputAmount <= 0 || inputReserve <= 0 || outputReserve <= 0) return 0
-
-	// Current price (no slippage)
-	const currentPrice = outputReserve / inputReserve
-
-	// Price after swap
-	const outputAmount = calculateOutputAmount(inputAmount, inputReserve, outputReserve, feeRate)
-	const effectivePrice = outputAmount / inputAmount
-
-	// Price impact percentage
-	const priceImpact = Math.abs((currentPrice - effectivePrice) / currentPrice) * 100
-
-	return priceImpact
-}
-
-/**
- * Find the best pool for a token pair
- * @param pools - Array of available pools
- * @param inputMint - Input token mint address
- * @param outputMint - Output token mint address
- * @returns Best pool for the swap or null if no pool found
- */
-export function findBestPool(
-	pools: OnchainPoolData[],
-	inputMint: string,
-	outputMint: string
-): OnchainPoolData | null {
-	const availablePools = pools.filter((pool) => {
-		const hasInputToken = pool.mintA.address === inputMint || pool.mintB.address === inputMint
-		const hasOutputToken = pool.mintA.address === outputMint || pool.mintB.address === outputMint
-		return hasInputToken && hasOutputToken && pool.tvl > 0
-	})
-
-	if (availablePools.length === 0) return null
-
-	// Sort by TVL (Total Value Locked) to find the most liquid pool
-	availablePools.sort((a, b) => b.tvl - a.tvl)
-
-	return availablePools[0]
-}
-
-/**
- * Enhanced hook to get swap quote using onchain pools
- */
 export const useGetSwapQuote = ({
+	pool,
 	inputMint,
 	outputMint,
 	inputAmount,
-	slippage = 0.5
-}: {
-	inputMint: string
-	outputMint: string
-	inputAmount: string
-	slippage?: number
-}) => {
-	const { connection } = useConnection()
-
-	return useQuery({
-		queryKey: ['swap-quote', inputMint, outputMint, inputAmount, slippage],
+	slippage = 0.5,
+	inputType = 'from'
+}: TGetSwapQuotePayload) => {
+	return useQuery<TGetSwapQuoteResponse | null, Error>({
+		queryKey: [
+			SERVICES_KEY.SWAP.GET_SWAP_QUOTE,
+			pool?.address,
+			inputMint,
+			outputMint,
+			inputAmount,
+			slippage,
+			inputType
+		],
 		queryFn: async () => {
-			console.log('🔄 Starting swap quote calculation:', {
-				inputMint,
-				outputMint,
-				inputAmount,
-				inputAmountNumber: Number(inputAmount),
-				slippage
-			})
-
-			if (!inputAmount || Number(inputAmount) <= 0) {
-				console.log('❌ Invalid input amount:', inputAmount)
-				return null
-			}
-
-			if (inputMint === outputMint) {
-				console.log('❌ Same input and output mint')
-				return null
-			}
+			if (!pool) throw new Error('No pool found')
+			if (!inputAmount || Number(inputAmount) <= 0) return null
+			if (inputMint === outputMint) return null
 
 			try {
-				// Get all pools from onchain
-				console.log('📊 Fetching pools from onchain...')
-				const pools = await getAllPoolsFromOnchain(connection)
-				console.log('📊 Pools fetched:', {
-					totalPools: pools.length,
-					poolAddresses: pools.map((p) => p.address).slice(0, 5) // First 5 for debugging
-				})
-
-				// Find the best pool for this token pair
-				const bestPool = findBestPool(pools, inputMint, outputMint)
-				console.log('🔍 Pool search result:', {
-					found: !!bestPool,
-					poolAddress: bestPool?.address,
-					poolTvl: bestPool?.tvl,
-					mintA: bestPool?.mintA?.symbol,
-					mintB: bestPool?.mintB?.symbol
-				})
-
-				if (!bestPool) {
-					console.log('❌ No liquidity pool found for pair:', {
-						inputMint,
-						outputMint,
-						availablePools: pools.map((p) => ({
-							address: p.address,
-							mintA: p.mintA.address,
-							mintB: p.mintB.address,
-							symbols: `${p.mintA.symbol}/${p.mintB.symbol}`
-						}))
-					})
-					throw new Error(`No liquidity pool found for this token pair`)
-				}
-
-				// Determine which token is A and which is B
-				const isInputTokenA = bestPool.mintA.address === inputMint
-				console.log('🔄 Token direction:', {
-					isInputTokenA,
-					inputToken: isInputTokenA ? bestPool.mintA.symbol : bestPool.mintB.symbol,
-					outputToken: isInputTokenA ? bestPool.mintB.symbol : bestPool.mintA.symbol
-				})
+				// determine which side is A vs B
+				const isInputTokenA = pool.mintA.address === inputMint
 
 				const inputReserve = isInputTokenA
-					? Number(bestPool.reserveA) / Math.pow(10, bestPool.mintA.decimals)
-					: Number(bestPool.reserveB) / Math.pow(10, bestPool.mintB.decimals)
+					? formatTokenBalance(Number(pool.reserveA), pool.mintA.decimals)
+					: formatTokenBalance(Number(pool.reserveB), pool.mintB.decimals)
 				const outputReserve = isInputTokenA
-					? Number(bestPool.reserveB) / Math.pow(10, bestPool.mintB.decimals)
-					: Number(bestPool.reserveA) / Math.pow(10, bestPool.mintA.decimals)
+					? formatTokenBalance(Number(pool.reserveB), pool.mintB.decimals)
+					: formatTokenBalance(Number(pool.reserveA), pool.mintA.decimals)
 
-				console.log('💰 Pool reserves:', {
-					inputReserve,
-					outputReserve,
-					feeRate: bestPool.feeRate,
-					inputReserveRaw: isInputTokenA
-						? bestPool.reserveA.toString()
-						: bestPool.reserveB.toString(),
-					outputReserveRaw: isInputTokenA
-						? bestPool.reserveB.toString()
-						: bestPool.reserveA.toString()
-				})
+				if (inputReserve <= 0 || outputReserve <= 0) throw new Error('Pool has invalid reserves')
 
-				// Validate reserves
-				if (inputReserve <= 0 || outputReserve <= 0) {
-					console.error('❌ Invalid pool reserves:', { inputReserve, outputReserve })
-					throw new Error('Pool has invalid reserves')
+				const amount = Number(inputAmount)
+				const feeRateDecimal = pool.feeRate > 1 ? pool.feeRate / 100 : pool.feeRate
+
+				let baseAmount: number // always "from" side
+				let quoteAmount: number // always "to" side
+
+				if (inputType === 'from') {
+					// user typed in base → normal forward calculation
+					baseAmount = amount
+					quoteAmount = calculateOutputAmount(
+						baseAmount,
+						inputReserve,
+						outputReserve,
+						feeRateDecimal
+					)
+				} else {
+					// user typed in quote → back-calc base amount
+					quoteAmount = amount
+					baseAmount = calculateInputAmount(
+						quoteAmount,
+						inputReserve,
+						outputReserve,
+						feeRateDecimal
+					)
 				}
 
-				const inputAmountNumber = Number(inputAmount)
-
-				// Convert fee rate from percentage to decimal (1.0% -> 0.01)
-				const feeRateDecimal = bestPool.feeRate > 1 ? bestPool.feeRate / 100 : bestPool.feeRate
-
-				console.log('🧮 Calculating swap amounts for:', {
-					inputAmountNumber,
-					inputReserve,
-					outputReserve,
-					feeRate: bestPool.feeRate,
-					feeRateDecimal,
-					feeRateDisplay: `${bestPool.feeRate}% -> ${(feeRateDecimal * 100).toFixed(2)}%`
-				})
-
-				const outputAmount = calculateOutputAmount(
-					inputAmountNumber,
-					inputReserve,
-					outputReserve,
-					feeRateDecimal
-				)
 				const priceImpact = calculatePriceImpact(
-					inputAmountNumber,
+					baseAmount,
 					inputReserve,
 					outputReserve,
 					feeRateDecimal
 				)
 
-				console.log('📈 Calculation results:', {
-					inputAmount: inputAmountNumber,
-					outputAmount,
-					priceImpact
-				})
-
-				// Validate calculation results
-				if (outputAmount <= 0) {
-					console.error('❌ Invalid output amount:', outputAmount)
-					throw new Error('Cannot calculate valid output amount')
-				}
-
-				// Calculate minimum received with slippage
+				// slippage handling
 				const slippageMultiplier = 1 - slippage / 100
-				const minimumReceived = outputAmount * slippageMultiplier
+				const minimumReceived = quoteAmount * slippageMultiplier
+				const maximumInput = baseAmount / slippageMultiplier
 
-				// Calculate exchange rate
-				const exchangeRate = outputAmount / inputAmountNumber
+				// exchange rate always from → to
+				const exchangeRate = quoteAmount / baseAmount
 
-				const result = {
-					inputAmount: inputAmountNumber,
-					outputAmount,
+				return {
+					inputAmount: baseAmount, // base side
+					outputAmount: quoteAmount, // quote side
 					minimumReceived,
+					maximumInput,
 					priceImpact,
 					exchangeRate,
-					feeRate: bestPool.feeRate * 100, // Convert to percentage
-					poolAddress: bestPool.address,
-					poolTvl: bestPool.tvl,
-					inputToken: isInputTokenA ? bestPool.mintA : bestPool.mintB,
-					outputToken: isInputTokenA ? bestPool.mintB : bestPool.mintA
-				}
-
-				console.log('✅ Swap quote calculation successful:', result)
-				return result
+					feeRate: pool.feeRate * 100,
+					poolAddress: pool.address,
+					poolTvl: pool.tvl,
+					inputToken: isInputTokenA ? pool.mintA : pool.mintB,
+					outputToken: isInputTokenA ? pool.mintB : pool.mintA
+				} as TGetSwapQuoteResponse
 			} catch (error) {
 				console.error('❌ Error in swap quote calculation:', error)
 				throw error
 			}
 		},
 		enabled:
+			!!pool &&
 			!!inputMint &&
 			!!outputMint &&
 			!!inputAmount &&
 			Number(inputAmount) > 0 &&
 			inputMint !== outputMint,
-		staleTime: 10000, // 10 seconds
-		refetchInterval: 15000, // Refresh every 15 seconds
+		staleTime: 10000,
+		refetchInterval: 15000,
 		retry: (failureCount, error) => {
 			console.log('🔄 Retrying swap quote:', { failureCount, error: error?.message })
-			return failureCount < 2 // Retry up to 2 times
+			return failureCount < 2
 		}
 	})
 }
 
 /**
- * Enhanced hook to get available tokens from API with search
+ * Hook to get swap route information
  */
-export const useGetAvailableTokens = (searchQuery?: string) => {
-	return useQuery({
-		queryKey: ['available-tokens', searchQuery],
-		queryFn: async () => {
-			console.log('🔍 Fetching available tokens:', { searchQuery })
+export const useGetSwapRoute = ({ inputMint, outputMint }: TGetSwapRoutePayload) => {
+	const getPoolsQuery = useGetPools()
+	const pools = getPoolsQuery.data?.data
 
-			const params = new URLSearchParams()
-			if (searchQuery) {
-				params.append('search', searchQuery)
-				params.append('includeAddress', 'true')
+	const getSwapRoute = useQuery<TGetSwapRouteResponse | null>({
+		queryKey: [
+			SERVICES_KEY.SWAP.GET_SWAP_ROUTE,
+			pools?.map((pool) => pool.address),
+			inputMint,
+			outputMint
+		],
+		queryFn: async () => {
+			if (!pools) return null
+			const directPool = findBestPool(pools, inputMint, outputMint)
+			if (directPool) {
+				return {
+					type: 'direct',
+					pools: [directPool],
+					route: [inputMint, outputMint],
+					totalFeeRate: directPool.feeRate
+				}
 			}
-
-			const url = searchQuery
-				? `${ENDPOINTS.API.GET_TOKENS}?${params.toString()}`
-				: ENDPOINTS.API.GET_TOKENS
-
-			const response = await axios.get(url)
-			console.log('✅ Tokens fetched:', {
-				count: response.data?.data?.length || 0,
-				hasData: !!response.data?.data
-			})
-
-			const data = response.data.data as ExtendedMintInfo[]
-			return data
+			// TODO: Implement multi-hop routing for indirect swaps
+			// For now, return null if no direct route exists
+			return null
 		},
-		staleTime: 60000, // 1 minute
-		enabled: true
+		enabled: !!inputMint && !!outputMint && inputMint !== outputMint,
+		staleTime: 10000, // 10 seconds
+		refetchInterval: 15000 // Refresh every 15 seconds
 	})
+
+	return {
+		...getSwapRoute,
+		isLoading: getPoolsQuery.isLoading || getSwapRoute.isLoading,
+		isRefetching: getPoolsQuery.isRefetching || getSwapRoute.isRefetching
+	}
 }
 
-/**
- * Enhanced hook to get pools that contain a specific token
- */
-export const useGetPoolsForToken = (tokenAddress: string) => {
-	const { connection } = useConnection()
-
-	return useQuery({
-		queryKey: ['pools-for-token', tokenAddress],
-		queryFn: async () => {
-			if (!tokenAddress) return []
-
-			const allPools = await getAllPoolsFromOnchain(connection)
-
-			return allPools.filter(
-				(pool) => pool.mintA.address === tokenAddress || pool.mintB.address === tokenAddress
-			)
-		},
-		enabled: !!tokenAddress,
-		staleTime: 60000 // 1 minute
-	})
-}
-
-/**
- * Enhanced swap execution using BBAChain liquidity pools
- */
-
-export interface SwapExecutionParams {
-	inputMint: string
-	outputMint: string
-	inputAmount: string
-	slippage: number
-	poolAddress: string
-}
-
-export interface SwapExecutionResult {
-	signature: string
-	inputAmount: number
-	outputAmount: number
-	actualOutputAmount: number
-	priceImpact: number
-	executionTime: number
-	poolDetail?: OnchainPoolData
-}
-
-/**
- * Hook for executing swaps through BBAChain liquidity pools
- */
 export const useExecuteSwap = () => {
 	const { connection } = useConnection()
 	const { publicKey, sendTransaction } = useWallet()
 	const queryClient = useQueryClient()
 
-	return useMutation<SwapExecutionResult, Error, SwapExecutionParams>({
+	return useMutation<TExecuteSwapResponse, Error, TExecuteSwapPayload>({
+		mutationKey: [SERVICES_KEY.SWAP.EXECUTE_SWAP, publicKey?.toBase58()],
 		mutationFn: async (params) => {
 			const startTime = Date.now()
 			console.log('🔄 Swap execution started:', params)
 
-			if (!publicKey) {
-				throw new Error('Wallet not connected')
-			}
+			if (!publicKey) throw new Error('Wallet not connected')
+			if (!params.pool) throw new Error('No pool found')
 
-			const { inputMint, outputMint, inputAmount, slippage, poolAddress } = params
+			const { inputMint, outputMint, inputAmount, slippage, pool } = params
 
 			// === BBA Detection (must be early) ===
 			const isInputBBA = isNativeBBA(inputMint)
 			const isOutputBBA = isNativeBBA(outputMint)
 			const isBBASwap = isInputBBA || isOutputBBA
 
-			// Get pool data to access swap authority and token accounts
-			const pools = await getAllPoolsFromOnchain(connection)
-			const pool = pools.find((p) => p.address === poolAddress)
-			if (!pool) {
-				throw new Error('Pool not found')
-			}
-
-			// Debug: Check createSwapInstruction interface
-			console.log('🔍 Debug createSwapInstruction function:', {
-				name: createSwapInstruction.name,
-				length: createSwapInstruction.length
-			})
-
-			// === Handle BBA/WBBA Mint Mapping for Pool Matching ===
-			// For pool matching, we need to use WBBA address when BBA is involved
-			const effectiveInputMint = isInputBBA ? NATIVE_MINT.toBase58() : inputMint
-			const effectiveOutputMint = isOutputBBA ? NATIVE_MINT.toBase58() : outputMint
-
-			console.log('🔄 Effective mints for pool matching:', {
-				originalInputMint: inputMint,
-				originalOutputMint: outputMint,
-				effectiveInputMint,
-				effectiveOutputMint,
-				poolMintA: pool.mintA.address,
-				poolMintB: pool.mintB.address
-			})
-
 			// Calculate all required values for debugging
+			const effectiveInputMint = isInputBBA ? NATIVE_MINT.toBase58() : inputMint
 			const isInputTokenA = pool.mintA.address === effectiveInputMint
 
 			const inputAmountNumber = Number(inputAmount)
@@ -731,59 +244,27 @@ export const useExecuteSwap = () => {
 			const slippageMultiplier = 1 - slippage / 100
 			const minimumOutputDaltons = Math.floor(expectedOutputDaltons * slippageMultiplier)
 
-			console.log('💰 All swap parameters ready:', {
-				inputAmount: inputAmountNumber,
-				inputAmountDaltons,
-				expectedOutput,
-				expectedOutputDaltons,
-				minimumOutputDaltons,
-				slippage: slippage + '%',
-				poolAddress,
-				isInputTokenA
-			})
-
-			// === BBA-AWARE Token Account Preparation ===
-			console.log('🔍 Swap Analysis:', {
-				inputMint,
-				outputMint,
-				isInputBBA,
-				isOutputBBA,
-				isBBASwap,
-				requiresWrapping: isBBASwap
-			})
-
 			let userInputTokenAccount: PublicKey
 			let userOutputTokenAccount: PublicKey
-			let needsUnwrapping = false
-			// Track whether we created a temporary WBBA ATA for BBA → Token swaps
 			let createdWBBAInputAccount = false
 			let preTxInstructions: TransactionInstruction[] = []
 			let postTxInstructions: TransactionInstruction[] = []
 
 			if (isBBASwap) {
-				console.log('🪙 BBA swap detected - using WBBA for native BBA')
-
 				if (isInputBBA) {
-					// BBA → Token: Use WBBA account for input
-					console.log('💰 BBA → Token swap: Using WBBA account for input')
-
-					// Check BBA balance
 					const userBBABalance = await connection.getBalance(publicKey)
-					const requiredBBA = bbaTodaltons(inputAmountNumber)
+					const requiredBBA = getDaltonsFromBBA(inputAmountNumber)
 
-					if (userBBABalance < requiredBBA) {
+					if (userBBABalance < requiredBBA)
 						throw new Error(
-							`Insufficient BBA balance. Required: ${inputAmountNumber} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+							`Insufficient BBA balance. Required: ${inputAmountNumber} BBA, Available: ${getBBAFromDaltons(userBBABalance)} BBA`
 						)
-					}
 
-					// Use WBBA (NATIVE_MINT) associated token account
 					userInputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
 
 					// Create WBBA account if it doesn't exist and fund it
 					const wbbaAccountInfo = await connection.getAccountInfo(userInputTokenAccount)
 					if (!wbbaAccountInfo) {
-						console.log('📝 Creating WBBA account and funding with BBA...')
 						const createWBBAIx = createAssociatedTokenAccountInstruction(
 							publicKey,
 							userInputTokenAccount,
@@ -819,16 +300,12 @@ export const useExecuteSwap = () => {
 						postTxInstructions.push(closeWbbaInputIx)
 					}
 				} else if (isOutputBBA) {
-					// Token → BBA: Swap to WBBA then unwrap
-					console.log('💰 Token → BBA swap: Will receive WBBA and unwrap to BBA')
-
 					// For input, use standard token account
 					userInputTokenAccount = await getAssociatedTokenAddress(
 						new PublicKey(inputMint),
 						publicKey
 					)
 
-					// For output, use WBBA (NATIVE_MINT) associated token account
 					userOutputTokenAccount = await getAssociatedTokenAddress(NATIVE_MINT, publicKey)
 
 					// Create WBBA account if it doesn't exist
@@ -844,8 +321,6 @@ export const useExecuteSwap = () => {
 						preTxInstructions.push(createWBBAIx)
 					}
 
-					// Add instruction to unwrap WBBA to BBA after swap
-					needsUnwrapping = true
 					const closeWBBAIx = createCloseAccountInstruction(
 						userOutputTokenAccount,
 						publicKey,
@@ -870,14 +345,12 @@ export const useExecuteSwap = () => {
 
 			// Derive swap authority from pool account
 			const [swapAuthority] = PublicKey.findProgramAddressSync(
-				[new PublicKey(poolAddress).toBuffer()],
+				[new PublicKey(pool.address).toBuffer()],
 				TOKEN_SWAP_PROGRAM_ID
 			)
 
-			// Prepare accounts object for createSwapInstruction
 			const accounts = {
-				// Required accounts based on @bbachain/spl-token-swap
-				tokenSwap: new PublicKey(poolAddress),
+				tokenSwap: new PublicKey(pool.address),
 				authority: swapAuthority,
 				userTransferAuthority: publicKey,
 				source: userInputTokenAccount,
@@ -932,7 +405,16 @@ export const useExecuteSwap = () => {
 					userInputTokenAccount,
 					publicKey,
 					publicKey,
-					bbaTodaltons(inputAmountNumber)
+					getDaltonsFromBBA(inputAmountNumber)
+				)
+				transaction.add(approveIx)
+			} else {
+				// for other spl tokens
+				const approveIx = createApproveInstruction(
+					userInputTokenAccount,
+					publicKey,
+					publicKey,
+					inputAmountDaltons
 				)
 				transaction.add(approveIx)
 			}
@@ -950,20 +432,17 @@ export const useExecuteSwap = () => {
 
 			// Send transaction
 			const signature = await sendTransaction(transaction, connection)
-
 			console.log('📤 Transaction sent with signature:', signature)
 
 			// Wait for confirmation
 			const confirmation = await connection.confirmTransaction(signature, 'confirmed')
-
 			if (confirmation.value.err) {
 				throw new Error(`Transaction failed: ${confirmation.value.err}`)
 			}
 
 			console.log('✅ Swap transaction confirmed!')
 
-			// Return execution result
-			return {
+			const responseData = {
 				signature,
 				inputAmount: inputAmountNumber,
 				outputAmount: expectedOutput,
@@ -976,99 +455,20 @@ export const useExecuteSwap = () => {
 				),
 				executionTime: Date.now() - startTime,
 				poolDetail: pool
-			} as SwapExecutionResult
-		},
-		onSuccess: (result) => {
-			console.log('✅ Swap completed successfully:', result)
-			const poolId = result.poolDetail?.address
-			const baseMint = result.poolDetail?.mintA
-			const quoteMint = result.poolDetail?.mintB
+			} as TExecuteSwapResponseData
 
-			// Invalidate relevant queries to refresh balances and pool data
-			queryClient.invalidateQueries({ queryKey: ['swap-quote'] })
-			queryClient.invalidateQueries({ queryKey: ['user-balance'] })
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.SWAP.GET_USER_BALANCE_BY_MINT] })
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId] })
-			queryClient.invalidateQueries({
-				queryKey: [
-					SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
-					poolId,
-					baseMint?.address,
-					quoteMint?.address
-				]
-			})
-			queryClient.invalidateQueries({
-				queryKey: [
-					SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
-					poolId,
-					quoteMint?.address,
-					baseMint?.address
-				]
-			})
-			queryClient.invalidateQueries({
-				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, publicKey?.toBase58()]
-			})
+			const outputSymbol = isInputTokenA ? pool.mintB.symbol : pool.mintA.symbol
+
+			// Return execution result
+			return {
+				message: `Swap successful! Received ${responseData.actualOutputAmount.toFixed(6)} ${outputSymbol}`,
+				data: responseData
+			}
 		},
-		onError: (error) => {
-			console.error('❌ Swap failed:', error)
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.SWAP.GET_SWAP_QUOTE] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE] })
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.WALLET.GET_TOKEN_BALANCE_BY_MINT] })
 		}
-	})
-}
-
-/**
- * Hook to check if a swap is possible between two tokens
- */
-export const useCanSwap = (inputMint: string, outputMint: string) => {
-	const { connection } = useConnection()
-
-	return useQuery({
-		queryKey: ['can-swap', inputMint, outputMint],
-		queryFn: async () => {
-			if (!inputMint || !outputMint || inputMint === outputMint) {
-				return false
-			}
-
-			const pools = await getAllPoolsFromOnchain(connection)
-			const availablePool = findBestPool(pools, inputMint, outputMint)
-
-			return !!availablePool
-		},
-		enabled: !!inputMint && !!outputMint && inputMint !== outputMint,
-		staleTime: 30000 // 30 seconds
-	})
-}
-
-/**
- * Hook to get swap route information
- */
-export const useGetSwapRoute = (inputMint: string, outputMint: string) => {
-	const { connection } = useConnection()
-
-	return useQuery({
-		queryKey: ['swap-route', inputMint, outputMint],
-		queryFn: async () => {
-			if (!inputMint || !outputMint || inputMint === outputMint) {
-				return null
-			}
-
-			const pools = await getAllPoolsFromOnchain(connection)
-			const directPool = findBestPool(pools, inputMint, outputMint)
-
-			if (directPool) {
-				return {
-					type: 'direct',
-					pools: [directPool],
-					route: [inputMint, outputMint],
-					totalFeeRate: directPool.feeRate
-				}
-			}
-
-			// TODO: Implement multi-hop routing for indirect swaps
-			// For now, return null if no direct route exists
-			return null
-		},
-		enabled: !!inputMint && !!outputMint && inputMint !== outputMint,
-		staleTime: 60000 // 1 minute
 	})
 }

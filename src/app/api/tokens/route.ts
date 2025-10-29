@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import StaticTokens, { ExtendedMintInfo } from '@/staticData/tokens'
-import { TSuccessMessage } from '@/types'
-
-export type TGetTokensResponse = TSuccessMessage & {
-	data: ExtendedMintInfo[]
-}
+import { TGetTradeableTokenResponse } from '@/features/tokens/types'
+import StaticTokens from '@/staticData/tokens'
 
 /**
  * GET /api/tokens
  * Returns the list of available tokens for swap and liquidity pool creation
  */
-export async function GET(request: NextRequest): Promise<NextResponse<TGetTokensResponse>> {
+export async function GET(request: NextRequest): Promise<NextResponse<TGetTradeableTokenResponse>> {
 	try {
 		// Get search query parameter for filtering
 		const { searchParams } = new URL(request.url)
@@ -72,7 +68,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		}
 
 		const tokens = StaticTokens.filter((token) => addresses.includes(token.address))
-		
+
 		return NextResponse.json(
 			{
 				message: `Successfully retrieved ${tokens.length} tokens`,

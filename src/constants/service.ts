@@ -4,7 +4,9 @@ const GLOBAL_SERVICE_KEY = {
 } as const
 
 const WALLET_SERVICE_KEY = {
-	GET_BALANCE: 'get-balance',
+	GET_BBA_BALANCE: 'get-bba-balance',
+	GET_WBBA_BALANCE: 'get-wbba-balance',
+	GET_TOKEN_BALANCE_BY_MINT: 'get-token-balance-by-mint',
 	TRANSFER_BBA: 'transfer-bba',
 	REQUEST_AIRDROP: 'request-airdrop'
 } as const
@@ -13,6 +15,10 @@ const TOKEN_SERVICE_KEY = {
 	CREATE_TOKEN: 'create-token',
 	GET_TOKEN: 'get-token',
 	GET_TOKEN_DETAIL: 'get-token-detail',
+	GET_TRADEABLE_TOKEN: 'get-tradeable-token',
+	GET_LP_TOKEN: 'get-lp-token',
+	GET_TOKEN_PRICE_BY_COIN_GECKO_ID: 'get-token-price-by-coin-gecko-id',
+	GET_ALL_TOKEN_PRICES: 'get-all-token-prices',
 	UPDATE_TOKEN_METADATA: 'update-token-metadata',
 	REVOKE_FREEZE: 'revoke-freeze',
 	REVOKE_MINT: 'revoke-mint',
@@ -31,11 +37,10 @@ const NFT_SERVICE_KEY = {
 } as const
 
 const SWAP_SERVICE_KEY = {
-	GET_SWAPPABLE_TOKEN: 'get-swappable-token',
-	GET_TOKEN_PRICE: 'get-token-price',
-	GET_COIN_GECKO_TOKEN_PRICE: 'get-coin-gecko-token-price',
-	GET_USER_BALANCE_BY_MINT: 'get-user-balance-by-mint',
-	GET_SWAP_TRANSACTION: 'get-swap-transaction'
+	GET_SWAP_QUOTE: 'get-swap-quote',
+	GET_SWAP_ROUTE: 'get-swap-route',
+	VALIDATE_SWAP: 'validate-swap',
+	EXECUTE_SWAP: 'execute-swap'
 } as const
 
 const POOL_SERVICE_KEY = {
@@ -45,7 +50,9 @@ const POOL_SERVICE_KEY = {
 	GET_POOL_BY_MINT: 'get-pool-by-mint',
 	GET_POOL_STATS: 'get-pool-stats',
 	GET_USER_POOL_STATS: 'get-user-pool-stats',
+	GET_POOLS_SYNC: 'get-pool-sync',
 	GET_TRANSACTIONS_BY_POOL_ID: 'get-transations-by-pool-id',
+	ON_REVERSE_POOL: 'on-reverse-pool',
 	DEPOSIT_LIQUIDITY: 'deposit-liquidity'
 } as const
 

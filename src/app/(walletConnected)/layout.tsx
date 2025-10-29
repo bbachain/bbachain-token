@@ -1,8 +1,6 @@
 'use client'
 
 import { useWallet } from '@bbachain/wallet-adapter-react'
-import { Loader2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
 import { CiWallet } from 'react-icons/ci'
 
 import ThemeImage from '@/components/common/ThemeImage'
@@ -13,22 +11,11 @@ import { useWalletListDialog } from '@/stores/walletDialog'
 export default function WalletConnectedLayout({ children }: { children: React.ReactNode }) {
 	const { publicKey: address } = useWallet()
 	const { openWalletList } = useWalletListDialog()
-	const [mounted, setMounted] = useState<boolean>(false)
-	useEffect(() => setMounted(true), [])
-
-	if (!mounted) {
-		return (
-			<div className="h-full w-full mt-60 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p>Please wait...</p>
-			</div>
-		)
-	}
 
 	if (!address)
 		return (
-			<div className="md:mt-40 mt-20 md:mb-20 flex justify-center mb-5 px-5">
-				<Card className="md:w-[564px] w-full border-hover-green border-[1px] rounded-[16px] md:p-6 p-3 drop-shadow-lg">
+			<div className="h-min-screen px-4 h-full w-full flex justify-center">
+				<Card className="md:w-[564px] w-full h-full border-hover-green border-[1px] rounded-[16px] md:p-6 p-3 drop-shadow-lg">
 					<CardHeader className="p-0">
 						<CardTitle className="md:text-4xl text-xl text-center">Wallet Not Connected</CardTitle>
 					</CardHeader>
@@ -36,12 +23,15 @@ export default function WalletConnectedLayout({ children }: { children: React.Re
 						<ThemeImage
 							lightSrc={'/wallet-not-connected-light.svg'}
 							darkSrc={'/wallet-not-connected-dark.svg'}
+							quality={45}
+							priority
 							width={218}
 							height={218}
 							alt="wallet not connected logo"
 						/>
 						<p className="text-center text-sm text-main-black">
-							Please connect your wallet to use the Quick Token <br /> Generator and access features.
+							Please connect your wallet to use the Quick Token <br /> Generator and access
+							features.
 						</p>
 					</CardContent>
 					<CardFooter className="p-0">
@@ -58,5 +48,5 @@ export default function WalletConnectedLayout({ children }: { children: React.Re
 			</div>
 		)
 
-	return <div className="md:mt-40 mt-20 md:mb-20 mb-5">{children}</div>
+	return <div className="h-min-screen h-full w-full">{children}</div>
 }

@@ -3,22 +3,21 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
-import { balanceFormater } from '@/components/common/WalletButton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import WrapBalanceItem from '@/features/wrapping/components/WrapBalanceItem'
 import WrapContent from '@/features/wrapping/components/WrapContentCard'
-import { useGetWBBABalance, useUnwrapBBA, useWrapBBA } from '@/features/wrapping/services'
-import { useGetBalance } from '@/services/wallet'
-import StaticTokens from '@/staticData/tokens'
+import { useUnwrapBBA, useWrapBBA } from '@/features/wrapping/services'
+import { getBBAFromDaltons } from '@/lib/token'
+import { useGetBBABalance, useGetWBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 export default function Wrapping() {
 	const wrapBBAMutation = useWrapBBA()
 	const unwrapWBBAMutation = useUnwrapBBA()
-	const getBBABalance = useGetBalance()
+	const getBBABalance = useGetBBABalance()
 	const getWBBABalance = useGetWBBABalance()
-	const BBABalance = balanceFormater(getBBABalance.data ?? 0)
-	const WBBABalance = (getWBBABalance.data?.balance ?? 0) / Math.pow(10, StaticTokens[0].decimals)
+	const BBABalance = getBBAFromDaltons(getBBABalance.data ?? 0)
+	const WBBABalance = getBBAFromDaltons(getBBABalance.data ?? 0)
 	const [inputAmount, setInputAmount] = useState<string>('')
 
 	const isAmountPositive = Number(inputAmount) >= 0
@@ -71,9 +70,9 @@ export default function Wrapping() {
 				<h2 className="font-bold lg:text-[45px] md:text-3xl text-xl text-main-black">
 					BBA Wrapping
 				</h2>
-				<h5 className="font-normal lg:text-lg md:text-sm text-xs text-dark-grey">
+				<p className="font-normal lg:text-lg md:text-sm text-xs text-dark-grey">
 					Easily convert between BBA and WBBA. Use WBBA for swaps and liquidity pools.
-				</h5>
+				</p>
 			</section>
 			<section className="flex justify-between md:flex-row md:space-x-6 flex-col md:space-y-0 space-y-3 w-full items-center">
 				<WrapBalanceItem

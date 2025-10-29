@@ -11,11 +11,11 @@ import Navbar from '@/components/layout/Navbar'
 
 export default function UiProvider({ children }: { children: ReactNode }) {
 	return (
-		<main className="min-h-screen w-full h-full">
+		<main className="min-h-screen w-full bg-main-white">
 			<Toaster position="top-right" />
-			<div className="flex min-h-screen bg-main-white  w-full flex-col justify-between">
+			<div className="flex min-h-screen w-full flex-col justify-between">
 				<Navbar />
-				{children}
+				<div className="pt-24 md:my-20 my-6 w-full">{children}</div>
 				<Footer />
 			</div>
 			<WalletListDialog />

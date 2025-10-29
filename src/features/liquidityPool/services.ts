@@ -18,204 +18,153 @@ import {
 	TokenSwap
 } from '@bbachain/spl-token-swap'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
+import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import BN from 'bn.js'
+import moment from 'moment'
 
 import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
-import { addBBAToPoolAccount, bbaTodaltons, daltonsToBBA } from '@/lib/bbaWrapping'
-import { formatTokenToDaltons } from '@/lib/utils'
-import {
-	isBBAPool,
-	getBBAPositionInPool,
-	isNativeBBA,
-	getWBBAMintAddress
-} from '@/staticData/tokens'
-
-import { useGetCoinGeckoTokenPrice, useGetUserBalanceByMint } from '../swap/services'
-import { getCoinGeckoId } from '../swap/utils'
-import { getLPTokenData } from '../tokens/utils'
-
-import { TransactionListProps } from './components/TransactionColumns'
-import {
-	getAllPoolsFromOnchain,
-	getTotalLPSupply,
-	getUserLPTokens,
-	OnchainPoolData,
-	parsePoolData
-} from './onchain'
-import {
-	MintInfo,
-	PoolData,
+import type {
+	TCreatePoolData,
 	TCreatePoolPayload,
 	TCreatePoolResponse,
+	TDepositToPoolPayload,
+	TDepositToPoolResponse,
+	TFormattedTransactionData,
+	TGetPoolByIdResponse,
 	TGetPoolsResponse,
+	TGetPoolStatsResponse,
 	TGetPoolTransactionResponse,
-	TransactionData
-} from './types'
-import { processTransactionData } from './utils'
+	TGetUserPoolStatsResponse,
+	TOnchainPoolData,
+	TransactionData,
+	TUserPoolStatsData
+} from '@/features/liquidityPool/types'
+import {
+	calculatePoolMetrics,
+	calculateTVL,
+	classifyType,
+	getPoolAccounts,
+	getSignerWallet,
+	getTotalLPSupply,
+	getTransactionDelta,
+	getUserLPTokens,
+	processPoolAccount,
+	isBBAPool,
+	getBBAPositionInPool
+} from '@/features/liquidityPool/utils'
+import { useGetAllTokenPrices } from '@/features/tokens/services'
+import {
+	formatTokenToDaltons,
+	getBBAFromDaltons,
+	getDaltonsFromBBA,
+	isNativeBBA,
+	formatTokenBalance
+} from '@/lib/token'
+import { confirmTransactionWithTimeout, sendTransactionWithRetry } from '@/lib/wallet'
+import { TSuccessMessage } from '@/types'
 
-// Enhanced retry configuration
-const RETRY_CONFIG = {
-	attempts: 3,
-	delay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-	retryCondition: (error: any) => {
-		// Retry on network errors, timeouts, and 5xx errors
-		return !error.response || error.response.status >= 500 || error.code === 'NETWORK_ERROR'
-	}
-}
-
-// Transaction helper with retry and delay
-const sendTransactionWithRetry = async (
-	transaction: Transaction,
-	connection: Connection,
-	sendTransaction: any,
-	options?: { signers?: any[]; skipPreflight?: boolean; preflightCommitment?: string }
-) => {
-	for (let attempt = 1; attempt <= RETRY_CONFIG.attempts; attempt++) {
-		try {
-			console.log(`📤 Sending transaction (attempt ${attempt}/${RETRY_CONFIG.attempts})...`)
-
-			const signature = await sendTransaction(transaction, connection, options)
-			console.log(`✅ Transaction sent successfully:`, signature)
-
-			return signature
-		} catch (error: any) {
-			console.error(`❌ Transaction attempt ${attempt} failed:`, error)
-
-			if (attempt === RETRY_CONFIG.attempts || !RETRY_CONFIG.retryCondition(error)) {
-				throw error
-			}
-
-			// Wait before retry
-			const delay = RETRY_CONFIG.delay(attempt - 1)
-			console.log(`⏳ Waiting ${delay}ms before retry...`)
-			await new Promise((resolve) => setTimeout(resolve, delay))
-		}
-	}
-}
-
-// Confirmation helper with timeout
-const confirmTransactionWithTimeout = async (
-	connection: Connection,
-	signature: string,
-	latestBlockhash: any,
-	timeoutMs = 30000
-) => {
-	console.log(`⏳ Confirming transaction: ${signature}`)
-
-	const timeoutPromise = new Promise((_, reject) => {
-		setTimeout(() => reject(new Error('Transaction confirmation timeout')), timeoutMs)
-	})
-
-	const confirmPromise = connection.confirmTransaction(
-		{ signature, ...latestBlockhash },
-		'confirmed'
-	)
-
-	const confirmation: any = await Promise.race([confirmPromise, timeoutPromise])
-
-	if (confirmation.value?.err) {
-		throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
-	}
-
-	console.log(`✅ Transaction confirmed: ${signature}`)
-	return confirmation
-}
-
-// Cache configuration
-const CACHE_CONFIG = {
-	staleTime: 60000, // 1 minute - data is considered fresh
-	gcTime: 300000, // 5 minutes - data stays in cache (renamed from cacheTime)
-	refetchInterval: 300000, // Auto-refetch every 5 minutes
-	refetchOnWindowFocus: true,
-	refetchOnMount: true,
-	refetchOnReconnect: true
-}
-
-// Legacy API-based pool fetching (deprecated)
-export const useGetPoolsFromAPI = () =>
-	useQuery<TGetPoolsResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOLS + '_api'],
-		queryFn: async () => {
-			const res = await axios.get(ENDPOINTS.RAYDIUM.GET_POOLS_LIST, {
-				params: {
-					poolType: 'standard',
-					poolSortField: 'default',
-					sortType: 'desc',
-					pageSize: 100,
-					page: 1
-				}
-			})
-			const poolsData = res.data.data.data as PoolData[]
-			return { message: 'Successfully get pools data', data: poolsData }
-		},
-		enabled: false // Disabled by default
-	})
-
-// Enhanced onchain-based pool fetching
 export const useGetPools = () => {
 	const { connection } = useConnection()
-	const queryClient = useQueryClient()
-
-	return useQuery<{ message: string; data: OnchainPoolData[] }>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint],
+	const getAllTokenPrices = useGetAllTokenPrices()
+	const allTokenPrices = getAllTokenPrices.data
+	const getPoolsWithPrices = useQuery<TGetPoolsResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOLS, allTokenPrices],
 		queryFn: async () => {
-			try {
-				console.log('🔄 Fetching pools from onchain...')
-				const startTime = Date.now()
+			const poolAccounts = await getPoolAccounts(connection)
+			const batchSize = 10
+			const pools = []
 
-				const pools = await getAllPoolsFromOnchain(connection)
-
-				const endTime = Date.now()
-				const duration = endTime - startTime
-
-				console.log(`✅ Successfully fetched ${pools.length} pools in ${duration}ms`)
-
-				return {
-					message: `Successfully fetched ${pools.length} pools from onchain`,
-					data: pools,
-					meta: {
-						fetchTime: new Date().toISOString(),
-						duration,
-						poolCount: pools.length,
-						rpcEndpoint: connection.rpcEndpoint
-					}
-				}
-			} catch (error) {
-				console.error('❌ Error fetching pools:', error)
-
-				// Try to return cached data if available
-				const cachedData = queryClient.getQueryData([
-					SERVICES_KEY.POOL.GET_POOLS,
-					connection.rpcEndpoint
-				])
-				if (cachedData) {
-					console.log('📋 Returning cached data due to fetch error')
-					return cachedData as { message: string; data: OnchainPoolData[] }
-				}
-
-				throw error
+			for (let i = 0; i < poolAccounts.length; i += batchSize) {
+				const batch = poolAccounts.slice(i, i + batchSize)
+				const batchResults = await Promise.all(
+					batch.map(({ pubkey, account }) => processPoolAccount(connection, pubkey, account.data))
+				)
+				pools.push(...(batchResults.filter(Boolean) as TOnchainPoolData[]))
 			}
+
+			const poolsWithPrices = await Promise.all(
+				pools.map(async (pool) => {
+					const mintAPrice = allTokenPrices ? allTokenPrices[pool.mintA.symbol] : 0
+					const mintBPrice = allTokenPrices ? allTokenPrices[pool.mintB.symbol] : 0
+
+					const tvl = calculateTVL(
+						pool.reserveA,
+						pool.reserveB,
+						pool.mintA,
+						pool.mintB,
+						mintAPrice,
+						mintBPrice
+					)
+					const metrics = calculatePoolMetrics(tvl, pool.feeRate)
+
+					return { ...pool, mintAPrice, mintBPrice, tvl, ...metrics } satisfies TOnchainPoolData
+				})
+			)
+			return { message: 'Successfully get pools data', data: poolsWithPrices }
 		},
-		...CACHE_CONFIG,
-		retry: RETRY_CONFIG.attempts,
-		retryDelay: RETRY_CONFIG.delay
+		enabled: !!allTokenPrices,
+		refetchInterval: 300000,
+		staleTime: 60000
 	})
+
+	return {
+		...getPoolsWithPrices,
+		isLoading: getAllTokenPrices.isLoading || getPoolsWithPrices.isLoading
+	}
+}
+
+export const useGetPoolById = ({ poolId }: { poolId: string }) => {
+	const { connection } = useConnection()
+	const getAllTokenPrices = useGetAllTokenPrices()
+	const allTokenPrices = getAllTokenPrices.data
+
+	const getPoolWithPricesQuery = useQuery<TGetPoolByIdResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId, allTokenPrices],
+		queryFn: async () => {
+			const pubKey = new PublicKey(poolId)
+			const accountInfo = await connection.getAccountInfo(pubKey)
+			if (!accountInfo) return { message: 'Pool no found', data: null }
+
+			const pool = await processPoolAccount(connection, pubKey, accountInfo.data)
+			if (!pool) return { message: 'Pool no found', data: null }
+
+			const mintAPrice = allTokenPrices ? allTokenPrices[pool.mintA.symbol] : 0
+			const mintBPrice = allTokenPrices ? allTokenPrices[pool.mintB.symbol] : 0
+
+			const tvl = calculateTVL(
+				pool.reserveA,
+				pool.reserveB,
+				pool.mintA,
+				pool.mintB,
+				mintAPrice,
+				mintBPrice
+			)
+			const metrics = calculatePoolMetrics(tvl, pool.feeRate)
+
+			const data: TOnchainPoolData = { ...pool, mintAPrice, mintBPrice, tvl, ...metrics }
+
+			return { message: `Successfully get pool data by id ${data.address}`, data }
+		},
+		enabled: !!allTokenPrices,
+		refetchInterval: 300000,
+		staleTime: 60000
+	})
+
+	return {
+		...getPoolWithPricesQuery,
+		isLoading: getAllTokenPrices.isLoading || getPoolWithPricesQuery.isLoading
+	}
 }
 
 // Enhanced pool statistics hook
-export const useGetPoolStats = () => {
-	const { data: poolsData } = useGetPools()
-
-	return useQuery({
-		queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS],
+export const useGetPoolStats = ({ pools }: { pools: TOnchainPoolData[] | undefined }) => {
+	return useQuery<TGetPoolStatsResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS, pools],
 		queryFn: () => {
-			if (!poolsData?.data) return null
-
-			const pools = poolsData.data
+			if (!pools) return { message: 'No pool stats', data: null }
 			const totalLiquidity = pools.reduce((sum, pool) => sum + pool.tvl, 0)
 			const totalVolume = pools.reduce((sum, pool) => sum + pool.volume24h, 0)
 			const totalFees = pools.reduce((sum, pool) => sum + pool.fees24h, 0)
@@ -223,12 +172,10 @@ export const useGetPoolStats = () => {
 				pools.length > 0 ? pools.reduce((sum, pool) => sum + pool.apr24h, 0) / pools.length : 0
 
 			const topPoolsByLiquidity = [...pools].sort((a, b) => b.tvl - a.tvl).slice(0, 10)
-
 			const topPoolsByVolume = [...pools].sort((a, b) => b.volume24h - a.volume24h).slice(0, 10)
-
 			const topPoolsByAPR = [...pools].sort((a, b) => b.apr24h - a.apr24h).slice(0, 10)
 
-			return {
+			const data = {
 				totalPools: pools.length,
 				totalLiquidity,
 				totalVolume,
@@ -239,158 +186,64 @@ export const useGetPoolStats = () => {
 				topPoolsByAPR,
 				lastUpdated: new Date().toISOString()
 			}
+
+			return { message: 'Successfully get pool stats', data }
 		},
-		enabled: !!poolsData?.data,
+		enabled: !!pools,
 		staleTime: 60000, // 1 minute
 		gcTime: 300000 // 5 minutes
 	})
 }
 
-// Enhanced individual pool fetching
-export const useGetPoolById = ({ poolId }: { poolId: string }) => {
-	const { connection } = useConnection()
-
-	return useQuery({
-		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId],
-		queryFn: async () => {
-			try {
-				// First try to get from onchain data
-				const poolsQuery = await getAllPoolsFromOnchain(connection)
-				const pool = poolsQuery.find((p) => p.address === poolId)
-
-				if (pool) {
-					return {
-						message: `Successfully got pool data for ${poolId}`,
-						data: pool
-					}
-				}
-
-				// Fallback to API if needed
-				const res = await axios.get(ENDPOINTS.RAYDIUM.GET_POOL_BY_ID, {
-					params: { ids: poolId }
-				})
-				const poolData = res.data.data[0] as PoolData
-				return {
-					message: `Successfully got pool data for ${poolId}`,
-					data: poolData
-				}
-			} catch (error) {
-				console.error(`Error fetching pool ${poolId}:`, error)
-				throw error
-			}
-		},
-		enabled: !!poolId,
-		...CACHE_CONFIG,
-		retry: 2,
-		retryDelay: 1000
-	})
-}
-
-export const useGetUserPoolStatsById = ({
-	poolId,
-	reserveA,
-	reserveB,
-	mintA,
-	mintB,
-	volume24h,
-	feeRate,
-	isUserStats
-}: {
-	poolId: string
-	reserveA: number
-	reserveB: number
-	mintA: MintInfo | undefined
-	mintB: MintInfo | undefined
-	volume24h: number
-	feeRate: number
-	isUserStats: boolean
-}) => {
+export const useGetUserPoolStats = ({ pool }: { pool: TOnchainPoolData | null | undefined }) => {
 	const { connection } = useConnection()
 	const { publicKey: ownerAddress } = useWallet()
-	const baseUSDValue = useGetCoinGeckoTokenPrice({
-		coinGeckoId: mintA ? getCoinGeckoId(mintA.address) : ''
-	})
 
-	const quoteUSDValue = useGetCoinGeckoTokenPrice({
-		coinGeckoId: mintB ? getCoinGeckoId(mintB.address) : ''
-	})
-
-	const baseInitialPrice = baseUSDValue.data ?? 0
-	const quoteInitialPrice = quoteUSDValue.data ?? 0
-
-	const areTokenPricesReady = baseUSDValue.isSuccess && quoteUSDValue.isSuccess
-
-	return useQuery({
-		enabled:
-			Boolean(poolId) &&
-			reserveA > 0 &&
-			reserveB > 0 &&
-			isUserStats === true &&
-			Boolean(ownerAddress) &&
-			areTokenPricesReady,
-		queryKey: [
-			SERVICES_KEY.POOL.GET_USER_POOL_STATS,
-			poolId,
-			ownerAddress?.toBase58(),
-			reserveA,
-			reserveB
-		],
+	return useQuery<TGetUserPoolStatsResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_USER_POOL_STATS, pool?.address, ownerAddress?.toBase58()],
 		queryFn: async () => {
-			if (!ownerAddress) {
-				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
-			}
+			if (!ownerAddress) throw new Error('Wallet not connected.')
+			if (!pool) return { message: 'No user pool stats found', data: null }
 
-			const lpMint = new PublicKey(poolId)
+			const lpMint = new PublicKey(pool.address)
 			const userLPToken = await getUserLPTokens(connection, lpMint, ownerAddress)
-			const lpTokenSupply = await getTotalLPSupply(connection, lpMint)
+			const totalLpTokens = await getTotalLPSupply(connection, lpMint)
 
-			const userShare = userLPToken / lpTokenSupply
-			const userMintAReserve = userShare * reserveA
-			const userMintBReserve = userShare * reserveB
-			const userReserveTotal =
-				userMintAReserve * baseInitialPrice + userMintBReserve * quoteInitialPrice
+			const userShare = userLPToken / totalLpTokens
 
-			const totalDailyFees = volume24h * feeRate
+			// coverts daltos units
+			const reserveA = formatTokenBalance(Number(pool.reserveA), pool.mintA.decimals)
+			const reserveB = formatTokenBalance(Number(pool.reserveB), pool.mintB.decimals)
+
+			// value of how much user's reserves in this pool
+			const userReserveA = userShare * reserveA
+			const userReserveB = userShare * reserveB
+
+			const userReserveAPrice = userReserveA * pool.mintAPrice
+			const userReserveBPrice = userReserveB * pool.mintBPrice
+			const userReserveTotalPrice = userReserveAPrice + userReserveBPrice
+
+			// value of daily fees that user gets
+			const totalDailyFees = pool.volume24h * pool.feeRate
 			const dailyFeeEarnings = totalDailyFees * userShare
 
-			return {
-				userShare: userShare * 100,
+			const data = {
+				userShare,
 				userLPToken,
-				userMintAReserve,
-				userMintBReserve,
-				userReserveTotal,
+				userReserveA,
+				userReserveB,
+				userReserveTotalPrice,
 				dailyFeeEarnings
+			} satisfies TUserPoolStatsData
+
+			return {
+				message: `Successfully get user pool stats with pool id ${pool.address} and owner address ${ownerAddress}`,
+				data
 			}
-		}
-	})
-}
-
-// Pool refresh mutation
-export const useRefreshPools = () => {
-	const queryClient = useQueryClient()
-	const { connection } = useConnection()
-
-	return useMutation({
-		mutationFn: async () => {
-			console.log('🔄 Manually refreshing pools...')
-			const pools = await getAllPoolsFromOnchain(connection)
-			return pools
 		},
-		onSuccess: (pools) => {
-			// Update the main pools cache
-			queryClient.setQueryData([SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint], {
-				message: `Successfully refreshed ${pools.length} pools`,
-				data: pools
-			})
-
-			// Invalidate related queries
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
-
-			console.log(`✅ Manually refreshed ${pools.length} pools`)
-		},
-		onError: (error) => {
-			console.error('❌ Manual refresh failed:', error)
-		}
+		enabled: !!pool,
+		refetchInterval: 300000,
+		staleTime: 60000
 	})
 }
 
@@ -400,11 +253,20 @@ export const usePoolsBackgroundSync = () => {
 	const queryClient = useQueryClient()
 
 	return useQuery({
-		queryKey: ['pools-background-sync', connection.rpcEndpoint],
+		queryKey: [SERVICES_KEY.POOL.GET_POOLS_SYNC, connection.rpcEndpoint],
 		queryFn: async () => {
 			try {
-				// This runs in the background to keep data fresh
-				const pools = await getAllPoolsFromOnchain(connection)
+				const poolAccounts = await getPoolAccounts(connection)
+				const batchSize = 10
+				const pools = []
+
+				for (let i = 0; i < poolAccounts.length; i += batchSize) {
+					const batch = poolAccounts.slice(i, i + batchSize)
+					const batchResults = await Promise.all(
+						batch.map(({ pubkey, account }) => processPoolAccount(connection, pubkey, account.data))
+					)
+					pools.push(...(batchResults.filter(Boolean) as TOnchainPoolData[]))
+				}
 
 				// Update cache silently
 				queryClient.setQueryData([SERVICES_KEY.POOL.GET_POOLS, connection.rpcEndpoint], {
@@ -428,82 +290,154 @@ export const usePoolsBackgroundSync = () => {
 }
 
 export const useGetTransactionsByPoolId = ({
-	poolId,
-	baseMint,
-	quoteMint,
-	isFilteredByOwner
+	pool
 }: {
-	poolId: string
-	baseMint: MintInfo | undefined
-	quoteMint: MintInfo | undefined
-	isFilteredByOwner?: boolean
-}) => {
-	const { publicKey: ownerAddress } = useWallet()
-
-	const isValidParams =
-		!!poolId?.trim() && !!baseMint?.address?.trim() && !!quoteMint?.address?.trim()
-
-	const baseUSDValue = useGetCoinGeckoTokenPrice({
-		coinGeckoId: baseMint ? getCoinGeckoId(baseMint.address) : ''
-	})
-
-	const quoteUSDValue = useGetCoinGeckoTokenPrice({
-		coinGeckoId: quoteMint ? getCoinGeckoId(quoteMint.address) : ''
-	})
-
-	const baseInitialPrice = baseUSDValue.data ?? 0
-	const quoteInitialPrice = quoteUSDValue.data ?? 0
-
-	const areTokenPricesReady =
-		baseUSDValue.status === 'success' && quoteUSDValue.status === 'success'
-
-	return useQuery<TGetPoolTransactionResponse>({
-		queryKey: [
-			SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID,
-			poolId,
-			baseMint?.address,
-			quoteMint?.address,
-			isFilteredByOwner ? ownerAddress?.toBase58() : null
-		],
-		enabled: isValidParams && areTokenPricesReady,
-		...CACHE_CONFIG,
-		retry: 2,
-		retryDelay: 1000,
+	pool: TOnchainPoolData | null | undefined
+}) =>
+	useQuery<TGetPoolTransactionResponse>({
+		queryKey: [SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, pool?.address],
 		queryFn: async () => {
-			if (!baseMint || !quoteMint) throw new Error('Base and Quote mint should be selected')
-
+			if (!pool) return { message: 'No pool transactions found', data: [] }
 			try {
-				const { data } = await axios.get(`${ENDPOINTS.BBASCAN.GET_DATA_BY_ADDRESS}/${poolId}`)
-
+				const { data } = await axios.get(`${ENDPOINTS.BBASCAN.GET_DATA_BY_ADDRESS}/${pool.address}`)
 				const transactionData = data.transactions as TransactionData[]
 
-				console.log('Transaction count:', transactionData?.length)
-
-				let responseData = transactionData
+				const responseData = transactionData
 					.map((tx) => {
-						const parsedData = processTransactionData(tx, baseMint, quoteMint)
-						if (!parsedData) return null
+						const wallet = getSignerWallet(tx)
+						if (!wallet) return null
 
-						const baseAmountInUSD = parsedData.baseAmount * baseInitialPrice
-						const quoteAmountInUSD = parsedData.quoteAmount * quoteInitialPrice
+						const mintAPreBalances = isNativeBBA(pool.mintA.address)
+							? tx.meta.preBalances
+							: tx.meta.preTokenBalances
+						const mintAPostBalances = isNativeBBA(pool.mintA.address)
+							? tx.meta.postBalances
+							: tx.meta.postTokenBalances
+
+						const mintBPreBalances = isNativeBBA(pool.mintB.address)
+							? tx.meta.preBalances
+							: tx.meta.preTokenBalances
+						const mintBPostBalances = isNativeBBA(pool.mintB.address)
+							? tx.meta.postBalances
+							: tx.meta.postTokenBalances
+
+						const mintADelta = getTransactionDelta(
+							mintAPreBalances,
+							mintAPostBalances,
+							pool.mintA,
+							wallet
+						)
+						const mintBDelta = getTransactionDelta(
+							mintBPreBalances,
+							mintBPostBalances,
+							pool.mintB,
+							wallet
+						)
+						const type = classifyType(mintADelta, mintBDelta)
+
+						const mintAAmount = Math.abs(mintADelta)
+						const mintBAmount = Math.abs(mintBDelta)
+
+						const mintAAmountPrice = mintAAmount * pool.mintAPrice
+						const mintBAmountPrice = mintBAmount * pool.mintBPrice
 
 						return {
-							...parsedData,
-							baseAmountInUSD,
-							quoteAmountInUSD
-						} as TransactionListProps
+							ownerAddress: wallet,
+							time: moment.unix(tx.blockTime).fromNow(),
+							transactionType: type,
+							mintA: pool.mintA,
+							mintB: pool.mintB,
+							mintADelta,
+							mintBDelta,
+							mintAAmount,
+							mintBAmount,
+							mintAAmountPrice,
+							mintBAmountPrice
+						} satisfies TFormattedTransactionData
 					})
-					.filter((item): item is TransactionListProps => item !== null)
-
-				if (isFilteredByOwner && ownerAddress) {
-					responseData = responseData.filter((item) => item.wallet === ownerAddress.toBase58())
-				}
-
+					.filter((item): item is TFormattedTransactionData => item !== null)
 				return { message: 'Successfully get transaction data', data: responseData }
-			} catch (error) {
-				console.error('Failed to fetch transactions:', error)
+			} catch (e) {
+				console.error('Failed to fetch transactions:', e)
 				return { message: 'Failed to fetch transactions', data: [] }
 			}
+		},
+		refetchInterval: 300000,
+		staleTime: 60000
+	})
+
+export const useReversePool = () => {
+	const queryClient = useQueryClient()
+	const { publicKey: ownerAddress } = useWallet()
+	return useMutation<TSuccessMessage, Error, TOnchainPoolData | null | undefined>({
+		mutationKey: [SERVICES_KEY.POOL.ON_REVERSE_POOL],
+		mutationFn: async (payload) => {
+			const pool = payload
+			if (!pool) throw new Error('No pool found')
+
+			// reverse pool detail by id
+			queryClient.setQueriesData<TGetPoolByIdResponse>(
+				{ queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, pool.address] },
+				(oldData) => {
+					if (!oldData?.data) return oldData
+					const basePool = oldData.data
+					const reversedPool: TOnchainPoolData = {
+						...basePool,
+						mintA: basePool.mintB,
+						mintB: basePool.mintA,
+						mintAPrice: basePool.mintBPrice,
+						mintBPrice: basePool.mintAPrice,
+						reserveA: basePool.reserveB,
+						reserveB: basePool.reserveA
+					}
+
+					return { ...oldData, data: reversedPool }
+				}
+			)
+
+			// reverse transactions by pool id
+			queryClient.setQueryData<TGetPoolTransactionResponse>(
+				[SERVICES_KEY.POOL.GET_TRANSACTIONS_BY_POOL_ID, pool.address],
+				(oldData) => {
+					if (!oldData?.data) return oldData
+					const baseTransaction = oldData.data
+					const reverseBaseTransaction = baseTransaction?.map((tx) => {
+						const type = classifyType(tx.mintBDelta, tx.mintADelta)
+						const reversed: TFormattedTransactionData = {
+							...tx,
+							mintA: tx.mintB,
+							mintB: tx.mintA,
+							mintADelta: tx.mintBDelta,
+							mintBDelta: tx.mintADelta,
+							mintAAmount: tx.mintBAmount,
+							mintBAmount: tx.mintAAmount,
+							mintAAmountPrice: tx.mintBAmountPrice,
+							mintBAmountPrice: tx.mintAAmountPrice,
+							transactionType: type
+						}
+						return reversed
+					})
+					return { ...oldData, data: reverseBaseTransaction }
+				}
+			)
+
+			// reverse user stats
+			queryClient.setQueryData<TGetUserPoolStatsResponse>(
+				[SERVICES_KEY.POOL.GET_USER_POOL_STATS, pool.address, ownerAddress?.toBase58()],
+				(oldData) => {
+					if (!oldData?.data) return oldData
+					const baseUserStats = oldData.data
+
+					const reversedUserStats: TUserPoolStatsData = {
+						...baseUserStats,
+						userReserveA: baseUserStats.userReserveB,
+						userReserveB: baseUserStats.userReserveA
+					}
+
+					return { ...oldData, data: reversedUserStats }
+				}
+			)
+			return { message: 'Successfully reverse pool' }
 		}
 	})
 }
@@ -517,49 +451,22 @@ export const useCreatePool = () => {
 	return useMutation<TCreatePoolResponse, Error, TCreatePoolPayload>({
 		mutationKey: [SERVICES_KEY.POOL.CREATE_POOL, ownerAddress?.toBase58()],
 		mutationFn: async (payload) => {
-			if (!ownerAddress) {
-				throw new Error('Wallet not connected. Please connect your wallet to create a pool.')
-			}
-
-			if (!signTransaction) {
-				throw new Error('Wallet does not support transaction signing.')
-			}
-
-			console.log('🚀 Starting BBAChain Liquidity Pool creation process...')
-			console.log('📊 Pool Configuration:', {
-				baseToken: `${payload.baseToken.symbol} (${payload.baseToken.address})`,
-				quoteToken: `${payload.quoteToken.symbol} (${payload.quoteToken.address})`,
-				feeTier: `${payload.feeTier}%`,
-				initialPrice: `${payload.initialPrice} ${payload.baseToken.symbol} per ${payload.quoteToken.symbol}`,
-				baseAmount: `${payload.baseTokenAmount} ${payload.baseToken.symbol}`,
-				quoteAmount: `${payload.quoteTokenAmount} ${payload.quoteToken.symbol}`,
-				programId: TOKEN_SWAP_PROGRAM_ID.toBase58()
-			})
+			if (!ownerAddress) throw new Error('Wallet not connected.')
+			if (!signTransaction) throw new Error('Wallet does not support transaction signing.')
 
 			try {
-				// Validate pool creation requirements
-				console.log('🔍 Validating pool creation requirements...')
-
-				// Check if tokens are different
-				if (payload.baseToken.address === payload.quoteToken.address) {
+				// Pool Input Validation
+				if (payload.baseToken.address === payload.quoteToken.address)
 					throw new Error('Base and quote tokens must be different')
-				}
 
-				// Check if amounts are valid
 				const baseAmount = parseFloat(payload.baseTokenAmount)
 				const quoteAmount = parseFloat(payload.quoteTokenAmount)
 
-				if (baseAmount <= 0 || quoteAmount <= 0) {
+				if (baseAmount <= 0 || quoteAmount <= 0)
 					throw new Error('Token amounts must be greater than zero')
-				}
 
-				// Check if initial price is valid
 				const initialPrice = parseFloat(payload.initialPrice)
-				if (initialPrice <= 0) {
-					throw new Error('Initial price must be greater than zero')
-				}
-
-				console.log('✅ Pool validation passed')
+				if (initialPrice <= 0) throw new Error('Initial price must be greater than zero')
 
 				let latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				const daltons = await getMinimumBalanceForRentExemptMint(connection)
@@ -575,40 +482,17 @@ export const useCreatePool = () => {
 				const isBBABase = bbaPosition === 'base'
 				const isBBAQuote = bbaPosition === 'quote'
 
-				console.log('🔑 Token mint addresses:', {
-					baseMint: baseMint.toBase58(),
-					quoteMint: quoteMint.toBase58(),
-					isBBAPool: isBBAPoolPair,
-					bbaPosition: bbaPosition,
-					requiresSpecialHandling: isBBAPoolPair
-				})
-
-				if (isBBAPoolPair) {
-					console.log('🪙 BBA Pool detected - will use special handling for native token wrapping')
-				}
-
 				const tokenSwap = Keypair.generate()
 				const [authority, bumpSeed] = PublicKey.findProgramAddressSync(
 					[tokenSwap.publicKey.toBuffer()],
 					TOKEN_SWAP_PROGRAM_ID
 				)
 
-				console.log('🔑 Authority Derivation:', {
-					tokenSwap: tokenSwap.publicKey.toBase58(),
-					authority: authority.toBase58(),
-					bumpSeed,
-					programId: TOKEN_SWAP_PROGRAM_ID.toBase58()
-				})
-
-				console.log('authority ', authority.toBase58())
-
 				// Create swap's token A account (owned by authority)
 				const swapTokenAAccount = await getAssociatedTokenAddress(baseMint, authority, true)
-				console.log('🏦 Swap Token A Account:', swapTokenAAccount.toBase58())
 				const baseTokenInfo = await connection.getAccountInfo(swapTokenAAccount)
 
 				if (!baseTokenInfo) {
-					console.log('📝 Creating swap token A account...')
 					const ix = createAssociatedTokenAccountInstruction(
 						ownerAddress,
 						swapTokenAAccount,
@@ -619,7 +503,6 @@ export const useCreatePool = () => {
 					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
 					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
 					console.log('✅ Swap Token A account created:', sig)
-
 					// Add delay to prevent wallet extension race condition
 					console.log('⏳ Waiting 2 seconds before next transaction...')
 					await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -627,10 +510,9 @@ export const useCreatePool = () => {
 
 				// Create swap's token B account (owned by authority)
 				const swapTokenBAccount = await getAssociatedTokenAddress(quoteMint, authority, true)
-				console.log('🏦 Swap Token B Account:', swapTokenBAccount.toBase58())
 				const quoteTokenInfo = await connection.getAccountInfo(swapTokenBAccount)
+
 				if (!quoteTokenInfo) {
-					console.log('📝 Creating swap token B account...')
 					const ix = createAssociatedTokenAccountInstruction(
 						ownerAddress,
 						swapTokenBAccount,
@@ -641,16 +523,13 @@ export const useCreatePool = () => {
 					const sig = await sendTransactionWithRetry(tx, connection, sendTransaction)
 					await confirmTransactionWithTimeout(connection, sig, latestBlockhash)
 					console.log('✅ Swap Token B account created:', sig)
-
 					// Add delay to prevent wallet extension race condition
 					console.log('⏳ Waiting 2 seconds before next transaction...')
 					await new Promise((resolve) => setTimeout(resolve, 2000))
 				}
 
 				// === Create LP token mint ===
-				console.log('🏭 Creating LP token mint...')
 				const poolMint = Keypair.generate()
-
 				console.log('🔑 Generated LP token mint:', poolMint.publicKey.toBase58())
 
 				// Step 1: Create mint account (only requires poolMint signature)
@@ -825,8 +704,6 @@ export const useCreatePool = () => {
 
 				latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				if (isBBAPoolPair) {
-					console.log('🪙 BBA Pool - Using special native token handling')
-
 					// === BBA Pool Logic ===
 					if (isBBABase) {
 						// BBA is base token, other token is quote
@@ -834,11 +711,11 @@ export const useCreatePool = () => {
 
 						// Check BBA balance (native daltons)
 						const userBBABalance = await connection.getBalance(ownerAddress)
-						const requiredBBA = bbaTodaltons(liquidityBaseAmount)
+						const requiredBBA = getDaltonsFromBBA(liquidityBaseAmount)
 
 						if (userBBABalance < requiredBBA) {
 							throw new Error(
-								`Insufficient BBA balance. Required: ${liquidityBaseAmount} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+								`Insufficient BBA balance. Required: ${liquidityBaseAmount} BBA, Available: ${getBBAFromDaltons(userBBABalance)} BBA`
 							)
 						}
 
@@ -911,11 +788,11 @@ export const useCreatePool = () => {
 
 						// Check BBA balance (native daltons)
 						const userBBABalance = await connection.getBalance(ownerAddress)
-						const requiredBBA = bbaTodaltons(liquidityQuoteAmount)
+						const requiredBBA = getDaltonsFromBBA(liquidityQuoteAmount)
 
 						if (userBBABalance < requiredBBA) {
 							throw new Error(
-								`Insufficient BBA balance. Required: ${liquidityQuoteAmount} BBA, Available: ${daltonsToBBA(userBBABalance)} BBA`
+								`Insufficient BBA balance. Required: ${liquidityQuoteAmount} BBA, Available: ${getBBAFromDaltons(userBBABalance)} BBA`
 							)
 						}
 
@@ -1138,7 +1015,7 @@ export const useCreatePool = () => {
 				// === Create TokenSwap Account + Initialize in Single Transaction ===
 				console.log('🏗️ Creating TokenSwap account and initializing...')
 				// Import TokenSwapLayout to get exact span
-				const { TokenSwapLayout } = await import('./onchain')
+				const { TokenSwapLayout } = await import('@/features/liquidityPool/utils')
 				const tokenSwapAccountSize = TokenSwapLayout.span // Use exact layout span instead of hardcoded 324
 				console.log('📏 TokenSwap account size from layout:', tokenSwapAccountSize)
 				const swapAccountDaltons =
@@ -1186,22 +1063,17 @@ export const useCreatePool = () => {
 				console.log('⏳ Final transaction sent:', finalSig)
 
 				// Wait for confirmation
-				const confirmation: any = await confirmTransactionWithTimeout(
+				const confirmation = await confirmTransactionWithTimeout(
 					connection,
 					finalSig,
 					latestBlockhash
 				)
 
-				if (confirmation.value?.err) {
+				if (confirmation.value?.err)
 					throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
-				}
 
-				console.log('✅ TokenSwap created and initialized successfully!')
-				console.log('🎉 Pool creation completed successfully!')
-
-				// Return data in the expected format
-				return {
-					tokenSwap: tokenSwap.publicKey.toBase58(),
+				const data = {
+					swapAccount: tokenSwap.publicKey.toBase58(),
 					poolMint: poolMint.publicKey.toBase58(),
 					feeAccount: feeAccount.toBase58(),
 					lpTokenAccount: poolTokenAccount.toBase58(),
@@ -1209,21 +1081,20 @@ export const useCreatePool = () => {
 					baseToken: payload.baseToken,
 					quoteToken: payload.quoteToken,
 					baseTokenAmount: Number(payload.baseTokenAmount),
-					quoteTokenAmount: Number(payload.quoteTokenAmount),
-					message: 'Pool created successfully!'
-				}
+					quoteTokenAmount: Number(payload.quoteTokenAmount)
+				} satisfies TCreatePoolData
+
+				return { message: 'Successfully created the pool', data }
 			} catch (error) {
 				console.error('❌ Pool creation failed:', error)
 				throw error
 			}
 		},
-		onSuccess: (result) => {
-			console.log('✅ Pool creation successful')
-			// Invalidate pools cache to refresh the list
-			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS] })
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOLS], exact: true })
 			queryClient.invalidateQueries({ queryKey: [SERVICES_KEY.POOL.GET_POOL_STATS] })
 			queryClient.invalidateQueries({
-				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+				queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 			})
 		},
 		onError: (error) => {
@@ -1237,46 +1108,18 @@ export const useDepositToPool = () => {
 	const { connection } = useConnection()
 	const { publicKey: ownerAddress, sendTransaction } = useWallet()
 
-	return useMutation<
-		{ signature: string },
-		Error,
-		{
-			pool: OnchainPoolData | PoolData
-			amountA: string // UI amount for mintA
-			amountB: string // UI amount for mintB
-			slippage?: number // percent, optional
-		}
-	>({
+	return useMutation<TDepositToPoolResponse, Error, TDepositToPoolPayload>({
 		mutationKey: [SERVICES_KEY.POOL.DEPOSIT_LIQUIDITY, ownerAddress?.toBase58()],
-		mutationFn: async ({
-			pool,
-			amountA,
-			amountB,
-			slippage = 1
-		}): Promise<{ signature: string }> => {
+		mutationFn: async ({ pool, mintAAmount, mintBAmount, slippage = 1 }) => {
 			if (!ownerAddress) throw new Error('Wallet not connected')
 
-			console.log('🚀 Starting liquidity deposit using @bbachain/spl-token-swap library...')
-
 			// Validate inputs
-			const uiAmountA = parseFloat(amountA || '0')
-			const uiAmountB = parseFloat(amountB || '0')
-			if (uiAmountA <= 0 || uiAmountB <= 0) throw new Error('Enter valid amounts for both tokens')
-
-			console.log('📊 Deposit Parameters:', {
-				amountA: `${uiAmountA} ${pool.mintA.symbol}`,
-				amountB: `${uiAmountB} ${pool.mintB.symbol}`,
-				slippage: `${slippage}%`,
-				poolAddress: 'swapData' in pool ? pool.address : (pool as PoolData).id
-			})
+			if (mintAAmount <= 0 || mintBAmount <= 0)
+				throw new Error('Enter valid amounts for both tokens')
 
 			// Get pool address and load swap state using library
-			const poolAddress = 'swapData' in pool ? pool.address : (pool as PoolData).id
+			const poolAddress = pool.address
 			const tokenSwapPubkey = new PublicKey(poolAddress)
-
-			console.log('📡 Loading token swap state from blockchain...')
-
-			// Load swap state directly from blockchain using library
 			const tokenSwapState = await TokenSwap.fromAccountAddress(connection, tokenSwapPubkey)
 
 			console.log('✅ Token swap state loaded:', {
@@ -1302,17 +1145,6 @@ export const useDepositToPool = () => {
 				bumpSeed: tokenSwapState.bumpSeed,
 				swapKey: tokenSwapPubkey.toBase58()
 			})
-
-			// Critical: Verify the authority matches what program expects
-			if ('swapData' in pool) {
-				const poolData = pool as OnchainPoolData
-				const expectedAuthority = new PublicKey(poolData.swapData.poolTokenProgramId)
-				console.log('🔍 Authority validation:', {
-					derivedAuthority: swapAuthority.toBase58(),
-					expectedFromPoolData: expectedAuthority.toBase58(),
-					matches: swapAuthority.equals(expectedAuthority)
-				})
-			}
 
 			// Get mint addresses from the swap state (authoritative source)
 			const mintA = new PublicKey(pool.mintA.address)
@@ -1367,8 +1199,8 @@ export const useDepositToPool = () => {
 			}
 
 			// Convert UI amounts to smallest units (daltons)
-			const amountADaltons = formatTokenToDaltons(uiAmountA, pool.mintA.decimals)
-			const amountBDaltons = formatTokenToDaltons(uiAmountB, pool.mintB.decimals)
+			const amountADaltons = formatTokenToDaltons(mintAAmount, pool.mintA.decimals)
+			const amountBDaltons = formatTokenToDaltons(mintBAmount, pool.mintB.decimals)
 
 			console.log('💰 Token amounts in daltons:', {
 				amountA: `${amountADaltons} daltons`,
@@ -1391,32 +1223,8 @@ export const useDepositToPool = () => {
 				swapTokenB: tokenSwapState.tokenB.toBase58()
 			})
 
-			// CRITICAL: Verify token accounts match between pool data and swap state
-			if ('swapData' in pool) {
-				const poolData = pool as OnchainPoolData
-				const poolTokenA = new PublicKey(poolData.swapData.tokenAccountA)
-				const poolTokenB = new PublicKey(poolData.swapData.tokenAccountB)
-
-				console.log('🔍 CRITICAL: Token account validation:', {
-					swapStateTokenA: tokenSwapState.tokenA.toBase58(),
-					swapStateTokenB: tokenSwapState.tokenB.toBase58(),
-					poolDataTokenA: poolTokenA.toBase58(),
-					poolDataTokenB: poolTokenB.toBase58(),
-					tokenAMatches: tokenSwapState.tokenA.equals(poolTokenA),
-					tokenBMatches: tokenSwapState.tokenB.equals(poolTokenB)
-				})
-
-				// Use swap state as authoritative source (it should match pool data)
-				if (
-					!tokenSwapState.tokenA.equals(poolTokenA) ||
-					!tokenSwapState.tokenB.equals(poolTokenB)
-				) {
-					console.warn('⚠️ WARNING: Token accounts mismatch between swap state and pool data!')
-				}
-			}
-
 			// Prepare transaction with required account creation instructions
-			const preInstructions: any[] = []
+			const preInstructions = []
 
 			// Check if user token accounts exist, create if needed
 			const [userAccountAInfo, userAccountBInfo, userPoolAccountInfo] = await Promise.all([
@@ -1472,7 +1280,7 @@ export const useDepositToPool = () => {
 					const userBBABalance = await connection.getBalance(ownerAddress)
 					if (BigInt(userBBABalance) < requiredBBA) {
 						throw new Error(
-							`Insufficient BBA balance. Required: ${uiAmountA} BBA, Available: ${userBBABalance / 1e9} BBA`
+							`Insufficient BBA balance. Required: ${mintAAmount} BBA, Available: ${userBBABalance / 1e9} BBA`
 						)
 					}
 
@@ -1495,7 +1303,7 @@ export const useDepositToPool = () => {
 					const userBBABalance = await connection.getBalance(ownerAddress)
 					if (BigInt(userBBABalance) < requiredBBA) {
 						throw new Error(
-							`Insufficient BBA balance. Required: ${uiAmountB} BBA, Available: ${userBBABalance / 1e9} BBA`
+							`Insufficient BBA balance. Required: ${mintBAmount} BBA, Available: ${userBBABalance / 1e9} BBA`
 						)
 					}
 
@@ -1577,13 +1385,35 @@ export const useDepositToPool = () => {
 				maximumTokenBAmount: maximumTokenBAmount.toString()
 			})
 
+			const transferAuthority = ownerAddress
+
+			// 2. Approve delegate to transfer tokens
+			const approveIxA = createApproveInstruction(
+				sourceA, // source token A account
+				transferAuthority, // delegate
+				ownerAddress, // owner of sourceA
+				amountADaltons // allowance
+			)
+
+			const approveIxB = createApproveInstruction(
+				sourceB,
+				transferAuthority,
+				ownerAddress,
+				amountBDaltons
+			)
+
+			// Add approvals before deposit
+			preInstructions.push(approveIxA, approveIxB)
+
+			console.log('✅ Added approve instructions for transfer authority')
+
 			// Create deposit instruction using library
 			console.log('🔧 Creating deposit instruction...')
 			const depositInstruction = createDepositAllTokenTypesInstruction(
 				{
 					tokenSwap: tokenSwapPubkey,
 					authority: swapAuthority,
-					userTransferAuthority: ownerAddress,
+					userTransferAuthority: transferAuthority,
 					sourceA,
 					sourceB,
 					intoA: tokenSwapState.tokenA,
@@ -1621,20 +1451,21 @@ export const useDepositToPool = () => {
 				}))
 			})
 
-			const latestBlockhash = await connection.getLatestBlockhash('confirmed')
-
 			try {
-				const signature = await sendTransactionWithRetry(transaction, connection, sendTransaction, {
+				const signature = await sendTransaction(transaction, connection, {
 					skipPreflight: false,
-					preflightCommitment: 'confirmed'
+					preflightCommitment: 'confirmed',
 				})
 				console.log('✅ Transaction sent successfully:', signature)
 
 				console.log('⏳ Confirming transaction...')
+				const latestBlockhash = await connection.getLatestBlockhash('confirmed')
 				await confirmTransactionWithTimeout(connection, signature, latestBlockhash)
 
-				console.log('🎉 Deposit completed successfully!')
-				return { signature }
+				return {
+					message: `Successfully deposit to pool with address ${pool.address}`,
+					data: { signature }
+				}
 			} catch (error: any) {
 				console.error('❌ Transaction failed:', error)
 

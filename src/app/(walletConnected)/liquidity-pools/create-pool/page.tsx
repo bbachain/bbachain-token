@@ -1,15 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-	ChevronDown,
-	ArrowLeft,
-	ArrowRight,
-	Info,
-	Loader2,
-	CheckCircle,
-	AlertCircle
-} from 'lucide-react'
+import { ChevronDown, ArrowLeft, ArrowRight, Info, Loader2, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -49,22 +41,24 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
 import { useCreatePool } from '@/features/liquidityPool/services'
 import { TCreatePoolPayload, MintInfo } from '@/features/liquidityPool/types'
+import {
+	isBBAPool,
+	getBBAPositionInPool,
+	requiresBBAWrapping
+} from '@/features/liquidityPool/utils'
 import { createPoolValidation } from '@/features/liquidityPool/validation'
 import { LoadingDialog } from '@/features/nfts/components/StatusDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
-import TokenListDialog from '@/features/swap/components/TokenListDialog'
-import {
-	useGetTokensFromAPI,
-	useGetTokenPrice,
-	useGetUserBalanceByMint,
-	useGetCoinGeckoTokenPrice
-} from '@/features/swap/services'
-import { TTokenProps } from '@/features/swap/types'
-import { getCoinGeckoId } from '@/features/swap/utils'
 import FormProgressLine from '@/features/tokens/components/form/FormProgressLine'
-import { cn, formatTokenBalance } from '@/lib/utils'
-import { useGetBalance } from '@/services/wallet'
-import { isBBAPool, getBBAPositionInPool, requiresBBAWrapping } from '@/staticData/tokens'
+import TradeableTokenListDialog from '@/features/tokens/components/TradeableTokenListDialog'
+import { useGetTokenPriceByCoinGeckoId } from '@/features/tokens/services'
+import { useGetTradeableTokens } from '@/features/tokens/services'
+import { TTradeableTokenProps } from '@/features/tokens/types'
+import { getCoinGeckoId } from '@/lib/token'
+import { formatTokenBalance } from '@/lib/token'
+import { cn } from '@/lib/utils'
+import { useGetTokenBalanceByMint } from '@/services/wallet'
+import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 // Enhanced step configuration
@@ -167,9 +161,9 @@ function TokenSelectionCard({
 
 export default function CreatePool() {
 	// Hooks
-	const getTokensQuery = useGetTokensFromAPI()
+	const getTokensQuery = useGetTradeableTokens()
 	const createPoolMutation = useCreatePool()
-	const getBalanceQuery = useGetBalance()
+	const getBalanceQuery = useGetBBABalance()
 	const { openErrorDialog } = useErrorDialog()
 
 	// Form setup
@@ -197,6 +191,7 @@ export default function CreatePool() {
 	const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState<boolean>(false)
 
 	// Computed values
+	const createPoolResponse = createPoolMutation.data?.data
 	const selectedBaseToken = form.watch('baseToken')
 	const selectedQuoteToken = form.watch('quoteToken')
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
@@ -210,33 +205,27 @@ export default function CreatePool() {
 		selectedBaseToken && selectedQuoteToken
 			? getBBAPositionInPool(selectedBaseToken.address, selectedQuoteToken.address)
 			: null
-	const requiresWrapping =
-		selectedBaseToken && selectedQuoteToken
-			? requiresBBAWrapping(selectedBaseToken.address, selectedQuoteToken.address)
-			: false
-	const bbaToken =
-		bbaPosition === 'base' ? selectedBaseToken : bbaPosition === 'quote' ? selectedQuoteToken : null
 	const nonBBAToken =
 		bbaPosition === 'base' ? selectedQuoteToken : bbaPosition === 'quote' ? selectedBaseToken : null
 
 	// Balance queries
-	const getMintABalance = useGetUserBalanceByMint({
+	const getMintABalance = useGetTokenBalanceByMint({
 		mintAddress: selectedBaseToken?.address || ''
 	})
-	const getMintBBalance = useGetUserBalanceByMint({
+	const getMintBBalance = useGetTokenBalanceByMint({
 		mintAddress: selectedQuoteToken?.address || ''
 	})
-	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
+	const getMintATokenPrice = useGetTokenPriceByCoinGeckoId({
 		coinGeckoId: getCoinGeckoId(selectedBaseToken?.address)
 	})
-	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
+	const getMintBTokenPrice = useGetTokenPriceByCoinGeckoId({
 		coinGeckoId: getCoinGeckoId(selectedQuoteToken?.address)
 	})
 
-	const mintABalance = getMintABalance.data?.balance || 0
-	const mintBBalance = getMintBBalance.data?.balance || 0
-	const mintAInitialPrice = getMintATokenPrice.data || 0
-	const mintBInitialPrice = getMintBTokenPrice.data || 0
+	const mintABalance = getMintABalance.data ?? 0
+	const mintBBalance = getMintBBalance.data ?? 0
+	const mintAInitialPrice = getMintATokenPrice.data ?? 0
+	const mintBInitialPrice = getMintBTokenPrice.data ?? 0
 
 	// Format balances with proper decimals for display
 	const formattedMintABalance = selectedBaseToken
@@ -348,7 +337,7 @@ export default function CreatePool() {
 	)
 
 	// Default token props for TokenListDialog fallback
-	const defaultTokenProps: TTokenProps = {
+	const defaultTokenProps: TTradeableTokenProps = {
 		address: '',
 		logoURI: '',
 		symbol: '',
@@ -358,7 +347,7 @@ export default function CreatePool() {
 	}
 
 	// Type conversion functions for TokenListDialog compatibility
-	const convertTTokenPropsToMintInfo = (token: TTokenProps): MintInfo => ({
+	const convertTTokenPropsToMintInfo = (token: TTradeableTokenProps): MintInfo => ({
 		chainId: token.chainId,
 		address: token.address,
 		programId: token.programId,
@@ -370,7 +359,7 @@ export default function CreatePool() {
 		extensions: token.extensions
 	})
 
-	const convertMintInfoToTTokenProps = (token: MintInfo): TTokenProps => ({
+	const convertMintInfoToTTokenProps = (token: MintInfo): TTradeableTokenProps => ({
 		chainId: token.chainId,
 		address: token.address,
 		programId: token.programId,
@@ -384,7 +373,7 @@ export default function CreatePool() {
 
 	// Wrapper functions for TokenListDialog compatibility
 	const onSelectBaseTokenWrapper = useCallback(
-		(token: TTokenProps) => {
+		(token: TTradeableTokenProps) => {
 			const mintInfo = convertTTokenPropsToMintInfo(token)
 			onSelectBaseToken(mintInfo)
 		},
@@ -392,7 +381,7 @@ export default function CreatePool() {
 	)
 
 	const onSelectQuoteTokenWrapper = useCallback(
-		(token: TTokenProps) => {
+		(token: TTradeableTokenProps) => {
 			const mintInfo = convertTTokenPropsToMintInfo(token)
 			onSelectQuoteToken(mintInfo)
 		},
@@ -1077,7 +1066,7 @@ export default function CreatePool() {
 			</Form>
 
 			{/* Token Selection Dialog */}
-			<TokenListDialog
+			<TradeableTokenListDialog
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
 				type={typeItem}
@@ -1098,12 +1087,12 @@ export default function CreatePool() {
 				title="Liquidity Pool Created Successfully"
 				contents={[
 					'🎉 Your new liquidity pool has been created!',
-					`Pair: ${createPoolMutation.data?.baseToken.symbol} / ${createPoolMutation.data?.quoteToken.symbol}`,
-					`Initial Liquidity: ${createPoolMutation.data?.baseToken.symbol}: ${createPoolMutation.data?.baseTokenAmount}, ${createPoolMutation.data?.quoteToken.symbol}: ${createPoolMutation.data?.quoteTokenAmount}`,
+					`Pair: ${createPoolResponse?.baseToken.symbol} / ${createPoolResponse?.quoteToken.symbol}`,
+					`Initial Liquidity: ${createPoolResponse?.baseToken.symbol}: ${createPoolResponse?.baseTokenAmount}, ${createPoolResponse?.quoteToken.symbol}: ${createPoolResponse?.quoteTokenAmount}`,
 					'You can now add more liquidity or begin trading this pair.'
 				]}
 				linkText="View Pool"
-				link={`/liquidity-pools/detail/${createPoolMutation.data?.tokenSwap}`}
+				link={`/liquidity-pools/detail/${createPoolResponse?.swapAccount}`}
 			/>
 
 			{/* Loading Overlay */}

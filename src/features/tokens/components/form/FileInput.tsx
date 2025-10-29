@@ -36,7 +36,7 @@ export default function FileInput(props: FileInputProps) {
 				<div className="flex flex-col w-full h-full items-center justify-center pb-6 pt-5">
 					{preview ? (
 						<>
-							<Image src={preview} width={118} height={137} alt="Uploaded preview" />
+							<Image src={preview} width={118} height={137} quality={45} alt="Uploaded preview" />
 							<Button
 								variant="ghost"
 								type="button"
@@ -55,10 +55,20 @@ export default function FileInput(props: FileInputProps) {
 						</>
 					) : (
 						<>
-							<Image src="/upload_icon_logo.svg" width={104} height={75.63} alt="upload icon logo" />
+							<Image
+								src="/upload_icon_logo.svg"
+								quality={45}
+								width={104}
+								height={75.63}
+								alt="upload icon logo"
+							/>
 							<div className="mt-6 text-center">
-								<h4 className="md:text-2xl text-sm font-normal">Choose a file or drag & drop it here</h4>
-								<p className="md:text-xl text-sm mb-6 mt-[15px]">JPEG, PNG, SVG formats, up to 5MB</p>
+								<h4 className="md:text-2xl text-sm font-normal">
+									Choose a file or drag & drop it here
+								</h4>
+								<p className="md:text-xl text-sm mb-6 mt-[15px]">
+									JPEG, PNG, SVG formats, up to 5MB
+								</p>
 								<Button
 									variant="outline"
 									type="button"
@@ -72,8 +82,15 @@ export default function FileInput(props: FileInputProps) {
 					)}
 				</div>
 			</Label>
-			<FlowbiteFileInput ref={fileInputRef} id="dropzone-file" className="hidden" onChange={handleFileChange} />
-			{errorMessage && <p className="md:text-lg text-sm text-center font-medium text-error">{errorMessage}</p>}
+			<FlowbiteFileInput
+				ref={fileInputRef}
+				id="dropzone-file"
+				className="hidden"
+				onChange={handleFileChange}
+			/>
+			{errorMessage && (
+				<p className="md:text-lg text-sm text-center font-medium text-error">{errorMessage}</p>
+			)}
 		</div>
 	)
 }

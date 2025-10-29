@@ -423,7 +423,10 @@ export function DataTable<TData, TValue>({
 									setAdvancedFilters((prev) => ({ ...prev, type: value }))
 								}
 							>
-								<SelectTrigger className="w-[150px] p-[18px] h-12 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black ">
+								<SelectTrigger
+									aria-label="pool filters select"
+									className="w-[150px] p-[18px] h-12 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black "
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -444,7 +447,10 @@ export function DataTable<TData, TValue>({
 									setAdvancedFilters((prev) => ({ ...prev, type: value }))
 								}
 							>
-								<SelectTrigger className="w-[120px] px-3 py-2 h-9 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black ">
+								<SelectTrigger
+									aria-label="pool filters select"
+									className="w-[120px] px-3 py-2 h-9 text-sm text-main-black rounded-[10px] bg-box border border-transparent outline-none !ring-0 focus:border-2 focus:border-main-black "
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -464,6 +470,7 @@ export function DataTable<TData, TValue>({
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
+											aria-label="advanced filter button"
 											variant="ghost"
 											size="icon"
 											className="[&_svg]:size-6"
@@ -480,7 +487,12 @@ export function DataTable<TData, TValue>({
 							{!isMobile && enableColumnVisibility && (
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
-										<Button variant="ghost" size="icon" className="[&_svg]:size-6">
+										<Button
+											aria-label="toggle columns button"
+											variant="ghost"
+											size="icon"
+											className="[&_svg]:size-6"
+										>
 											<TbColumns />
 										</Button>
 									</DropdownMenuTrigger>
@@ -509,6 +521,7 @@ export function DataTable<TData, TValue>({
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<Button
+												aria-label="download button"
 												variant="ghost"
 												size="icon"
 												className="[&_svg]:size-5"
@@ -529,6 +542,7 @@ export function DataTable<TData, TValue>({
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<Button
+												aria-label="reload button"
 												variant="ghost"
 												size="icon"
 												className="[&_svg]:size-5"
@@ -800,7 +814,7 @@ export function DataTable<TData, TValue>({
 								table.setPageSize(Number(value))
 							}}
 						>
-							<SelectTrigger className="h-8 w-16">
+							<SelectTrigger aria-label="rows per page select" className="h-8 w-16">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
@@ -903,6 +917,7 @@ export function DataTable<TData, TValue>({
 			{enablePagination && filteredPools > 0 && (
 				<div className="flex items-center justify-center gap-2">
 					<Button
+						aria-label="previous button"
 						variant="ghost"
 						size="icon"
 						className="[&_svg]:size-5"
@@ -944,6 +959,7 @@ export function DataTable<TData, TValue>({
 					</div>
 
 					<Button
+						aria-label="next button"
 						variant="ghost"
 						size="icon"
 						className="[&_svg]:size-5"

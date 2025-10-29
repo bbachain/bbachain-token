@@ -66,7 +66,9 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 			label: 'Address',
 			component: (
 				<div className="flex items-center">
-					<p className="text-main-black w-full md:max-w-[101px] max-w-[90px] !truncate">{NFTDetailData?.mintAddress}</p>
+					<p className="text-main-black w-full md:max-w-[101px] max-w-[90px] !truncate">
+						{NFTDetailData?.mintAddress}
+					</p>
 					<CopyButton secretValue={NFTDetailData?.mintAddress ?? ''} />
 				</div>
 			)
@@ -81,7 +83,13 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 					rel="noopener noreferrer"
 				>
 					View on BBA Explorer
-					<Button type="button" className="text-main-black" size="icon" variant="ghost">
+					<Button
+						type="button"
+						aria-label="external link icon"
+						className="text-main-black"
+						size="icon"
+						variant="ghost"
+					>
 						<FiExternalLink className="text-lg" />
 					</Button>
 				</a>
@@ -128,10 +136,16 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 			component: (
 				<div className="flex items-center">
 					<p className="text-main-black w-full md:max-w-[101px] max-w-[90px] !truncate">
-						{NFTDetailData?.metadata.creators ? NFTDetailData.metadata.creators[0].address.toBase58() : '-'}
+						{NFTDetailData?.metadata.creators
+							? NFTDetailData.metadata.creators[0].address.toBase58()
+							: '-'}
 					</p>
 					<CopyButton
-						secretValue={NFTDetailData?.metadata.creators ? NFTDetailData.metadata.creators[0].address.toBase58() : ''}
+						secretValue={
+							NFTDetailData?.metadata.creators
+								? NFTDetailData.metadata.creators[0].address.toBase58()
+								: ''
+						}
 					/>
 				</div>
 			)
@@ -165,6 +179,19 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 	if (getNFTDetailData.isLoading) {
 		return (
 			<div className="xl:px-[90px] md:px-16 px-[15px] flex flex-col md:space-y-6 space-y-3">
+				<section>
+					<Button
+						variant="ghost"
+						onClick={() => router.push('/nfts')}
+						className={'md:flex hidden w-32 mb-3 text-main-black items-center space-x-2.5 text-xl'}
+					>
+						<HiOutlineArrowNarrowLeft />
+						<h4>My NFTs</h4>
+					</Button>
+					<h2 className="text-main-black text-center md:text-[32px] text-xl  font-medium">
+						{NFTDetailData?.metadata?.name ?? ''}
+					</h2>
+				</section>
 				<section className="w-full flex justify-center">
 					<Skeleton className="h-5 w-72 rounded-[16px]" />
 				</section>
@@ -205,7 +232,10 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 						<section className="flex md:flex-row md:space-y-0 space-y-6 space-y-reverse flex-col justify-between">
 							<div className="flex md:order-1 order-2 flex-col space-y-[18px]">
 								{NFTAboutData.map((about) => (
-									<div className="flex items-center space-x-3 md:text-base text-sm text-main-black" key={about.label}>
+									<div
+										className="flex items-center space-x-3 md:text-base text-sm text-main-black"
+										key={about.label}
+									>
 										<p className="lg:w-[160px] w-[112px]">{about.label}</p>
 										<span>:</span>
 										<p className="truncate text-main-black text-base">{about.value}</p>
@@ -214,8 +244,12 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 							</div>
 							<div className="group w-[169px] h-[169px] relative flex md:flex-col md:order-2 order-1 justify-center flex-row items-center  md:space-x-0 space-x-2.5">
 								<Image
-									src={NFTDetailData?.metadata.metadataOffChain.data.image ?? '/icon-placeholder.svg'}
+									src={
+										NFTDetailData?.metadata.metadataOffChain.data.image ?? '/icon-placeholder.svg'
+									}
 									fill
+									loading="lazy"
+									quality={45}
 									style={{ objectFit: 'cover' }}
 									alt={NFTDetailData?.metadata.name + '-' + 'icon'}
 									className="rounded-[10px]"
@@ -225,6 +259,7 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 										size="icon"
 										onClick={() => setIsImageOpen(true)}
 										variant="outline"
+										aria-label="maximize icon"
 										className="rounded-full text-white bg-transparent border-white"
 									>
 										<Maximize2 />
@@ -233,6 +268,7 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 										size="icon"
 										variant="outline"
 										className={'rounded-full text-white bg-transparent border-white'}
+										aria-label="download icon"
 										onClick={() =>
 											downloadImage(
 												NFTDetailData?.metadata?.metadataOffChain.data.image ?? '',
@@ -249,7 +285,10 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 					<TokenDetailCard className="min-h-[346px]" title=" Blockchain Info">
 						<section className="flex flex-col space-y-[18px]">
 							{NFTBlockchainInfo.map((info) => (
-								<div className="flex items-center space-x-3 md:text-base text-sm text-main-black" key={info.label}>
+								<div
+									className="flex items-center space-x-3 md:text-base text-sm text-main-black"
+									key={info.label}
+								>
 									<p className="lg:w-[160px] w-[112px]">{info.label}</p>
 									<span>:</span>
 									{info.component}
@@ -261,7 +300,10 @@ export default function NFTDetail({ params }: { params: { address: string } }) {
 				<TokenDetailCard title="Metadata">
 					<section className="flex flex-col space-y-[18px]">
 						{metaDataInfo.map((info) => (
-							<div className="flex items-center space-x-3 md:text-base text-sm text-main-black" key={info.label}>
+							<div
+								className="flex items-center space-x-3 md:text-base text-sm text-main-black"
+								key={info.label}
+							>
 								<p className="lg:w-[160px] w-[112px]">{info.label}</p>
 								<span>:</span>
 								{info.component}

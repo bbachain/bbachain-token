@@ -44,7 +44,14 @@ export function CopyButton({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button type="button" onClick={handleCopyClick} className={className} size="icon" variant="ghost">
+				<Button
+					type="button"
+					onClick={handleCopyClick}
+					className={className}
+					aria-label="copy button"
+					size="icon"
+					variant="ghost"
+				>
 					{isCopied ? (
 						<IoCheckmark className={`text-${iconSize} text-main-green`} />
 					) : (

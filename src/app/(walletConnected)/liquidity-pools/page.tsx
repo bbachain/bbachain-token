@@ -2,8 +2,7 @@
 
 import { Loader2, Plus } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 
 import { NoBalanceAlert } from '@/components/common/Alert'
@@ -15,7 +14,7 @@ import { useGetPools } from '@/features/liquidityPool/services'
 import { formatOnchainPoolsForUI } from '@/features/liquidityPool/utils'
 import { useIsMobile } from '@/hooks/isMobile'
 import { cn } from '@/lib/utils'
-import { useGetBalance } from '@/services/wallet'
+import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 function formatAbbreviatedNumber(value: number): string {
@@ -48,9 +47,12 @@ function EmptyPoolsState() {
 				</svg>
 			</div>
 			<div className="text-center">
-				<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No liquidity pools found</h3>
+				<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+					No liquidity pools found
+				</h3>
 				<p className="text-gray-500 dark:text-gray-400">
-					There are currently no liquidity pools available or your search didn&apos;t match any pools.
+					There are currently no liquidity pools available or your search didn&apos;t match any
+					pools.
 				</p>
 			</div>
 		</div>
@@ -59,10 +61,13 @@ function EmptyPoolsState() {
 
 export default function LiquidityPools() {
 	const getPoolsQuery = useGetPools()
-	const getBalanceQuery = useGetBalance()
+	const getBalanceQuery = useGetBBABalance()
 	const { openErrorDialog } = useErrorDialog()
 	const isMobile = useIsMobile()
-	const [isCreatePoolOpen, setIsCreatePoolOpen] = useState(false)
+
+	useEffect(() => {
+		if (getPoolsQuery.isSuccess && getPoolsQuery.data) console.log(getPoolsQuery.data?.data)
+	}, [getPoolsQuery.data, getPoolsQuery.isSuccess])
 
 	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const allPoolsData = getPoolsQuery.data ? formatOnchainPoolsForUI(getPoolsQuery.data.data) : []
@@ -89,7 +94,8 @@ export default function LiquidityPools() {
 		if (getPoolsQuery.isError && getPoolsQuery.error) {
 			openErrorDialog({
 				title: 'Failed to load liquidity pools',
-				description: getPoolsQuery.error.message || 'Unable to fetch pools data. Please try again later.'
+				description:
+					getPoolsQuery.error.message || 'Unable to fetch pools data. Please try again later.'
 			})
 		}
 	}, [getPoolsQuery.isError, getPoolsQuery.error, openErrorDialog])
@@ -101,22 +107,14 @@ export default function LiquidityPools() {
 		}
 	}, [getBalanceQuery.isError, getBalanceQuery.error])
 
-	// Show loading state while balance is loading
-	if (getBalanceQuery.isLoading) {
-		return (
-			<div className="h-full w-full md:mt-20 mt-40 flex flex-col space-y-3 items-center justify-center">
-				<Loader2 className="animate-spin" width={40} height={40} />
-				<p className="text-gray-600 dark:text-gray-400">Loading wallet information...</p>
-			</div>
-		)
-	}
-
 	return (
 		<div className="xl:px-48 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-6">
 			{/* Header Section */}
 			<div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2.5 md:space-y-0">
 				<div className="text-left">
-					<h1 className="md:text-[45px] leading-tight text-xl font-bold text-main-black">Liquidity Pools</h1>
+					<h1 className="md:text-[45px] leading-tight text-xl font-bold text-main-black">
+						Liquidity Pools
+					</h1>
 					<p className="md:text-lg text-sm text-dark-grey font-normal">
 						Discover and manage liquidity pools on BBAChain
 					</p>
