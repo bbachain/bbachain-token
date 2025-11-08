@@ -1,82 +1,89 @@
 import { z } from 'zod'
 
-import { type TTokenProps } from '@/features/swap/types'
+import { createPoolValidation } from '@/features/liquidityPool/validation'
+import { type TTradeableTokenProps } from '@/features/tokens/types'
 import { TSuccessMessage } from '@/types'
 
-import { TransactionListProps } from './components/TransactionColumns'
-import { createPoolValidation } from './validation'
+type TransactionType = 'BUY' | 'SELL' | 'REMOVE' | 'ADD' | 'UNKNOWN'
+export type MintInfo = TTradeableTokenProps
 
-export type TLPTokenProps = TTokenProps & {
-	currentPool: number
-	decimals: number
-	tags: string[]
+export type RawTokenSwap = {
+	version: number
+	isInitialized: boolean
+	bumpSeed: number
+	poolTokenProgramId: Uint8Array
+	tokenAccountA: Uint8Array
+	tokenAccountB: Uint8Array
+	tokenPool: Uint8Array
+	mintA: Uint8Array
+	mintB: Uint8Array
+	feeAccount: Uint8Array
+	tradeFeeNumerator: Uint8Array
+	tradeFeeDenominator: Uint8Array
+	ownerTradeFeeNumerator: Uint8Array
+	ownerTradeFeeDenominator: Uint8Array
+	ownerWithdrawFeeNumerator: Uint8Array
+	ownerWithdrawFeeDenominator: Uint8Array
+	hostFeeNumerator: Uint8Array
+	hostFeeDenominator: Uint8Array
+	curveType: number
+	curveParameters: Uint8Array
 }
 
-export type TTokenFarmProps = {
-	id: string
-	fromToken: TTokenProps
-	toToken: TTokenProps
-	tvl: string
-	apr: string
-}
-
-export type PoolData = {
-	type: string
+export type TOnchainPoolData = {
+	address: string
 	programId: string
-	id: string
+	swapData: RawTokenSwap
 	mintA: MintInfo
 	mintB: MintInfo
-	price: number
-	mintAmountA: number
-	mintAmountB: number
+	mintAPrice: number
+	mintBPrice: number
+	tokenAccountA: string
+	tokenAccountB: string
+	reserveA: bigint
+	reserveB: bigint
 	feeRate: number
-	openTime: string
 	tvl: number
-	day: TimeStats
-	week: TimeStats
-	month: TimeStats
-	pooltype: string[]
-	rewardDefaultPoolInfos: string
-	rewardDefaultInfos: RewardInfo[]
-	farmUpcomingCount: number
-	farmOngoingCount: number
-	farmFinishedCount: number
-	marketId: string
-	lpMint: MintInfo
-	lpPrice: number
-	lpAmount: number
-	burnPercent: number
-	launchMigratePool: boolean
+	volume24h: number
+	fees24h: number
+	apr24h: number
 }
 
-export type MintInfo = {
-	chainId?: number
-	address: string
-	programId?: string
-	logoURI?: string
-	symbol: string
-	name: string
-	decimals: number
-	tags?: string[]
-	extensions?: Record<string, unknown>
+export type TCreatePoolData = {
+	swapAccount: string
+	poolMint: string
+	feeAccount: string
+	lpTokenAccount: string
+	signature: string
+	baseToken: MintInfo
+	quoteToken: MintInfo
+	baseTokenAmount: number
+	quoteTokenAmount: number
 }
 
-export type TimeStats = {
-	volume: number
-	volumeQuote: number
-	volumeFee: number
-	apr: number
-	feeApr: number
-	priceMin: number
-	priceMax: number
-	rewardApr: number[]
+export type TDepositToPoolData = {
+	signature: string
 }
 
-export type RewardInfo = {
-	mint: MintInfo
-	perSecond: string
-	startTime: string
-	endTime: string
+export type TPoolStatsData = {
+	totalPools: number
+	totalLiquidity: number
+	totalVolume: number
+	totalFees: number
+	averageAPR: number
+	topPoolsByLiquidity: TOnchainPoolData[]
+	topPoolsByVolume: TOnchainPoolData[]
+	topPoolsByAPR: TOnchainPoolData[]
+	lastUpdated: string
+}
+
+export type TUserPoolStatsData = {
+	userShare: number
+	userLPToken: number
+	userReserveA: number
+	userReserveB: number
+	userReserveTotalPrice: number
+	dailyFeeEarnings: number
 }
 
 export type TokenTransactionBalance = {
@@ -108,27 +115,60 @@ export type TransactionData = {
 	meta: TransactionDataMeta
 }
 
+export type TFormattedTransactionData = {
+	ownerAddress: string
+	time: string
+	transactionType: TransactionType
+	mintA: MintInfo
+	mintB: MintInfo
+	mintADelta: number
+	mintBDelta: number
+	mintAAmount: number
+	mintBAmount: number
+	mintAAmountPrice: number
+	mintBAmountPrice: number
+}
+
 export type TGetPoolsResponse = TSuccessMessage & {
-	data: PoolData[]
+	data: TOnchainPoolData[]
 }
 
-export type TGetPoolDetailResponse = TSuccessMessage & {
-	data: PoolData
+export type TGetPoolByIdResponse = TSuccessMessage & {
+	data: TOnchainPoolData | null
 }
 
-export type TCreatePoolResponse = {
-	tokenSwap: string
-	poolMint: string
-	feeAccount: string
-	lpTokenAccount: string
-	baseToken: MintInfo
-	quoteToken: MintInfo
-	baseTokenAmount: number
-	quoteTokenAmount: number
+export type TGetPoolStatsResponse = TSuccessMessage & {
+	data: TPoolStatsData | null
+}
+
+export type TGetUserPoolStatsResponse = TSuccessMessage & {
+	data: TUserPoolStatsData | null
+}
+
+export type TCreatePoolResponse = TSuccessMessage & {
+	data: TCreatePoolData
+}
+
+export type TDepositToPoolResponse = TSuccessMessage & {
+	data: TDepositToPoolData
+}
+
+export type TGetPoolTransactionResponse = TSuccessMessage & {
+	data: TFormattedTransactionData[]
 }
 
 export type TCreatePoolPayload = z.infer<typeof createPoolValidation>
+export type TDepositToPoolPayload = {
+	pool: TOnchainPoolData
+	mintAAmount: number
+	mintBAmount: number
+	slippage?: number
+}
 
-export type TGetPoolTransactionResponse = TSuccessMessage & {
-	data: TransactionListProps[]
+export type TTokenFarmProps = {
+	id: string
+	fromToken: MintInfo
+	toToken: MintInfo
+	tvl: string
+	apr: string
 }

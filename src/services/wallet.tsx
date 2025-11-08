@@ -1,25 +1,76 @@
 'use client'
 
+import { getAssociatedTokenAddress, NATIVE_MINT } from '@bbachain/spl-token'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
-import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
+import { BBA_DALTON_UNIT, PublicKey } from '@bbachain/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import SERVICES_KEY from '@/constants/service'
+import { isNativeBBA } from '@/lib/token'
 import { TSuccessMessage } from '@/types'
 import { TRequestAirdropPayload } from '@/types/wallet'
 
-export function useGetBalance() {
-	const { publicKey: address } = useWallet()
+export function useGetBBABalance() {
+	const { publicKey: ownerAddress } = useWallet()
 	const { connection } = useConnection()
 
 	return useQuery<number>({
-		queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, address?.toBase58()],
+		queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()],
 		queryFn: async () => {
-			if (!address) throw new Error('No wallet connected')
-			const balance = await connection.getBalance(address)
+			if (!ownerAddress) throw new Error('No wallet connected')
+			const balance = await connection.getBalance(ownerAddress)
 			return balance
 		},
-		enabled: !!address
+		enabled: !!ownerAddress
+	})
+}
+
+export function useGetWBBABalance() {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useQuery<number>({
+		queryKey: [SERVICES_KEY.WALLET.GET_WBBA_BALANCE, ownerAddress?.toBase58()],
+		queryFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			try {
+				const mint = new PublicKey(NATIVE_MINT.toBase58())
+				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
+				const balanceAmount = await connection.getTokenAccountBalance(ata)
+				return Number(balanceAmount.value.amount)
+			} catch (e) {
+				console.error('WBBA balance fetch error:', e)
+				return 0
+			}
+		},
+		enabled: !!ownerAddress
+	})
+}
+
+export function useGetTokenBalanceByMint({ mintAddress }: { mintAddress: string }) {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useQuery<number>({
+		queryKey: [SERVICES_KEY.WALLET.GET_TOKEN_BALANCE_BY_MINT, mintAddress],
+		queryFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			try {
+				// Handle native BBA token differently
+				if (isNativeBBA(mintAddress)) {
+					const balance = await connection.getBalance(ownerAddress)
+					return balance
+				}
+				const mint = new PublicKey(mintAddress)
+				const ata = await getAssociatedTokenAddress(mint, ownerAddress)
+				const balanceAmount = await connection.getTokenAccountBalance(ata)
+				return Number(balanceAmount.value.amount)
+			} catch (e) {
+				console.error('Balance fetch error:', e)
+				return 0
+			}
+		},
+		enabled: !!mintAddress && !!ownerAddress
 	})
 }
 
@@ -51,7 +102,7 @@ export function useRequestAirdrop() {
 		},
 		onSuccess: () => {
 			client.invalidateQueries({
-				queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, address?.toBase58()]
+				queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, address?.toBase58()]
 			})
 		}
 	})

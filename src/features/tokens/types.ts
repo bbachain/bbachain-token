@@ -2,7 +2,24 @@ import { Collection, Creator, Uses } from '@bbachain/spl-token-metadata'
 import { z } from 'zod'
 
 import { type CreateTokenValidation } from '@/features/tokens/validation'
-import { TSuccessMessage } from '@/types'
+import { type TSuccessMessage } from '@/types'
+
+export type TTradeableTokenProps = {
+	chainId?: number
+	address: string
+	programId?: string
+	logoURI?: string
+	symbol: string
+	name: string
+	decimals: number
+	tags?: string[]
+	extensions?: Record<string, unknown>
+}
+
+export type TExtendedTradeableTokenProps = TTradeableTokenProps & {
+	coinGeckoId?: string
+	isNative: boolean
+}
 
 export type UploadToMetadataPayload = {
 	name: string
@@ -54,6 +71,20 @@ export type TCreateTokenDataResponse = {
 	mintAddress: string
 	metadataAddress: string
 	metadata: UploadToMetadataPayload
+}
+
+export type TGetTokenPriceByCoinGeckoIdData = {
+	[key: string]: {
+		usd: number
+	}
+}
+
+export type TGetAllTokenPrices = {
+	[key: string]: number
+}
+
+export type TGetTradeableTokenResponse = TSuccessMessage & {
+	data: TExtendedTradeableTokenProps[]
 }
 
 export type TGetTokenResponse = TSuccessMessage & {

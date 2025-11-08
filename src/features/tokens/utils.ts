@@ -3,9 +3,35 @@ import { Metadata, PROGRAM_ID } from '@bbachain/spl-token-metadata'
 import { Connection, PublicKey } from '@bbachain/web3.js'
 import axios from 'axios'
 
-import { isLikelyLPToken } from '@/staticData/tokens'
+import ENDPOINTS from '@/constants/endpoint'
+import SERVICES_KEY from '@/constants/service'
+import {
+	TGetTokenDataResponse,
+	TTokenMetadata,
+	TTokenMetadataOffChain,
+	TTokenMetadataOffChainData,
+	TGetTokenPriceByCoinGeckoIdData
+} from '@/features/tokens/types'
 
-import { TGetTokenDataResponse, TTokenMetadata, TTokenMetadataOffChain, TTokenMetadataOffChainData } from './types'
+const isLikelyLPToken = (decimals: number, mintAuthorityAddress: string | null): boolean => {
+	// Basic check: LP tokens typically have 2 decimals and no mint authority
+	if (decimals !== 2 || !mintAuthorityAddress) return false
+
+	// Common non-LP addresses to exclude
+	const commonAddresses = [
+		'11111111111111111111111111111111', // System Program
+		'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', // Token Program
+		'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' // Associated Token Program
+	]
+
+	// If mint authority is a common system address, it's not an LP token
+	if (commonAddresses.includes(mintAuthorityAddress)) return false
+
+	// Additional heuristic: LP tokens usually have PDA authorities
+	// Most user tokens don't use complex PDA structures
+	// This is a reasonable heuristic for filtering
+	return true
+}
 
 export const getTokenMetadata = async (connection: Connection, metadataAddress: PublicKey) => {
 	const initialMetadataOffChainData: TTokenMetadataOffChainData = {
@@ -166,4 +192,22 @@ export const getLPTokenData = async (
 		console.error('Error fetching LP token data:', error)
 		return null
 	}
+}
+
+export const getTokenPriceByCoinGeckoId = async (
+	coinGeckoId: string
+): Promise<TGetTokenPriceByCoinGeckoIdData> => {
+	const res = await axios.get<TGetTokenPriceByCoinGeckoIdData>(
+		ENDPOINTS.COIN_GECKO.GET_SIMPLE_PRICE,
+		{
+			params: {
+				ids: coinGeckoId,
+				vs_currencies: 'usd'
+			}
+		}
+	)
+
+	if (!res.data) throw new Error('Failed to get token price')
+
+	return res.data
 }

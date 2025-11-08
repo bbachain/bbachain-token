@@ -20,13 +20,11 @@ import {
 } from '@bbachain/spl-token-metadata'
 import { useConnection, useWallet } from '@bbachain/wallet-adapter-react'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@bbachain/web3.js'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 
+import ENDPOINTS from '@/constants/endpoint'
 import SERVICES_KEY from '@/constants/service'
-import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/pinata'
-import { getTokenAccounts } from '@/lib/tokenAccount'
-import { TSuccessMessage } from '@/types'
-
 import {
 	TCreateTokenPayload,
 	TCreateTokenResponse,
@@ -37,9 +35,41 @@ import {
 	TUpdateTokenMetadataPayload,
 	TUpdateTokenMetadataResponse,
 	TBurnTokenPayload,
-	TMintTokenPayload
-} from './types'
-import { getTokenData, getTokenMetadata, getLPTokenData } from './utils'
+	TMintTokenPayload,
+	TGetTradeableTokenResponse,
+	TExtendedTradeableTokenProps,
+	TGetAllTokenPrices
+} from '@/features/tokens/types'
+import {
+	getTokenData,
+	getTokenMetadata,
+	getLPTokenData,
+	getTokenPriceByCoinGeckoId
+} from '@/features/tokens/utils'
+import { uploadIconToPinata, uploadMetadataToPinata } from '@/lib/pinata'
+import { getTokenAccounts } from '@/lib/token'
+import { TSuccessMessage } from '@/types'
+
+export const useGetTradeableTokens = (searchQuery?: string) =>
+	useQuery<TGetTradeableTokenResponse>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_TRADEABLE_TOKEN, searchQuery],
+		queryFn: async () => {
+			const params = new URLSearchParams()
+			if (searchQuery) {
+				params.append('search', searchQuery)
+				params.append('includeAddress', 'true')
+			}
+
+			const url = searchQuery
+				? `${ENDPOINTS.API.GET_TRADEABLE_TOKENS}?${params.toString()}`
+				: ENDPOINTS.API.GET_TRADEABLE_TOKENS
+
+			const res = await axios.get(url)
+			return res.data as TGetTradeableTokenResponse
+		},
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		retry: 3
+	})
 
 export const useGetTokens = () => {
 	const { publicKey: ownerAddress } = useWallet()
@@ -57,7 +87,9 @@ export const useGetTokens = () => {
 				})
 			)
 
-			const filteredTokenData = tokenData.filter((token): token is TGetTokenDataResponse => token !== null)
+			const filteredTokenData = tokenData.filter(
+				(token): token is TGetTokenDataResponse => token !== null
+			)
 
 			return {
 				message: `Successfully get token with address ${ownerAddress.toBase58()}`,
@@ -89,6 +121,111 @@ export const useGetTokenDetail = ({ mintAddress }: { mintAddress: string }) => {
 	})
 }
 
+export const useGetLPTokens = () => {
+	const { publicKey: ownerAddress } = useWallet()
+	const { connection } = useConnection()
+	return useQuery<TGetTokenResponse>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_LP_TOKEN, ownerAddress?.toBase58()],
+		queryFn: async () => {
+			if (!ownerAddress) throw new Error('No wallet connected')
+
+			const tokenAccounts = await getTokenAccounts(connection, ownerAddress)
+			const lpTokenData = await Promise.all(
+				tokenAccounts.map(async (account) => {
+					const mintKey = new PublicKey(account.mintAddress)
+					return await getLPTokenData(connection, mintKey)
+				})
+			)
+
+			const filteredLPTokenData = lpTokenData.filter(
+				(token): token is TGetTokenDataResponse => token !== null
+			)
+
+			return {
+				message: `Successfully get LP tokens with address ${ownerAddress.toBase58()}`,
+				data: filteredLPTokenData
+			}
+		},
+		enabled: !!ownerAddress,
+		staleTime: 30000, // 30 seconds
+		gcTime: 5 * 60 * 1000 // 5 minutes
+	})
+}
+
+export const useGetTokenPriceByCoinGeckoId = ({ coinGeckoId }: { coinGeckoId?: string }) => {
+	return useQuery<number>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_PRICE_BY_COIN_GECKO_ID, coinGeckoId],
+		queryFn: async () => {
+			if (!coinGeckoId) return 0
+			try {
+				const tokenPriceRes = await getTokenPriceByCoinGeckoId(coinGeckoId)
+				const usdRate = tokenPriceRes[coinGeckoId].usd
+				return usdRate
+			} catch (e) {
+				console.error('failed to get price ', e)
+				return 0
+			}
+		},
+		refetchInterval: 1000 * 60,
+		staleTime: 1000 * 60,
+		meta: { persist: true }
+	})
+}
+
+export const useGetMultipleTokenPricesByCoinGeckoIds = ({
+	coinGeckoIds
+}: {
+	coinGeckoIds: (string | undefined)[]
+}) => {
+	return useQueries({
+		queries: coinGeckoIds.map((id) => ({
+			queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_PRICE_BY_COIN_GECKO_ID, id],
+			queryFn: async () => {
+				try {
+					if (!id) return 0
+					const tokenPriceRes = await getTokenPriceByCoinGeckoId(id)
+					return tokenPriceRes[id]?.usd ?? 0 // ✅ fallback if missing
+				} catch (e) {
+					console.warn(`Failed to fetch price for ${id}, defaulting to 0`)
+					return 0 // ✅ ensure query resolves, not rejects
+				}
+			},
+			enabled: !!id,
+			refetchInterval: 300000,
+			staleTime: 60000
+		}))
+	})
+}
+
+// really useful to prevent coin gecko api price from 429 too many requests
+export const useGetAllTokenPrices = () =>
+	useQuery<TGetAllTokenPrices>({
+		queryKey: [SERVICES_KEY.TOKEN.GET_ALL_TOKEN_PRICES],
+		queryFn: async () => {
+			const getTradeableTokens = await axios.get(ENDPOINTS.API.GET_TRADEABLE_TOKENS)
+			const tradeableTokens = getTradeableTokens.data.data as TExtendedTradeableTokenProps[]
+			const filteredTokens = tradeableTokens.filter((token) => !token.isNative)
+
+			const tradeableTokensWithPrices = await Promise.all(
+				filteredTokens.map(async (token) => {
+					if (!token.coinGeckoId) return { [token.symbol]: 0 }
+					const getPrice = await getTokenPriceByCoinGeckoId(token.coinGeckoId)
+					const price = getPrice[token.coinGeckoId].usd
+					return { [token.symbol]: price }
+				})
+			)
+
+			const prices = tradeableTokensWithPrices.reduce<Record<string, number>>(
+				(acc, curr) => ({ ...acc, ...curr }),
+				{}
+			)
+
+			return prices
+		},
+		meta: { persist: true },
+		refetchInterval: 1000 * 60
+	})
+
 export const useCreateToken = () => {
 	const { connection } = useConnection()
 	const { publicKey: ownerAddress, sendTransaction } = useWallet()
@@ -114,8 +251,19 @@ export const useCreateToken = () => {
 					daltons,
 					programId: TOKEN_PROGRAM_ID
 				}),
-				createInitializeMintInstruction(mintKeypair.publicKey, decimals, ownerAddress, ownerAddress, TOKEN_PROGRAM_ID),
-				createAssociatedTokenAccountInstruction(ownerAddress, tokenATA, ownerAddress, mintKeypair.publicKey),
+				createInitializeMintInstruction(
+					mintKeypair.publicKey,
+					decimals,
+					ownerAddress,
+					ownerAddress,
+					TOKEN_PROGRAM_ID
+				),
+				createAssociatedTokenAccountInstruction(
+					ownerAddress,
+					tokenATA,
+					ownerAddress,
+					mintKeypair.publicKey
+				),
 				createMintToInstruction(
 					mintKeypair.publicKey,
 					tokenATA,
@@ -129,7 +277,10 @@ export const useCreateToken = () => {
 
 			createAccountTx.partialSign(mintKeypair)
 			const accountSignature = await sendTransaction(createAccountTx, connection)
-			await connection.confirmTransaction({ signature: accountSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: accountSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			// Create the metadata account
 
@@ -180,18 +331,33 @@ export const useCreateToken = () => {
 			createdMetadataTx.recentBlockhash = latestBlockhash.blockhash
 			createdMetadataTx.feePayer = ownerAddress
 			const metadataSignature = await sendTransaction(createdMetadataTx, connection)
-			await connection.confirmTransaction({ signature: metadataSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: metadataSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			// Revoke authorities (mint/freeze) transaction if requested
 			const revokeTx = new Transaction()
 
 			if (payload.revoke_mint) {
-				revokeTx.add(createSetAuthorityInstruction(mintKeypair.publicKey, ownerAddress, AuthorityType.MintTokens, null))
+				revokeTx.add(
+					createSetAuthorityInstruction(
+						mintKeypair.publicKey,
+						ownerAddress,
+						AuthorityType.MintTokens,
+						null
+					)
+				)
 			}
 
 			if (payload.revoke_freeze) {
 				revokeTx.add(
-					createSetAuthorityInstruction(mintKeypair.publicKey, ownerAddress, AuthorityType.FreezeAccount, null)
+					createSetAuthorityInstruction(
+						mintKeypair.publicKey,
+						ownerAddress,
+						AuthorityType.FreezeAccount,
+						null
+					)
 				)
 			}
 
@@ -199,7 +365,10 @@ export const useCreateToken = () => {
 				revokeTx.recentBlockhash = latestBlockhash.blockhash
 				revokeTx.feePayer = ownerAddress
 				const revokeSignature = await sendTransaction(revokeTx, connection)
-				await connection.confirmTransaction({ signature: revokeSignature, ...latestBlockhash }, 'confirmed')
+				await connection.confirmTransaction(
+					{ signature: revokeSignature, ...latestBlockhash },
+					'confirmed'
+				)
 			}
 
 			if (payload.immutable_metadata) {
@@ -221,7 +390,10 @@ export const useCreateToken = () => {
 				lockMetadataTx.recentBlockhash = latestBlockhash.blockhash
 				lockMetadataTx.feePayer = ownerAddress
 				const lockSignature = await sendTransaction(lockMetadataTx, connection)
-				await connection.confirmTransaction({ signature: lockSignature, ...latestBlockhash }, 'confirmed')
+				await connection.confirmTransaction(
+					{ signature: lockSignature, ...latestBlockhash },
+					'confirmed'
+				)
 			}
 
 			const data = {
@@ -239,7 +411,7 @@ export const useCreateToken = () => {
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN, ownerAddress?.toBase58()]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -310,7 +482,10 @@ export const useUpdateTokenMetadata = ({ mintAddress }: { mintAddress: string })
 				createdMetadataTx.recentBlockhash = latestBlockhash.blockhash
 				createdMetadataTx.feePayer = ownerAddress
 				const createMetadataSignature = await sendTransaction(createdMetadataTx, connection)
-				await connection.confirmTransaction({ signature: createMetadataSignature, ...latestBlockhash }, 'confirmed')
+				await connection.confirmTransaction(
+					{ signature: createMetadataSignature, ...latestBlockhash },
+					'confirmed'
+				)
 			} else {
 				const updateMetadataAccountArgs: UpdateMetadataAccountArgs = {
 					data: updatedOnChainMetadata,
@@ -330,7 +505,10 @@ export const useUpdateTokenMetadata = ({ mintAddress }: { mintAddress: string })
 				updatedMetadataTx.recentBlockhash = latestBlockhash.blockhash
 				updatedMetadataTx.feePayer = ownerAddress
 				const updateMetadataSignature = await sendTransaction(updatedMetadataTx, connection)
-				await connection.confirmTransaction({ signature: updateMetadataSignature, ...latestBlockhash }, 'confirmed')
+				await connection.confirmTransaction(
+					{ signature: updateMetadataSignature, ...latestBlockhash },
+					'confirmed'
+				)
 			}
 
 			const data = {
@@ -351,7 +529,7 @@ export const useUpdateTokenMetadata = ({ mintAddress }: { mintAddress: string })
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -376,7 +554,9 @@ export const useLockMetadata = ({ mintAddress }: { mintAddress: string }) => {
 			const accountInfo = await connection.getAccountInfo(metadataPda)
 
 			if (!accountInfo || !accountInfo?.data)
-				throw new Error('This address does not have metadata account, please update your metadata first.')
+				throw new Error(
+					'This address does not have metadata account, please update your metadata first.'
+				)
 
 			const [metadata] = Metadata.deserialize(accountInfo?.data)
 
@@ -399,7 +579,10 @@ export const useLockMetadata = ({ mintAddress }: { mintAddress: string }) => {
 			updatedMetadataTx.recentBlockhash = latestBlockhash.blockhash
 			updatedMetadataTx.feePayer = ownerAddress
 			const updateMetadataSignature = await sendTransaction(updatedMetadataTx, connection)
-			await connection.confirmTransaction({ signature: updateMetadataSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: updateMetadataSignature, ...latestBlockhash },
+				'confirmed'
+			)
 
 			return { message: 'Successfully lock your metadata' }
 		},
@@ -412,7 +595,7 @@ export const useLockMetadata = ({ mintAddress }: { mintAddress: string }) => {
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -428,10 +611,18 @@ export const useRevokeMintAuthority = ({ mintAddress }: { mintAddress: string })
 			if (!ownerAddress) throw new Error('Wallet not connected')
 			const mintKey = new PublicKey(mintAddress)
 			const latestBlockhash = await connection.getLatestBlockhash()
-			const revokeMintIx = createSetAuthorityInstruction(mintKey, ownerAddress, AuthorityType.MintTokens, null)
+			const revokeMintIx = createSetAuthorityInstruction(
+				mintKey,
+				ownerAddress,
+				AuthorityType.MintTokens,
+				null
+			)
 			const revokeMintTx = new Transaction().add(revokeMintIx)
 			const revokeMintSignature = await sendTransaction(revokeMintTx, connection)
-			await connection.confirmTransaction({ signature: revokeMintSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: revokeMintSignature, ...latestBlockhash },
+				'confirmed'
+			)
 			return { message: 'Successfully revoked mint authority' }
 		},
 		onSuccess: () =>
@@ -443,7 +634,7 @@ export const useRevokeMintAuthority = ({ mintAddress }: { mintAddress: string })
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -459,10 +650,18 @@ export const useRevokeFreezeAuthority = ({ mintAddress }: { mintAddress: string 
 			if (!ownerAddress) throw new Error('Wallet not connected')
 			const mintKey = new PublicKey(mintAddress)
 			const latestBlockhash = await connection.getLatestBlockhash()
-			const revokeMintIx = createSetAuthorityInstruction(mintKey, ownerAddress, AuthorityType.FreezeAccount, null)
+			const revokeMintIx = createSetAuthorityInstruction(
+				mintKey,
+				ownerAddress,
+				AuthorityType.FreezeAccount,
+				null
+			)
 			const revokeMintTx = new Transaction().add(revokeMintIx)
 			const revokeMintSignature = await sendTransaction(revokeMintTx, connection)
-			await connection.confirmTransaction({ signature: revokeMintSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: revokeMintSignature, ...latestBlockhash },
+				'confirmed'
+			)
 			return { message: 'Successfully revoked freeze authority' }
 		},
 		onSuccess: () =>
@@ -474,7 +673,7 @@ export const useRevokeFreezeAuthority = ({ mintAddress }: { mintAddress: string 
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -493,10 +692,20 @@ export const useBurnTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 			const amount = BigInt(Math.floor(payload.amount) * Math.pow(10, payload.decimals))
 			const tokenAccount = await getAssociatedTokenAddress(mintKey, ownerAddress)
 
-			const burnTokenIx = createBurnInstruction(tokenAccount, mintKey, ownerAddress, amount, [], TOKEN_PROGRAM_ID)
+			const burnTokenIx = createBurnInstruction(
+				tokenAccount,
+				mintKey,
+				ownerAddress,
+				amount,
+				[],
+				TOKEN_PROGRAM_ID
+			)
 			const burnTokenTx = new Transaction().add(burnTokenIx)
 			const burnTokenSignature = await sendTransaction(burnTokenTx, connection)
-			await connection.confirmTransaction({ signature: burnTokenSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: burnTokenSignature, ...latestBlockhash },
+				'confirmed'
+			)
 			return { message: `Successfully burn ${payload.amount} tokens from your account` }
 		},
 		onSuccess: () =>
@@ -508,7 +717,7 @@ export const useBurnTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
 	})
@@ -527,10 +736,20 @@ export const useMintTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 			const amount = BigInt(Math.floor(payload.amount) * Math.pow(10, payload.decimals))
 			const tokenAccount = await getAssociatedTokenAddress(mintKey, ownerAddress)
 
-			const mintTokenIx = createMintToInstruction(mintKey, tokenAccount, ownerAddress, amount, [], TOKEN_PROGRAM_ID)
+			const mintTokenIx = createMintToInstruction(
+				mintKey,
+				tokenAccount,
+				ownerAddress,
+				amount,
+				[],
+				TOKEN_PROGRAM_ID
+			)
 			const mintTokenTx = new Transaction().add(mintTokenIx)
 			const mintTokenSignature = await sendTransaction(mintTokenTx, connection)
-			await connection.confirmTransaction({ signature: mintTokenSignature, ...latestBlockhash }, 'confirmed')
+			await connection.confirmTransaction(
+				{ signature: mintTokenSignature, ...latestBlockhash },
+				'confirmed'
+			)
 			return { message: `Successfully mint ${payload.amount} tokens to your account` }
 		},
 		onSuccess: () =>
@@ -542,37 +761,8 @@ export const useMintTokenSupply = ({ mintAddress }: { mintAddress: string }) => 
 					queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN_DETAIL, ownerAddress?.toBase58(), mintAddress]
 				}),
 				client.invalidateQueries({
-					queryKey: [SERVICES_KEY.WALLET.GET_BALANCE, ownerAddress?.toBase58()]
+					queryKey: [SERVICES_KEY.WALLET.GET_BBA_BALANCE, ownerAddress?.toBase58()]
 				})
 			])
-	})
-}
-
-export const useGetLPTokens = () => {
-	const { publicKey: ownerAddress } = useWallet()
-	const { connection } = useConnection()
-	return useQuery<TGetTokenResponse>({
-		queryKey: [SERVICES_KEY.TOKEN.GET_TOKEN, 'LP_TOKENS', ownerAddress?.toBase58()],
-		queryFn: async () => {
-			if (!ownerAddress) throw new Error('No wallet connected')
-
-			const tokenAccounts = await getTokenAccounts(connection, ownerAddress)
-			const lpTokenData = await Promise.all(
-				tokenAccounts.map(async (account) => {
-					const mintKey = new PublicKey(account.mintAddress)
-					return await getLPTokenData(connection, mintKey)
-				})
-			)
-
-			const filteredLPTokenData = lpTokenData.filter((token): token is TGetTokenDataResponse => token !== null)
-
-			return {
-				message: `Successfully get LP tokens with address ${ownerAddress.toBase58()}`,
-				data: filteredLPTokenData
-			}
-		},
-		enabled: !!ownerAddress,
-		staleTime: 30000, // 30 seconds
-		gcTime: 5 * 60 * 1000 // 5 minutes
 	})
 }

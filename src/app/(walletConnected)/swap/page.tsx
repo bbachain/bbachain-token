@@ -14,51 +14,39 @@ import REGEX from '@/constants/regex'
 import ExpertModeWarningDialog from '@/features/swap/components/ExpertModeWarningDialog'
 import SettingDialog from '@/features/swap/components/SettingDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
-import TokenListDialog from '@/features/swap/components/TokenListDialog'
-import {
-	useGetSwapQuote,
-	useGetUserBalanceByMint,
-	useExecuteSwap,
-	useCanSwap,
-	useGetSwapRoute,
-	useGetTokensFromAPI,
-	useGetCoinGeckoTokenPrice
-} from '@/features/swap/services'
-import { TTokenProps } from '@/features/swap/types'
-import { getCoinGeckoId } from '@/features/swap/utils'
+import { useGetSwapQuote, useExecuteSwap, useGetSwapRoute } from '@/features/swap/services'
+import TradeableTokenListDialog from '@/features/tokens/components/TradeableTokenListDialog'
+import { useGetTokenPriceByCoinGeckoId, useGetTradeableTokens } from '@/features/tokens/services'
+import { TTradeableTokenProps } from '@/features/tokens/types'
+import { formatTokenBalance, getCoinGeckoId } from '@/lib/token'
 import { cn } from '@/lib/utils'
-import StaticTokens from '@/staticData/tokens'
+import { useGetTokenBalanceByMint } from '@/services/wallet'
+import { USDT_MINT } from '@/staticData/tokens'
 
-const initialBaseToken = StaticTokens[1]
-const initialQuoteToken = StaticTokens[2]
+const initialTradeableToken: TTradeableTokenProps = {
+	address: '',
+	symbol: '',
+	name: '',
+	decimals: 0
+}
 
 export default function Swap() {
-	/**
-	 * Enhanced Swap Page with URL Parameter Support
-	 *
-	 * Features:
-	 * - URL parameters: /swap?from=<token_address>&to=<token_address>
-	 * - Dynamic token fetching from /api/tokens endpoint
-	 * - Automatic URL sync when tokens are selected
-	 * - Fallback to hardcoded tokens if URL params not found
-	 *
-	 * Example: /swap?from=LUGhbMWAWsMCmNDRivANNg1adxw2Bgqz6sAm8QYA1Qq&to=GyWmvShQr9QGGYsqpVJtMHsyLAng4QtZRgDmwWvYTMaR
-	 */
 	const searchParams = useSearchParams()
 	const router = useRouter()
 	const [amountIn, setAmountIn] = useState<string>('')
-	const [fromTokenProps, setFromTokenProps] = useState<TTokenProps>(initialBaseToken)
-	const [toTokenProps, setToTokenProps] = useState<TTokenProps>(initialQuoteToken)
-	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
+	const [fromTokenProps, setFromTokenProps] = useState<TTradeableTokenProps>(initialTradeableToken)
+	const [toTokenProps, setToTokenProps] = useState<TTradeableTokenProps>(initialTradeableToken)
 	const [maxSlippage, setMaxSlippage] = useState<number>(0.5)
 	const [timeLimit, setTimeLimit] = useState<string>('0')
 	const [isExpertMode, setIsExpertMode] = useState<boolean>(false)
+	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
 	const [isSettingDialogOpen, setIsSettingDialogOpen] = useState<boolean>(false)
 	const [isExpertModeDialogOpen, setIsExpertModeDialogOpen] = useState<boolean>(false)
-	const [typeItem, setTypeItem] = useState<'from' | 'to'>('from')
+	const [tokenDialogType, setTokenDialogType] = useState<'from' | 'to'>('from')
+	const [inputType, setInputType] = useState<'from' | 'to'>('from')
 
 	// Get all tokens from API for lookup
-	const { data: allTokens } = useGetTokensFromAPI('')
+	const { data: allTokens, isLoading: isTokensLoading } = useGetTradeableTokens('')
 
 	// Handle URL parameters for token initialization
 	useEffect(() => {
@@ -66,7 +54,7 @@ export default function Swap() {
 		const toParam = searchParams.get('to')
 
 		// Function to find token by address from API
-		const findTokenByAddress = (address: string): TTokenProps | null => {
+		const findTokenByAddress = (address: string): TTradeableTokenProps | null => {
 			if (!allTokens?.data) return null
 
 			const token = allTokens.data.find((token) => token.address === address)
@@ -82,30 +70,18 @@ export default function Swap() {
 			}
 		}
 
-		if (fromParam && allTokens?.data) {
-			const fromToken = findTokenByAddress(fromParam)
-			if (fromToken) {
-				console.log('🔄 Setting from token from URL:', fromToken)
-				setFromTokenProps(fromToken)
-			}
-		}
-
-		if (toParam && allTokens?.data) {
-			const toToken = findTokenByAddress(toParam)
-			if (toToken) {
-				console.log('🔄 Setting to token from URL:', toToken)
-				setToTokenProps(toToken)
-			}
-		}
+		const fromToken = findTokenByAddress(fromParam ?? '')
+		const toToken = findTokenByAddress(toParam ?? '')
+		if (fromToken) setFromTokenProps(fromToken)
+		if (toToken) setToTokenProps(toToken)
 	}, [searchParams, allTokens])
 
 	// Function to update URL with current token selection
 	const updateURLParams = useCallback(
-		(fromToken: TTokenProps, toToken: TTokenProps) => {
+		(fromToken: TTradeableTokenProps, toToken: TTradeableTokenProps) => {
 			const params = new URLSearchParams()
-			params.set('from', fromToken.address)
-			params.set('to', toToken.address)
-
+			params.set('from', fromToken.address ? fromToken.address : NATIVE_MINT.toBase58())
+			params.set('to', toToken.address ? toToken.address : USDT_MINT.toBase58())
 			// Update URL without page reload
 			router.push(`/swap?${params.toString()}`, { scroll: false })
 		},
@@ -116,128 +92,110 @@ export default function Swap() {
 		updateURLParams(fromTokenProps, toTokenProps)
 	}, [fromTokenProps, toTokenProps, updateURLParams])
 
+	// Get swap route information
+	const getSwapRouteQuery = useGetSwapRoute({
+		inputMint: fromTokenProps.address,
+		outputMint: toTokenProps.address
+	})
+	const swapRouteData = getSwapRouteQuery?.data
+
 	// Enhanced swap quote using onchain pools
-	const swapQuoteQuery = useGetSwapQuote({
+	const getSwapQuoteQuery = useGetSwapQuote({
+		pool: swapRouteData?.pools[0],
 		inputMint: fromTokenProps.address,
 		outputMint: toTokenProps.address,
 		inputAmount: amountIn,
-		slippage: maxSlippage
+		slippage: maxSlippage,
+		inputType
 	})
+	const swapQuoteData = getSwapQuoteQuery.data
 
-	const isSwapQuoteLoading = swapQuoteQuery.isLoading || swapQuoteQuery.isRefetching
-
-	// Check if swap is possible
-	const canSwapQuery = useCanSwap(fromTokenProps.address, toTokenProps.address)
-
-	// Get swap route information
-	const swapRouteQuery = useGetSwapRoute(fromTokenProps.address, toTokenProps.address)
-
-	// Get user balances
-	const getMintABalance = useGetUserBalanceByMint({ mintAddress: fromTokenProps.address })
-	const getMintBBalance = useGetUserBalanceByMint({ mintAddress: toTokenProps.address })
-
-	// Get token prices (fallback to external API if needed)
-	const getMintATokenPrice = useGetCoinGeckoTokenPrice({
-		coinGeckoId: getCoinGeckoId(fromTokenProps.address)
-	})
-	const getMintBTokenPrice = useGetCoinGeckoTokenPrice({
-		coinGeckoId: getCoinGeckoId(toTokenProps.address)
-	})
+	const isSwapQuoteLoading =
+		getSwapRouteQuery.isLoading ||
+		getSwapRouteQuery.isRefetching ||
+		getSwapQuoteQuery.isLoading ||
+		getSwapQuoteQuery.isRefetching
 
 	// Swap execution
 	const executeSwapMutation = useExecuteSwap()
 
-	// Debug logging
-	useEffect(() => {
-		console.log('🔍 Swap Debug Info:', {
-			inputAmount: amountIn,
-			inputAmountNumber: Number(amountIn),
-			inputAmountValid: amountIn && Number(amountIn) > 0,
-			fromToken: fromTokenProps.symbol,
-			toToken: toTokenProps.symbol,
-			swapQuoteLoading: swapQuoteQuery.isLoading || swapQuoteQuery.isRefetching,
-			swapQuoteError: swapQuoteQuery.error,
-			swapQuoteData: swapQuoteQuery.data,
-			canSwap: canSwapQuery.data,
-			canSwapLoading: canSwapQuery.isLoading,
-			route: swapRouteQuery.data
-		})
-	}, [
-		amountIn,
-		fromTokenProps.symbol,
-		toTokenProps.symbol,
-		swapQuoteQuery,
-		canSwapQuery,
-		swapRouteQuery
-	])
+	// Get user balances
+	const getMintABalance = useGetTokenBalanceByMint({ mintAddress: fromTokenProps.address })
+	const getMintBBalance = useGetTokenBalanceByMint({ mintAddress: toTokenProps.address })
+	const mintABalance = getMintABalance.data ?? 0
+	const mintBBalance = getMintBBalance.data ?? 0
+	const mintABalanceFormatted = formatTokenBalance(mintABalance, fromTokenProps.decimals)
+	const mintBBalanceFormatted = formatTokenBalance(mintBBalance, toTokenProps.decimals)
 
-	// Computed values
-	const swapQuote = swapQuoteQuery.data
-	const mintABalance = getMintABalance.data?.balance ?? 0
-	const mintBBalance = getMintBBalance.data?.balance ?? 0
-	const mintAInitialPrice = getMintATokenPrice.data ?? 0
-	const mintBInitialPrice = getMintBTokenPrice.data ?? 0
-
-	// Calculate USD values
-	const inputAmount = swapQuote?.inputAmount ?? 0
-	const outputAmount = swapQuote?.outputAmount ?? 0
-	const baseTokenPrice = inputAmount * mintAInitialPrice
-	const quoteTokenPrice = outputAmount * mintBInitialPrice
-
-	useEffect(() => {
-		console.log('base token price ', baseTokenPrice)
-	}, [baseTokenPrice])
+	// get input/output amounts
+	const outputAmount = parseFloat(swapQuoteData?.outputAmount.toFixed(6) ?? '').toString() ?? ''
+	const inputAmount = parseFloat(swapQuoteData?.inputAmount.toFixed(6) ?? '').toString() ?? ''
 
 	// Improved validation
-	const userInputAmount = Number(amountIn) || 0
-	const userTokenBalance = mintABalance / Math.pow(10, fromTokenProps.decimals)
-	const isBaseTokenBalanceNotEnough = userInputAmount > userTokenBalance
-	// Allow positive decimals for swap input
-	const isAmountPositive = REGEX.POSITIVE_DECIMAL.test(amountIn) && userInputAmount > 0
-	const hasValidTokenPair = fromTokenProps.address !== toTokenProps.address
-	const isValid =
-		!isBaseTokenBalanceNotEnough &&
-		isAmountPositive &&
-		hasValidTokenPair &&
-		canSwapQuery.data === true &&
-		swapQuote
+	const userInputAmount = Number(inputAmount) || 0
+	const userMaximumInputAmount = Number(swapQuoteData?.maximumInput ?? 0)
+	const userTokenBalance = mintABalanceFormatted
+	const isBalanceEnough =
+		inputType === 'from'
+			? userInputAmount <= userTokenBalance
+			: userMaximumInputAmount <= userTokenBalance
+	const isInputPositive = REGEX.POSITIVE_DECIMAL.test(userInputAmount.toString())
+	const isTokenPairValid = fromTokenProps.address !== toTokenProps.address
+	const isQuoteError = getSwapQuoteQuery.isError && getSwapQuoteQuery.error
+	const isValid = isBalanceEnough && isInputPositive && isTokenPairValid && swapQuoteData
 
-	// Exchange rate and other computed values
-	const exchangeRate = swapQuote?.exchangeRate
-		? `1 ${fromTokenProps.symbol} = ${swapQuote.exchangeRate.toFixed(6)} ${toTokenProps.symbol}`
+	// get mint prices
+	const getMintACoinGeckoId = getCoinGeckoId(fromTokenProps.address)
+	const getMintBCoinGeckoId = getCoinGeckoId(toTokenProps.address)
+	const getMintAPrice = useGetTokenPriceByCoinGeckoId({ coinGeckoId: getMintACoinGeckoId })
+	const getMintBPrice = useGetTokenPriceByCoinGeckoId({ coinGeckoId: getMintBCoinGeckoId })
+	const mintAPrice = getMintAPrice.data ?? 0
+	const mintBPrice = getMintBPrice.data ?? 0
+	const inputAmountPrice = mintAPrice * userInputAmount
+	const outputAmountPrice = mintBPrice * (Number(outputAmount) || 0)
+
+	// Exchange rate and other computed values for UI
+	const exchangeRate = swapQuoteData?.exchangeRate
+		? `1 ${fromTokenProps.symbol} = ${swapQuoteData.exchangeRate.toFixed(6)} ${toTokenProps.symbol}`
 		: '-'
-	const minimumReceived = swapQuote?.minimumReceived
-		? `${swapQuote.minimumReceived.toFixed(6)} ${toTokenProps.symbol}`
+	const minimumReceived = swapQuoteData?.minimumReceived
+		? `${swapQuoteData.minimumReceived.toFixed(6)} ${toTokenProps.symbol}`
 		: '-'
-	const priceImpact = swapQuote?.priceImpact ? `${swapQuote.priceImpact.toFixed(2)}%` : '-'
+	const maximumInput = swapQuoteData?.maximumInput
+		? `${swapQuoteData.maximumInput.toFixed(6)} ${fromTokenProps.symbol}`
+		: '-'
+	const priceImpact = swapQuoteData?.priceImpact ? `${swapQuoteData.priceImpact.toFixed(2)}%` : '-'
 
 	const onSelectTokenFrom = () => {
-		setTypeItem('from')
+		setTokenDialogType('from')
 		setIsTokenDialogOpen(true)
 	}
 
 	const onSelectTokenTo = () => {
-		setTypeItem('to')
+		setTokenDialogType('to')
 		setIsTokenDialogOpen(true)
 	}
 
-	const handleInputChange = (val: string) => {
-		console.log('💰 Input amount changed:', val)
+	const handleBaseInputChange = (val: string) => {
+		setInputType('from')
+		setAmountIn(val)
+	}
+
+	const handleQuoteInputChange = (val: string) => {
+		setInputType('to')
 		setAmountIn(val)
 	}
 
 	// Enhanced token setters that update URL
-	const setFromTokenWithURL = (token: TTokenProps) => {
+	const setFromTokenWithURL = (token: TTradeableTokenProps) => {
 		setFromTokenProps(token)
 	}
 
-	const setToTokenWithURL = (token: TTokenProps) => {
+	const setToTokenWithURL = (token: TTradeableTokenProps) => {
 		setToTokenProps(token)
 	}
 
 	const onReverseSwap = () => {
-		console.log('🔄 Reversing swap tokens')
-		setAmountIn('')
 		const newFromToken = toTokenProps
 		const newToToken = fromTokenProps
 		setFromTokenProps(newFromToken)
@@ -245,8 +203,8 @@ export default function Swap() {
 	}
 
 	const handleSwap = async () => {
-		if (!swapQuote || !isValid) {
-			console.error('❌ Cannot execute swap:', { swapQuote: !!swapQuote, isValid })
+		if (!swapQuoteData || !isValid) {
+			console.error('❌ Cannot execute swap:', { swapQuote: !!swapQuoteData, isValid })
 			return
 		}
 
@@ -254,17 +212,14 @@ export default function Swap() {
 			const result = await executeSwapMutation.mutateAsync({
 				inputMint: fromTokenProps.address,
 				outputMint: toTokenProps.address,
-				inputAmount: amountIn,
+				inputAmount,
 				slippage: maxSlippage,
-				poolAddress: swapQuote.poolAddress
+				pool: swapRouteData?.pools[0]
 			})
 
-			toast.success(
-				`Swap successful! Received ${result.actualOutputAmount.toFixed(6)} ${toTokenProps.symbol}`,
-				{
-					duration: 5000
-				}
-			)
+			toast.success(result.message, {
+				duration: 5000
+			})
 
 			// Reset form
 			setAmountIn('')
@@ -275,6 +230,25 @@ export default function Swap() {
 			})
 		}
 	}
+
+	const buttonDisplay = useCallback(() => {
+		if (executeSwapMutation.isPending) return 'Swapping...'
+		else if (isSwapQuoteLoading) return 'Computing...'
+		else if (!isTokenPairValid) return 'Select Different Tokens'
+		else if (!isInputPositive) return 'Enter Valid Amount'
+		else if (!isBalanceEnough) return 'Insufficient Balance'
+		else if (!swapRouteData) return 'No Pool Available'
+		else if (isQuoteError) return 'Failed to Get Quote'
+		else return 'Swap'
+	}, [
+		executeSwapMutation.isPending,
+		isBalanceEnough,
+		isInputPositive,
+		isQuoteError,
+		isSwapQuoteLoading,
+		isTokenPairValid,
+		swapRouteData
+	])
 
 	return (
 		<div className="px-[15px] flex flex-col items-center lg:space-y-14 md:space-y-9 space-y-3">
@@ -301,23 +275,23 @@ export default function Swap() {
 						<div className="flex flex-col space-y-3">
 							<SwapItem
 								type="from"
+								isTokenLoading={isTokensLoading || getMintABalance.isLoading}
 								tokenProps={fromTokenProps}
-								balance={userTokenBalance}
-								price={baseTokenPrice}
+								balance={mintABalanceFormatted}
+								price={inputAmountPrice}
 								setTokenProps={onSelectTokenFrom}
-								inputAmount={amountIn}
-								setInputAmount={handleInputChange}
+								inputAmount={inputType === 'from' ? amountIn : inputAmount}
+								setInputAmount={handleBaseInputChange}
 							/>
 							<SwapItem
-								noCheckBalance
 								type="to"
+								isTokenLoading={isTokensLoading || getMintBBalance.isLoading}
 								tokenProps={toTokenProps}
-								balance={mintBBalance / Math.pow(10, toTokenProps.decimals)}
-								price={quoteTokenPrice}
+								balance={mintBBalanceFormatted}
+								price={outputAmountPrice}
 								setTokenProps={onSelectTokenTo}
-								inputAmount={outputAmount > 0 ? outputAmount.toString() : ''}
-								setInputAmount={() => {}} // Output is read-only
-								disable={true}
+								inputAmount={inputType === 'to' ? amountIn : outputAmount}
+								setInputAmount={handleQuoteInputChange}
 							/>
 						</div>
 						<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
@@ -347,44 +321,43 @@ export default function Swap() {
 							</p>
 						)}
 
-						{/* Error state */}
-						{swapQuoteQuery.error && (
-							<p className="text-xs text-red-500">
-								Error:{' '}
-								{swapQuoteQuery.error instanceof Error
-									? swapQuoteQuery.error.message
-									: 'Failed to get quote'}
-							</p>
-						)}
-
 						{/* Pool information */}
-						{swapQuote && (
+						{swapQuoteData && (
 							<p className="text-xs text-dark-grey">
 								Pool TVL:{' '}
-								<span className="text-main-black">${swapQuote.poolTvl.toLocaleString()}</span>
+								<span className="text-main-black">${swapQuoteData.poolTvl.toLocaleString()}</span>
 							</p>
 						)}
 
 						{/* Routing information */}
-						{swapRouteQuery.data && (
+						{swapRouteData && (
 							<p className="text-xs text-dark-grey">
-								Route: <span className="text-main-black">{swapRouteQuery.data.type}</span>
+								Route: <span className="text-main-black">{swapRouteData.type}</span>
 							</p>
 						)}
 
 						{/* Warning for no liquidity */}
-						{canSwapQuery.data === false && (
+						{swapRouteData && !swapRouteData?.pools[0] && (
 							<p className="text-xs text-red-500">
 								No liquidity pool available for this token pair
 							</p>
 						)}
 
-						{/* Input validation warnings */}
-						{amountIn && !isAmountPositive && (
-							<p className="text-xs text-red-500">Please enter a valid positive amount</p>
+						{/* Error state */}
+						{isQuoteError && (
+							<p className="text-xs text-red-500">
+								Error:{' '}
+								{getSwapQuoteQuery.error instanceof Error
+									? getSwapQuoteQuery.error.message
+									: 'Failed to get quote'}
+							</p>
 						)}
 
-						{amountIn && isBaseTokenBalanceNotEnough && (
+						{/* Input validation warnings */}
+						{isInputPositive === false && (
+							<p className="text-xs text-red-500">Please enter a valid positive amount</p>
+						)}
+						{isBalanceEnough === false && (
 							<p className="text-xs text-red-500">Insufficient {fromTokenProps.symbol} balance</p>
 						)}
 					</div>
@@ -394,29 +367,37 @@ export default function Swap() {
 							<p className="text-dark-grey">Rate</p>
 							<p className="text-main-black">{exchangeRate}</p>
 						</section>
-						<section className="flex text-xs justify-between">
-							<p className="text-dark-grey">Minimum Received</p>
-							<p className="text-main-black">{minimumReceived}</p>
-						</section>
+						{inputType === 'from' && (
+							<section className="flex text-xs justify-between">
+								<p className="text-dark-grey">Minimum Received</p>
+								<p className="text-main-black">{minimumReceived}</p>
+							</section>
+						)}
+						{inputType === 'to' && (
+							<section className="flex text-xs justify-between">
+								<p className="text-dark-grey">Maximum Input</p>
+								<p className="text-main-black">{maximumInput}</p>
+							</section>
+						)}
 						<section className="flex text-xs justify-between">
 							<p className="text-dark-grey">Price Impact</p>
 							<p
 								className={cn(
 									'text-main-black',
-									swapQuote?.priceImpact && swapQuote.priceImpact > 5 && 'text-red-500',
-									swapQuote?.priceImpact &&
-										swapQuote.priceImpact > 1 &&
-										swapQuote.priceImpact <= 5 &&
+									swapQuoteData?.priceImpact && swapQuoteData.priceImpact > 5 && 'text-red-500',
+									swapQuoteData?.priceImpact &&
+										swapQuoteData.priceImpact > 1 &&
+										swapQuoteData.priceImpact <= 5 &&
 										'text-yellow-500'
 								)}
 							>
 								{priceImpact}
 							</p>
 						</section>
-						{swapQuote && (
+						{swapQuoteData && (
 							<section className="flex text-xs justify-between">
 								<p className="text-dark-grey">Trading Fee</p>
-								<p className="text-main-black">{swapQuote.feeRate.toFixed(2)}%</p>
+								<p className="text-main-black">{swapQuoteData.feeRate.toFixed(2)}%</p>
 							</section>
 						)}
 					</div>
@@ -435,34 +416,21 @@ export default function Swap() {
 						{(isSwapQuoteLoading || executeSwapMutation.isPending) && (
 							<Loader2 className="animate-spin mr-2" />
 						)}
-						{executeSwapMutation.isPending
-							? 'Swapping...'
-							: isSwapQuoteLoading
-								? 'Computing...'
-								: !hasValidTokenPair
-									? 'Select Different Tokens'
-									: canSwapQuery.data === false
-										? 'No Pool Available'
-										: !isAmountPositive
-											? 'Enter Amount'
-											: isBaseTokenBalanceNotEnough
-												? 'Insufficient Balance'
-												: 'Swap'}
+						{buttonDisplay()}
 					</Button>
 				</CardFooter>
 			</Card>
 
 			{/* Enhanced Token Selection Dialog */}
-			<TokenListDialog
+			<TradeableTokenListDialog
 				isOpen={isTokenDialogOpen}
 				setIsOpen={setIsTokenDialogOpen}
-				type={typeItem}
+				type={tokenDialogType}
 				selectedFrom={fromTokenProps}
 				setSelectedFrom={setFromTokenWithURL}
 				selectedTo={toTokenProps}
 				setSelectedTo={setToTokenWithURL}
 			/>
-
 			<SettingDialog
 				isOpen={isSettingDialogOpen}
 				setIsOpen={setIsSettingDialogOpen}
@@ -474,7 +442,6 @@ export default function Swap() {
 				setIsExpertMode={setIsExpertMode}
 				setIsExpertModeOpen={setIsExpertModeDialogOpen}
 			/>
-
 			<ExpertModeWarningDialog
 				isOpen={isExpertModeDialogOpen}
 				setIsOpen={setIsExpertModeDialogOpen}

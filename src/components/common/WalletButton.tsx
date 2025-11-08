@@ -1,5 +1,4 @@
 import { useWallet } from '@bbachain/wallet-adapter-react'
-import { BBA_DALTON_UNIT } from '@bbachain/web3.js'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { CiWallet } from 'react-icons/ci'
@@ -8,14 +7,13 @@ import { copyToClipboard } from '@/components/common/CopyButton'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useIsMobile } from '@/hooks/isMobile'
-import { useGetBalance } from '@/services/wallet'
+import { getBBAFromDaltons } from '@/lib/token'
+import { useGetBBABalance } from '@/services/wallet'
 import { useWalletListDialog } from '@/stores/walletDialog'
 
-export const balanceFormater = (balance: number) => Math.round((balance / BBA_DALTON_UNIT) * 100000) / 100000
-
 function BalanceValue() {
-	const getBalanceQuery = useGetBalance()
-	const balance = getBalanceQuery.data ? balanceFormater(getBalanceQuery.data) : '...'
+	const getBalanceQuery = useGetBBABalance()
+	const balance = getBalanceQuery.data ? getBBAFromDaltons(getBalanceQuery.data).toFixed(4) : '...'
 	return (
 		<div className="bg-light-green px-[5px] rounded-[6px]">
 			<h4 className="text-[#333333] text-sm">{balance} BBA</h4>
@@ -58,7 +56,12 @@ export default function CustomWalletButton() {
 					>
 						<BalanceValue />
 						{selectedWalletIcon && !isMobile && (
-							<Image src={selectedWalletIcon} width={18} height={18} alt={`${selectedWalletName} logo`} />
+							<Image
+								src={selectedWalletIcon}
+								width={18}
+								height={18}
+								alt={`${selectedWalletName} logo`}
+							/>
 						)}
 						<h4 className="text-main-black text-sm">{`${selectedWalletAddress.slice(0, 6)}...`}</h4>
 					</Button>
