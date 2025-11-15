@@ -71,7 +71,7 @@ export const useGetPools = () => {
 	const getAllTokenPrices = useGetAllTokenPrices()
 	const allTokenPrices = getAllTokenPrices.data
 	const getPoolsWithPrices = useQuery<TGetPoolsResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOLS, allTokenPrices],
+		queryKey: [SERVICES_KEY.POOL.GET_POOLS],
 		queryFn: async () => {
 			const poolAccounts = await getPoolAccounts(connection)
 			const batchSize = 10
@@ -122,7 +122,7 @@ export const useGetPoolById = ({ poolId }: { poolId: string }) => {
 	const allTokenPrices = getAllTokenPrices.data
 
 	const getPoolWithPricesQuery = useQuery<TGetPoolByIdResponse>({
-		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId, allTokenPrices],
+		queryKey: [SERVICES_KEY.POOL.GET_POOL_BY_ID, poolId],
 		queryFn: async () => {
 			const pubKey = new PublicKey(poolId)
 			const accountInfo = await connection.getAccountInfo(pubKey)
@@ -805,6 +805,14 @@ export const useCreatePool = () => {
 							baseAmountDaltons
 						)
 
+						// transaction approval
+						const approveIx = createApproveInstruction(
+							userBaseTokenAccount,
+							ownerAddress,
+							ownerAddress,
+							baseAmountDaltons
+						)
+
 						// Transfer BBA to pool (using special BBA handling)
 						console.log('🔄 Transferring BBA to pool account...')
 						const transferBBAIx = SystemProgram.transfer({
@@ -817,7 +825,12 @@ export const useCreatePool = () => {
 						const syncBBAIx = createSyncNativeInstruction(swapTokenBAccount)
 
 						// Combine all transfers
-						const liquidityTx = new Transaction().add(transferBaseIx, transferBBAIx, syncBBAIx)
+						const liquidityTx = new Transaction().add(
+							approveIx,
+							transferBaseIx,
+							transferBBAIx,
+							syncBBAIx
+						)
 						const liquiditySig = await sendTransactionWithRetry(
 							liquidityTx,
 							connection,
@@ -891,8 +904,16 @@ export const useCreatePool = () => {
 						quoteAmountDaltons
 					)
 
+					// approval instruction
+					const approveIx = createApproveInstruction(
+						userQuoteTokenAccount,
+						ownerAddress,
+						ownerAddress,
+						baseAmountDaltons
+					)
+
 					// Send initial liquidity transfer
-					const liquidityTx = new Transaction().add(transferBaseIx, transferQuoteIx)
+					const liquidityTx = new Transaction().add(approveIx, transferBaseIx, transferQuoteIx)
 					const liquiditySig = await sendTransactionWithRetry(
 						liquidityTx,
 						connection,
@@ -1454,7 +1475,7 @@ export const useDepositToPool = () => {
 			try {
 				const signature = await sendTransaction(transaction, connection, {
 					skipPreflight: false,
-					preflightCommitment: 'confirmed',
+					preflightCommitment: 'confirmed'
 				})
 				console.log('✅ Transaction sent successfully:', signature)
 
