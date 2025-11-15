@@ -44,7 +44,6 @@ import { TCreatePoolPayload, MintInfo } from '@/features/liquidityPool/types'
 import {
 	isBBAPool,
 	getBBAPositionInPool,
-	requiresBBAWrapping
 } from '@/features/liquidityPool/utils'
 import { createPoolValidation } from '@/features/liquidityPool/validation'
 import { LoadingDialog } from '@/features/nfts/components/StatusDialog'
@@ -393,6 +392,11 @@ export default function CreatePool() {
 		setIsTokenDialogOpen(true)
 	}, [])
 
+	const resetTokenAmounts = useCallback(() => {
+		form.setValue('baseTokenAmount', '')
+		form.setValue('quoteTokenAmount', '')
+	}, [form])
+
 	// Auto-calculate quote amount based on price ratio
 	// Initial Price format: "X BaseToken per QuoteToken"
 	// Example: "1000 SHIB per USDT" means 1 USDT = 1000 SHIB, so 1 SHIB = 1/1000 USDT
@@ -400,6 +404,8 @@ export default function CreatePool() {
 		(value: string) => {
 			form.setValue('baseTokenAmount', value, { shouldValidate: true })
 
+			if(value === '') return resetTokenAmounts()
+			
 			// Auto-calculate quote amount if both tokens and initial price are set
 			const initialPrice = parseFloat(form.getValues('initialPrice'))
 			if (initialPrice && value && selectedBaseToken && selectedQuoteToken) {
@@ -409,12 +415,14 @@ export default function CreatePool() {
 				form.setValue('quoteTokenAmount', quoteAmount.toString(), { shouldValidate: true })
 			}
 		},
-		[form, selectedBaseToken, selectedQuoteToken]
+		[form, resetTokenAmounts, selectedBaseToken, selectedQuoteToken]
 	)
 
 	const handleQuoteAmountChange = useCallback(
 		(value: string) => {
 			form.setValue('quoteTokenAmount', value, { shouldValidate: true })
+
+			if (value === '') return resetTokenAmounts()
 
 			// Auto-calculate base amount if both tokens and initial price are set
 			const initialPrice = parseFloat(form.getValues('initialPrice'))
@@ -425,7 +433,7 @@ export default function CreatePool() {
 				form.setValue('baseTokenAmount', baseAmount.toString(), { shouldValidate: true })
 			}
 		},
-		[form, selectedBaseToken, selectedQuoteToken]
+		[form, resetTokenAmounts, selectedBaseToken, selectedQuoteToken]
 	)
 
 	// Show loading state for tokens
