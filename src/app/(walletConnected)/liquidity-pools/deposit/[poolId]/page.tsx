@@ -148,13 +148,20 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 		!hasInsufficientBalanceB &&
 		!depositMutation.isPending
 
+	const resetValue = () => {
+		setFromAmount('')
+		setToAmount('')
+	}
+
 	const handleFromAmountChange = (value: string) => {
 		setFromAmount(value)
+		if (value === '') return resetValue()
 		setLastChangedField('from')
 	}
 
 	const handleToAmountChange = (value: string) => {
 		setToAmount(value)
+		if (value === '') return resetValue()
 		setLastChangedField('to')
 	}
 
