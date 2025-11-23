@@ -13,6 +13,7 @@ import type {
 } from '@/features/liquidityPool/types'
 import type { TTradeableTokenProps } from '@/features/tokens/types'
 import { getTradeableTokenByAddress, getBBAFromDaltons, isNativeBBA } from '@/lib/token'
+import StaticTradeableTokens from '@/staticData/tokens'
 
 const publicKey = (property: string = 'publicKey') => {
 	return blob(32, property)
@@ -231,6 +232,11 @@ export function calculatePoolMetrics(
 	}
 }
 
+const isUnknownTokenBySymbol = (symbol: string) => {
+	const knownSymbol = StaticTradeableTokens.map((token) => token.symbol)
+	return !knownSymbol.includes(symbol)
+}
+
 export async function processPoolAccount(
 	connection: Connection,
 	pubkey: PublicKey,
@@ -267,6 +273,9 @@ export async function processPoolAccount(
 			getTokenMintInfo(connection, mintAKey),
 			getTokenMintInfo(connection, mintBKey)
 		])
+
+		// to prevent any token pair that is not valid anymore
+		if (isUnknownTokenBySymbol(mintA.symbol) || isUnknownTokenBySymbol(mintB.symbol)) return null
 
 		// Get token account balances (reserves)
 		const [reserveA, reserveB] = await Promise.all([
