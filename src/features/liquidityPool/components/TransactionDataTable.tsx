@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
 interface TransactionDataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]
 	data: TData[]
+	NoDataMessage?: string
 }
 
-export function TransactionDataTable<TData, TValue>({ columns, data }: TransactionDataTableProps<TData, TValue>) {
+export function TransactionDataTable<TData, TValue>({ columns, data, NoDataMessage }: TransactionDataTableProps<TData, TValue>) {
 	const table = useReactTable({
 		data,
 		columns,
@@ -63,7 +64,7 @@ export function TransactionDataTable<TData, TValue>({ columns, data }: Transacti
 							) : (
 								<TableRow>
 									<TableCell colSpan={columns.length} className="text-center pt-4">
-										No results.
+										{NoDataMessage ? NoDataMessage : 'No Data'}
 									</TableCell>
 								</TableRow>
 							)}

@@ -51,6 +51,7 @@ import { cn } from '@/lib/utils'
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]
 	data: TData[]
+	noDataMessage?: string
 	onRefresh?: () => void
 	isLoading?: boolean
 	isRefreshing?: boolean
@@ -60,6 +61,7 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
 	columns,
 	data,
+	noDataMessage,
 	onRefresh,
 	isLoading,
 	isRefreshing,
@@ -286,7 +288,7 @@ export function DataTable<TData, TValue>({
 								) : (
 									<TableRow>
 										<TableCell colSpan={columns.length} className="text-center pt-4">
-											No results.
+											{noDataMessage ? noDataMessage : 'No data.'}
 										</TableCell>
 									</TableRow>
 								)}

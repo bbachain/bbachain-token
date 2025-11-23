@@ -1,16 +1,17 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ChevronDown, ArrowLeft, ArrowRight, Info, Loader2, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { CiWallet } from 'react-icons/ci'
 import { FaChartArea } from 'react-icons/fa'
 import { FaPlus } from 'react-icons/fa6'
 import { IoSettings } from 'react-icons/io5'
 
-import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -41,10 +42,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import LPSuccessDialog from '@/features/liquidityPool/components/LPSuccessDialog'
 import { useCreatePool } from '@/features/liquidityPool/services'
 import { TCreatePoolPayload, MintInfo } from '@/features/liquidityPool/types'
-import {
-	isBBAPool,
-	getBBAPositionInPool,
-} from '@/features/liquidityPool/utils'
+import { isBBAPool, getBBAPositionInPool } from '@/features/liquidityPool/utils'
 import { createPoolValidation } from '@/features/liquidityPool/validation'
 import { LoadingDialog } from '@/features/nfts/components/StatusDialog'
 import SwapItem from '@/features/swap/components/SwapItem'
@@ -57,8 +55,8 @@ import { getCoinGeckoId } from '@/lib/token'
 import { formatTokenBalance } from '@/lib/token'
 import { cn } from '@/lib/utils'
 import { useGetTokenBalanceByMint } from '@/services/wallet'
-import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
+import { useWalletListDialog } from '@/stores/walletDialog'
 
 // Enhanced step configuration
 const createPoolSteps = [
@@ -159,11 +157,9 @@ function TokenSelectionCard({
 }
 
 export default function CreatePool() {
-	// Hooks
 	const getTokensQuery = useGetTradeableTokens()
 	const createPoolMutation = useCreatePool()
-	const getBalanceQuery = useGetBBABalance()
-	const { openErrorDialog } = useErrorDialog()
+	const openErrorDialog = useErrorDialog((state) => state.openErrorDialog)
 
 	// Form setup
 	const form = useForm<TCreatePoolPayload>({
@@ -183,6 +179,10 @@ export default function CreatePool() {
 		}
 	})
 
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+	const openWalletList = useWalletListDialog((state) => state.openWalletList)
+
 	// States
 	const [currentStep, setCurrentStep] = useState<number>(0)
 	const [isTokenDialogOpen, setIsTokenDialogOpen] = useState<boolean>(false)
@@ -193,7 +193,6 @@ export default function CreatePool() {
 	const createPoolResponse = createPoolMutation.data?.data
 	const selectedBaseToken = form.watch('baseToken')
 	const selectedQuoteToken = form.watch('quoteToken')
-	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	// BBA Pool Detection
 	const isBBAPoolPair =
@@ -404,8 +403,8 @@ export default function CreatePool() {
 		(value: string) => {
 			form.setValue('baseTokenAmount', value, { shouldValidate: true })
 
-			if(value === '') return resetTokenAmounts()
-			
+			if (value === '') return resetTokenAmounts()
+
 			// Auto-calculate quote amount if both tokens and initial price are set
 			const initialPrice = parseFloat(form.getValues('initialPrice'))
 			if (initialPrice && value && selectedBaseToken && selectedQuoteToken) {
@@ -436,20 +435,14 @@ export default function CreatePool() {
 		[form, resetTokenAmounts, selectedBaseToken, selectedQuoteToken]
 	)
 
-	// Show loading state for tokens
-
 	return (
 		<div className="max-w-4xl mx-auto md:px-0 px-[15px] flex flex-col space-y-14">
-			{/* Show balance alert if needed */}
-			{isNoBalance && <NoBalanceAlert />}
-
 			<div className="text-center flex flex-col space-y-3 ">
 				<h1 className="md:text-[45px] text-xl font-bold text-main-black">Create Liquidity Pool</h1>
 				<p className="text-xs md:text-lg text-dark-grey">
 					Create a new liquidity pool for token trading on BBAChain
 				</p>
 			</div>
-
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
 					{/* Progress Line */}
@@ -1028,45 +1021,59 @@ export default function CreatePool() {
 							)}
 
 							{/* Navigation Buttons */}
-							<CardFooter className="flex justify-between items-center w-full py-0 md:px-3 px-0">
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={onPrev}
-									disabled={currentStep === 0 || createPoolMutation.isPending}
-									className="flex items-center space-x-2 py-1 px-3 h-10 max-w-28 w-full text-sm md:text-base"
-								>
-									<ArrowLeft className="w-3 h-3 md:w-4 md:h-4" />
-									<span className="hidden sm:inline">Previous</span>
-									<span className="sm:hidden">Prev</span>
-								</Button>
-								<Button
-									type="button"
-									onClick={onNext}
-									disabled={
-										createPoolMutation.isPending || (currentStep === 3 && !form.formState.isValid)
-									}
-									className="flex items-center rounded-[26px] space-x-2 py-1 px-3 h-10 max-w-36 w-full text-sm md:text-base bg-main-green hover:bg-hover-green disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									{createPoolMutation.isPending ? (
-										<>
-											<Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
-											<span className="hidden sm:inline">Creating Pool...</span>
-											<span className="sm:hidden">Creating...</span>
-										</>
-									) : currentStep === createPoolSteps.length - 1 ? (
-										<>
-											<span>Create Pool</span>
-											<ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
-										</>
-									) : (
-										<>
-											<span className="hidden sm:inline">Next</span>
-											<span className="sm:hidden">Next</span>
-											<ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
-										</>
-									)}
-								</Button>
+							<CardFooter className="flex justify-between items-center w-full py-0 px-0">
+								{isWalletConnected ? (
+									<>
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={onPrev}
+											disabled={currentStep === 0 || createPoolMutation.isPending}
+											className="flex items-center space-x-2 py-1 px-3 h-10 max-w-28 w-full text-sm md:text-base"
+										>
+											<ArrowLeft className="w-3 h-3 md:w-4 md:h-4" />
+											<span className="hidden sm:inline">Previous</span>
+											<span className="sm:hidden">Prev</span>
+										</Button>
+										<Button
+											type="button"
+											onClick={onNext}
+											disabled={
+												createPoolMutation.isPending ||
+												(currentStep === 3 && !form.formState.isValid)
+											}
+											className="flex items-center rounded-[26px] space-x-2 py-1 px-3 h-10 max-w-36 w-full text-sm md:text-base bg-main-green hover:bg-hover-green disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											{createPoolMutation.isPending ? (
+												<>
+													<Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
+													<span className="hidden sm:inline">Creating Pool...</span>
+													<span className="sm:hidden">Creating...</span>
+												</>
+											) : currentStep === createPoolSteps.length - 1 ? (
+												<>
+													<span>Create Pool</span>
+													<ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+												</>
+											) : (
+												<>
+													<span className="hidden sm:inline">Next</span>
+													<span className="sm:hidden">Next</span>
+													<ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+												</>
+											)}
+										</Button>
+									</>
+								) : (
+									<Button
+										type="button"
+										onClick={openWalletList}
+										className="bg-main-green hover:bg-hover-green w-full h-10 text-main-white py-3 rounded-[45px] text-lg font-normal"
+									>
+										<CiWallet width={18} height={18} />
+										Connect Wallet
+									</Button>
+								)}
 							</CardFooter>
 						</Card>
 					</section>

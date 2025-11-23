@@ -1,11 +1,12 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { CiWallet } from 'react-icons/ci'
 
-import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -29,7 +30,6 @@ import CreateTokenOverview from '@/features/tokens/components/form/TokenOverview
 import { useCreateToken } from '@/features/tokens/services'
 import { TCreateTokenDataResponse, TCreateTokenPayload } from '@/features/tokens/types'
 import { CreateTokenValidation } from '@/features/tokens/validation'
-import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
 
 type FieldName = keyof TCreateTokenPayload
@@ -73,10 +73,11 @@ export default function CreateToken() {
 		}
 	})
 
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+
 	const watchTokenSupply = form.watch('supply')
 	const createTokenMutation = useCreateToken()
-	const getBalanceQuery = useGetBBABalance()
-	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 
 	const [currentStep, setCurrentStep] = useState<number>(0)
 	const [isSuccessOpen, setIsSuccessOpen] = useState<boolean>(false)
@@ -86,7 +87,7 @@ export default function CreateToken() {
 
 	const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-	const { openErrorDialog } = useErrorDialog()
+	const openErrorDialog = useErrorDialog((state) => state.openErrorDialog)
 
 	const onNext = async () => {
 		const fields = createTokenSteps[currentStep].fields
@@ -207,7 +208,6 @@ export default function CreateToken() {
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="xl:px-48 md:px-16 px-4 w-full flex flex-col lg:space-y-14 md:space-y-9 space-y-3"
 			>
-				{isNoBalance && <NoBalanceAlert />}
 				<h1 className="text-center md:text-5xl leading-tight text-xl font-bold text-main-black">
 					QUICK TOKEN GENERATOR
 				</h1>
@@ -436,29 +436,35 @@ export default function CreateToken() {
 						<CreateTokenOverview {...form.getValues()} image_link={previewIcon ?? ''} />
 					</div>
 				)}
-
-				<section className="flex w-full justify-end space-x-2.5">
-					{currentStep > 0 && (
+				{isWalletConnected ? (
+					<section className="flex w-full justify-end space-x-2.5">
+						{currentStep > 0 && (
+							<Button
+								type="button"
+								onClick={onPrev}
+								className="dark:bg-white bg-[#67676759] flex justify-center items-center text-center text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
+							>
+								<ChevronLeft className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
+								<p className="md:min-w-[72px] min-w-[46px]">Back</p>
+							</Button>
+						)}
 						<Button
 							type="button"
-							onClick={onPrev}
-							className="dark:bg-white bg-[#67676759] flex justify-center items-center text-center text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
+							onClick={onNext}
+							className="bg-main-green text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
 						>
-							<ChevronLeft className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
-							<p className="md:min-w-[72px] min-w-[46px]">Back</p>
+							<p className="md:min-w-[72px] min-w-[46px]">
+								{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}
+							</p>
+							<ChevronRight className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
 						</Button>
-					)}
-					<Button
-						type="button"
-						onClick={onNext}
-						className="bg-main-green text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[62px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-[27px] text-base"
-					>
-						<p className="md:min-w-[72px] min-w-[46px]">
-							{currentStep === createTokenSteps.length - 1 ? 'Create Your Token' : 'Next'}
-						</p>
-						<ChevronRight className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
+					</section>
+				) : (
+					<Button className="bg-main-green hover:bg-hover-green text-center h-14 w-full text-base rounded-[43px]">
+						<CiWallet width={18} height={18} />
+						Connect Wallet
 					</Button>
-				</section>
+				)}
 			</form>
 		</Form>
 	)

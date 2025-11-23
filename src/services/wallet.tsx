@@ -51,7 +51,7 @@ export function useGetTokenBalanceByMint({ mintAddress }: { mintAddress: string 
 	const { publicKey: ownerAddress } = useWallet()
 	const { connection } = useConnection()
 	return useQuery<number>({
-		queryKey: [SERVICES_KEY.WALLET.GET_TOKEN_BALANCE_BY_MINT, mintAddress],
+		queryKey: [SERVICES_KEY.WALLET.GET_TOKEN_BALANCE_BY_MINT, mintAddress, ownerAddress?.toBase58()],
 		queryFn: async () => {
 			if (!ownerAddress) throw new Error('No wallet connected')
 

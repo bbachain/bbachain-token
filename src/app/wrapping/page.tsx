@@ -25,7 +25,7 @@ export default function Wrapping() {
 	const generalInvalid = inputAmount === '' || Number(inputAmount) <= 0 || !isAmountPositive
 	const isWrapInvalid = generalInvalid || Number(inputAmount) > BBABalance
 	const isUnwrapInvalid = generalInvalid || Number(inputAmount) > WBBABalance
-	const { openErrorDialog } = useErrorDialog()
+	const openErrorDialog = useErrorDialog((state) => state.openErrorDialog)
 
 	const onWrapBBA = () => wrapBBAMutation.mutate({ amount: Number(inputAmount) })
 	const onUnwrapWBBA = () => unwrapWBBAMutation.mutate({ amount: Number(inputAmount) })

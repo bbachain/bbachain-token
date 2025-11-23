@@ -1,3 +1,4 @@
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import Image from 'next/image'
 import { Dispatch, SetStateAction } from 'react'
 
@@ -25,7 +26,9 @@ export default function WrapInputItem({
 }: WrapInputItemProps) {
 	const isWBBA = type === 'WBBA'
 	const isMobile = useIsMobile()
-	const isBalanceNotEnough = isBase && Number(amount) > balance
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+	const isBalanceNotEnough = isWalletConnected && isBase && Number(amount) > balance
 	const isAmountPositive = Number(amount) >= 0
 	const isInValid = isBalanceNotEnough || !isAmountPositive
 
@@ -62,7 +65,7 @@ export default function WrapInputItem({
 								type="button"
 								size="sm"
 								className="px-1 absolute left-20 -top-1 text-dark-grey text-xs font-normal"
-								disabled={isBalanceNotEnough}
+								disabled={!isWalletConnected || isBalanceNotEnough}
 								onClick={
 									isBalanceNotEnough
 										? () => {

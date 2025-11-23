@@ -95,7 +95,8 @@ export const useGetTokens = () => {
 				message: `Successfully get token with address ${ownerAddress.toBase58()}`,
 				data: filteredTokenData
 			}
-		}
+		},
+		enabled: !!ownerAddress
 	})
 }
 

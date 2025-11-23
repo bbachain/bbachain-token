@@ -61,7 +61,6 @@ function EmptyPoolsState() {
 
 export default function LiquidityPools() {
 	const getPoolsQuery = useGetPools()
-	const getBalanceQuery = useGetBBABalance()
 	const { openErrorDialog } = useErrorDialog()
 	const isMobile = useIsMobile()
 
@@ -69,7 +68,6 @@ export default function LiquidityPools() {
 		if (getPoolsQuery.isSuccess && getPoolsQuery.data) console.log(getPoolsQuery.data?.data)
 	}, [getPoolsQuery.data, getPoolsQuery.isSuccess])
 
-	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
 	const allPoolsData = getPoolsQuery.data ? formatOnchainPoolsForUI(getPoolsQuery.data.data) : []
 
 	const statisticData = [
@@ -100,12 +98,6 @@ export default function LiquidityPools() {
 		}
 	}, [getPoolsQuery.isError, getPoolsQuery.error, openErrorDialog])
 
-	// Handle balance errors with toast
-	useEffect(() => {
-		if (getBalanceQuery.isError && getBalanceQuery.error) {
-			toast.error('Failed to load wallet balance')
-		}
-	}, [getBalanceQuery.isError, getBalanceQuery.error])
 
 	return (
 		<div className="xl:px-48 md:px-16 px-[15px] flex flex-col lg:space-y-14 md:space-y-9 space-y-6">
@@ -132,8 +124,6 @@ export default function LiquidityPools() {
 					<span>Create Pool</span>
 				</Link>
 			</div>
-			{/* Balance Alert */}
-			{isNoBalance && <NoBalanceAlert />}
 
 			{/* Pools Section */}
 			<div className="flex flex-col md:space-y-14 space-y-4">

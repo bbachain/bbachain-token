@@ -1,11 +1,13 @@
 'use client'
 
 import { NATIVE_MINT } from '@bbachain/spl-token'
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { CiWallet } from 'react-icons/ci'
 import { IoMdSettings } from 'react-icons/io'
 
 import { Button } from '@/components/ui/button'
@@ -22,6 +24,7 @@ import { formatTokenBalance, getCoinGeckoId } from '@/lib/token'
 import { cn } from '@/lib/utils'
 import { useGetTokenBalanceByMint } from '@/services/wallet'
 import { USDT_MINT } from '@/staticData/tokens'
+import { useWalletListDialog } from '@/stores/walletDialog'
 
 const initialTradeableToken: TTradeableTokenProps = {
 	address: '',
@@ -33,6 +36,11 @@ const initialTradeableToken: TTradeableTokenProps = {
 export default function Swap() {
 	const searchParams = useSearchParams()
 	const router = useRouter()
+
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+	const openWalletList = useWalletListDialog((state) => state.openWalletList)
+
 	const [amountIn, setAmountIn] = useState<string>('')
 	const [fromTokenProps, setFromTokenProps] = useState<TTradeableTokenProps>(initialTradeableToken)
 	const [toTokenProps, setToTokenProps] = useState<TTradeableTokenProps>(initialTradeableToken)
@@ -232,7 +240,8 @@ export default function Swap() {
 	}
 
 	const buttonDisplay = useCallback(() => {
-		if (executeSwapMutation.isPending) return 'Swapping...'
+		if (!isWalletConnected) return 'Connect Wallet'
+		else if (executeSwapMutation.isPending) return 'Swapping...'
 		else if (isSwapQuoteLoading) return 'Computing...'
 		else if (!isTokenPairValid) return 'Select Different Tokens'
 		else if (!isInputPositive) return 'Enter Valid Amount'
@@ -241,6 +250,7 @@ export default function Swap() {
 		else if (isQuoteError) return 'Failed to Get Quote'
 		else return 'Swap'
 	}, [
+		isWalletConnected,
 		executeSwapMutation.isPending,
 		isBalanceEnough,
 		isInputPositive,
@@ -405,17 +415,17 @@ export default function Swap() {
 
 				<CardFooter className="pt-[18px] !px-0 !pb-0">
 					<Button
-						disabled={!isValid || isSwapQuoteLoading || executeSwapMutation.isPending}
+						disabled={
+							isWalletConnected && (!isValid || isSwapQuoteLoading || executeSwapMutation.isPending)
+						}
 						type="button"
-						onClick={handleSwap}
-						className={cn(
-							'rounded-[48px] md:h-[55px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green',
-							!isValid && 'hover:cursor-not-allowed'
-						)}
+						onClick={!isWalletConnected ? openWalletList : handleSwap}
+						className="rounded-[48px] md:h-[55px] h-12 text-base md:text-xl py-3 w-full text-main-white bg-main-green hover:bg-hover-green"
 					>
-						{(isSwapQuoteLoading || executeSwapMutation.isPending) && (
+						{isWalletConnected && (isSwapQuoteLoading || executeSwapMutation.isPending) && (
 							<Loader2 className="animate-spin mr-2" />
 						)}
+						{!isWalletConnected && <CiWallet width={18} height={18} />}
 						{buttonDisplay()}
 					</Button>
 				</CardFooter>

@@ -1,15 +1,16 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronRight, Loader2 } from 'lucide-react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { ChevronRight } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { CiWallet } from 'react-icons/ci'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { capitalCase } from 'text-case'
 
-import { NoBalanceAlert } from '@/components/common/Alert'
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -41,6 +42,7 @@ import { TCreateNFTPayload, TCreateNFTDialogProps } from '@/features/nfts/types'
 import { CreateNFTValidation } from '@/features/nfts/validation'
 import { useGetBBABalance } from '@/services/wallet'
 import { useErrorDialog } from '@/stores/errorDialog'
+import { useWalletListDialog } from '@/stores/walletDialog'
 
 const initialDialogContent: TCreateNFTDialogProps = {
 	title: '',
@@ -63,7 +65,10 @@ export default function CreateNFT() {
 	const getCollectionQuery = useGetCollections()
 	const validateMetadataMutation = useValidateOffChainMetadata()
 	const getBalanceQuery = useGetBBABalance()
-	const isNoBalance = getBalanceQuery.isError || !getBalanceQuery.data || getBalanceQuery.data === 0
+
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+	const openWalletList = useWalletListDialog((state) => state.openWalletList)
 
 	const [step, setStep] = useState<'upload' | 'preview'>('upload')
 	const [isCreateCollection, setIsCreateCollection] = useState<boolean>(false)
@@ -190,11 +195,6 @@ export default function CreateNFT() {
 				description={successDialogProps.description}
 			/>
 			<CreateCollectionDialog isOpen={isCreateCollection} onOpenChange={setIsCreateCollection} />
-			{isNoBalance && (
-				<div className="mb-7">
-					<NoBalanceAlert />
-				</div>
-			)}
 			{step === 'preview' && (
 				<div>
 					<Button
@@ -264,12 +264,23 @@ export default function CreateNFT() {
 							/>
 						</div>
 						<div className="flex justify-center">
-							<Button
-								type="submit"
-								className="md:w-[350px] rounded-[48px] md:h-[55px] h-[43px] text-base md:text-xl py-3 w-full text-main-white bg-main-green"
-							>
-								Mint NFT
-							</Button>
+							{isWalletConnected ? (
+								<Button
+									type="submit"
+									className="md:w-[350px] rounded-[48px] md:h-[55px] h-[43px] text-base md:text-xl py-3 w-full text-main-white bg-main-green"
+								>
+									Mint NFT
+								</Button>
+							) : (
+								<Button
+									type="button"
+									onClick={openWalletList}
+									className="w-full bg-main-green hover:bg-hover-green text-main-white md:text-lg text-base h-12 rounded-[43px]"
+								>
+									<CiWallet width={18} height={18} />
+									Connect Wallet
+								</Button>
+							)}
 						</div>
 					</form>
 				</div>
@@ -311,15 +322,26 @@ export default function CreateNFT() {
 										</FormItem>
 									)}
 								/>
-								<CardFooter className="flex p-0 justify-end">
+								{isWalletConnected ? (
+									<CardFooter className="flex p-0 justify-end">
+										<Button
+											type="submit"
+											className="bg-main-green w-[229px] text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[48px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-lg text-base"
+										>
+											Preview Metadata
+											<ChevronRight className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
+										</Button>
+									</CardFooter>
+								) : (
 									<Button
-										type="submit"
-										className="bg-main-green w-[229px] text-center flex justify-center items-center hover:bg-hover-green text-main-white md:h-[48px] h-[34px] md:px-6 md:py-3 p-3 rounded-[43px] md:text-lg text-base"
+										type="button"
+										onClick={openWalletList}
+										className="w-full bg-main-green hover:bg-hover-green text-main-white md:text-lg text-base h-12 rounded-[43px]"
 									>
-										Preview Metadata
-										<ChevronRight className="md:min-w-[30px] min-w-[10px] min-h-[30px]" />
+										<CiWallet width={18} height={18} />
+										Connect Wallet
 									</Button>
-								</CardFooter>
+								)}
 							</CardContent>
 						</Card>
 					</form>

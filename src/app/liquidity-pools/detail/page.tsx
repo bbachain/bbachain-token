@@ -3,8 +3,8 @@
 import { useWallet } from '@bbachain/wallet-adapter-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { AiOutlineInfo } from 'react-icons/ai'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { IoIosSwap } from 'react-icons/io'
@@ -132,10 +132,12 @@ function StatsItem({
 const tabsTriggerClass =
 	'flex-1 w-full h-full rounded-md p-1.5 text-sm font-normal data-[state=active]:bg-main-green hover:bg-main-green data-[state=active]:text-main-white data-[state=inactive]:text-box hover:!text-main-white'
 
-export default function PoolDetail({ params }: { params: { poolId: string } }) {
+export default function PoolDetail() {
 	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
 	const router = useRouter()
-	const poolId = params.poolId
+	const searchParams = useSearchParams()
+	const poolId = searchParams.get('poolId') ?? ''
 
 	const [isOwnerTab, setIsOwnerTab] = useState<boolean>(false)
 	const isMobile = useIsMobile()
@@ -161,9 +163,10 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 	)
 
 	// owner spesific data by address
-	const ownerTransactions = ownerAddress
-		? transactions.filter((tx) => tx.ownerAddress === ownerAddress.toBase58())
-		: []
+	const ownerTransactions =
+		isOwnerTab && isWalletConnected && ownerAddress
+			? transactions.filter((tx) => tx.ownerAddress === ownerAddress.toBase58())
+			: []
 	const getUserStats = useGetUserPoolStats({ pool })
 	const userStats = getUserStats.data?.data
 
@@ -181,7 +184,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 		}
 	}, [getTransactionsByPoolId.error, getTransactionsByPoolId.isError])
 
-	if (getPoolById.isLoading || getTransactionsByPoolId.isLoading || getUserStats.isLoading)
+	if (getPoolById.isLoading || getTransactionsByPoolId.isLoading)
 		return (
 			<div className="w-full mx-auto 2xl:max-w-7xl lg:max-w-5xl md:max-w-2xl px-[15px]">
 				<Button
@@ -277,7 +280,7 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 							Swap
 						</Link>
 						<Link
-							href={`/liquidity-pools/deposit/${poolId}`}
+							href={`/liquidity-pools/deposit?poolId=${poolId}`}
 							className={cn(
 								buttonVariants({ size: 'lg', variant: 'default' }),
 								'bg-main-green hover:bg-hover-green px-6 py-3 text-main-white font-medium text-lg rounded-[26px]'
@@ -426,64 +429,75 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 						</div>
 					</TabsContent>
 					<TabsContent value="my-stats">
-						<div className="flex flex-col md:space-y-3 space-y-1.5">
-							<section className="flex items-center space-x-2">
-								<h3 className="lg:text-lg md:text-base text-sm text-dark-grey">Your Deposits</h3>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											aria-label="info button"
-											variant="outline"
-											className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
-											size="icon"
-										>
-											<AiOutlineInfo className="text-main-green" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent className="bg-main-white">
-										<p className="text-xs text-dark-grey">
-											Total value of tokens currently you deposit in this pool, displayed per token.
-										</p>
-									</TooltipContent>
-								</Tooltip>
-							</section>
-							<PoolAmountBar
-								mintAAmount={userStats?.userReserveA ?? 0}
-								mintBAmount={userStats?.userReserveB ?? 0}
-								mintASymbol={pool?.mintA?.symbol ?? ''}
-								mintBSymbol={pool?.mintB?.symbol ?? ''}
-								isLoading={getUserStats.isRefetching}
-							/>
-						</div>
-						<div className="md:mt-6 mt-3 grid grid-cols-2 lg:flex lg:gap-y-0 gap-y-3  items-center justify-between">
-							<StatsItem
-								isLoading={getUserStats.isRefetching}
-								title="My Pool Share (%)"
-								info="This is the percentage of the total liquidity pool that you currently own."
-								content={`${((userStats?.userShare ?? 0) * 100).toFixed(2)}%`}
-							/>
-							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
-							<StatsItem
-								isLoading={getUserStats.isRefetching}
-								title="My Liquidity Value"
-								info="The estimated dollar value of the tokens you've contributed to this pool."
-								content={`$${userStats?.userReserveTotalPrice.toLocaleString() ?? 0}`}
-							/>
-							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
-							<StatsItem
-								isLoading={getUserStats.isRefetching}
-								title="LP Tokens Held"
-								info="The total number of LP (liquidity provider) tokens you own — including both staked and unstaked."
-								content={`${userStats?.userLPToken.toLocaleString() ?? 0} LP`}
-							/>
-							<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
-							<StatsItem
-								isLoading={getUserStats.isRefetching}
-								title="Fee Earnings(24h)"
-								info="Total amount you've earned from trading fees within the last 24 hours."
-								content={`$${userStats?.dailyFeeEarnings.toFixed(3) ?? 0}`}
-							/>
-						</div>
+						{isWalletConnected ? (
+							<>
+								<div className="flex flex-col md:space-y-3 space-y-1.5">
+									<section className="flex items-center space-x-2">
+										<h3 className="lg:text-lg md:text-base text-sm text-dark-grey">
+											Your Deposits
+										</h3>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													aria-label="info button"
+													variant="outline"
+													className="border-main-green rounded-full bg-transparent w-4 h-4 [&_svg]:size-3"
+													size="icon"
+												>
+													<AiOutlineInfo className="text-main-green" />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent className="bg-main-white">
+												<p className="text-xs text-dark-grey">
+													Total value of tokens currently you deposit in this pool, displayed per
+													token.
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									</section>
+									<PoolAmountBar
+										mintAAmount={userStats?.userReserveA ?? 0}
+										mintBAmount={userStats?.userReserveB ?? 0}
+										mintASymbol={pool?.mintA?.symbol ?? ''}
+										mintBSymbol={pool?.mintB?.symbol ?? ''}
+										isLoading={getUserStats.isRefetching}
+									/>
+								</div>
+								<div className="md:mt-6 mt-3 grid grid-cols-2 lg:flex lg:gap-y-0 gap-y-3  items-center justify-between">
+									<StatsItem
+										isLoading={getUserStats.isRefetching}
+										title="My Pool Share (%)"
+										info="This is the percentage of the total liquidity pool that you currently own."
+										content={`${((userStats?.userShare ?? 0) * 100).toFixed(2)}%`}
+									/>
+									<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+									<StatsItem
+										isLoading={getUserStats.isRefetching}
+										title="My Liquidity Value"
+										info="The estimated dollar value of the tokens you've contributed to this pool."
+										content={`$${userStats?.userReserveTotalPrice.toLocaleString() ?? 0}`}
+									/>
+									<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+									<StatsItem
+										isLoading={getUserStats.isRefetching}
+										title="LP Tokens Held"
+										info="The total number of LP (liquidity provider) tokens you own — including both staked and unstaked."
+										content={`${userStats?.userLPToken.toLocaleString() ?? 0} LP`}
+									/>
+									<hr className="w-px h-12 lg:block hidden bg-light-grey border-0" />
+									<StatsItem
+										isLoading={getUserStats.isRefetching}
+										title="Fee Earnings(24h)"
+										info="Total amount you've earned from trading fees within the last 24 hours."
+										content={`$${userStats?.dailyFeeEarnings.toFixed(3) ?? 0}`}
+									/>
+								</div>
+							</>
+						) : (
+							<div className="text-center flex justify-center items-center">
+								<p>Please connect your wallet to see your stats</p>
+							</div>
+						)}
 					</TabsContent>
 				</Tabs>
 			</div>
@@ -495,6 +509,11 @@ export default function PoolDetail({ params }: { params: { poolId: string } }) {
 					<TransactionDataTable
 						columns={transactionColumn}
 						data={isOwnerTab ? ownerTransactions : transactions}
+						NoDataMessage={
+							isOwnerTab && !isWalletConnected
+								? 'Please connect your wallet to see your latest transaction'
+								: undefined
+						}
 					/>
 				)}
 			</div>
