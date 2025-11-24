@@ -1,9 +1,11 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { ColumnDef } from '@tanstack/react-table'
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 
+import WalletNotConnectedCard from '@/components/common/WalletNotConnectedCard'
 import { type NftCardProps } from '@/features/nfts/components/NFTCard'
 import NFTList from '@/features/nfts/components/NFTList'
 import { useGetNFTs } from '@/features/nfts/services'
@@ -41,6 +43,9 @@ export default function NFTs() {
 	const getNFTQuery = useGetNFTs()
 	const nftMetadata = getNFTQuery.data ? mapToNFTPropsList(getNFTQuery.data.data) : []
 
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+
 	useEffect(() => {
 		if (getNFTQuery.isError && getNFTQuery.error) toast.error(getNFTQuery.error.message)
 	}, [getNFTQuery.error, getNFTQuery.isError])
@@ -50,7 +55,10 @@ export default function NFTs() {
 			<h1 className="text-center md:text-[55px] leading-tight text-xl font-bold text-main-black">
 				My NFTs
 			</h1>
-			<NFTList data={nftMetadata} columns={columns} isLoading={getNFTQuery.isPending} />
+			{isWalletConnected && (
+				<NFTList data={nftMetadata} columns={columns} isLoading={getNFTQuery.isPending} />
+			)}
+			{!isWalletConnected && <WalletNotConnectedCard />}
 		</div>
 	)
 }

@@ -1,12 +1,14 @@
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { Loader2 } from 'lucide-react'
-import { Dispatch, SetStateAction } from 'react'
-import toast from 'react-hot-toast'
+import React, { Dispatch, SetStateAction } from 'react'
+import { CiWallet } from 'react-icons/ci'
 import { FaArrowDownLong, FaArrowRightLong } from 'react-icons/fa6'
 
 import { Button } from '@/components/ui/button'
+import WrapInputItem from '@/features/wrapping/components/WrapInputItem'
 import { useIsMobile } from '@/hooks/isMobile'
+import { useWalletListDialog } from '@/stores/walletDialog'
 
-import WrapInputItem from './WrapInputItem'
 
 interface WrapContentProps {
 	base: 'BBA' | 'WBBA'
@@ -32,6 +34,11 @@ export default function WrapContent({
 	onAction
 }: WrapContentProps) {
 	const isMobile = useIsMobile()
+
+	const { publicKey: ownerAddress } = useWallet()
+	const openWalletList = useWalletListDialog((state) => state.openWalletList)
+	const isWalletConnected = Boolean(ownerAddress)
+
 	return (
 		<div className="flex flex-col md:space-y-[18px] space-y-3">
 			{/* Input Section */}
@@ -74,16 +81,26 @@ export default function WrapContent({
 			<Button
 				size="lg"
 				className="rounded-[26px] bg-main-green hover:bg-hover-green h-12 w-full font-medium text-lg text-main-white"
-				disabled={isInvalid || isLoading}
+				disabled={isWalletConnected && (isInvalid || isLoading)}
 				type="button"
-				onClick={isInvalid ? () => toast.error('Invalid input') : onAction}
+				onClick={!isWalletConnected ? openWalletList : onAction}
 			>
-				{isLoading && <Loader2 className="animate-spin" />}
-				{base === 'BBA' ? 'Wrap' : 'Unwrap'} {base}{' '}
-				<span>
-					<FaArrowRightLong />
-				</span>{' '}
-				{target}
+				{!isWalletConnected && (
+					<>
+						<CiWallet width={18} height={18} />
+						Connect Wallet
+					</>
+				)}
+				{isWalletConnected && isLoading && <Loader2 className="animate-spin" />}
+				{isWalletConnected && (
+					<>
+						{base === 'WBBA' ? 'Unwrap' : 'wrap'} {base}
+						<span>
+							<FaArrowRightLong />
+						</span>{' '}
+						{target}
+					</>
+				)}
 			</Button>
 		</div>
 	)

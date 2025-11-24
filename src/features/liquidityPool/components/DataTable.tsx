@@ -867,7 +867,7 @@ export function DataTable<TData, TValue>({
 												'h-16',
 												index === table.getRowModel().rows.length - 1 && 'border-b-0'
 											)}
-											onClick={() => router.push(`/liquidity-pools/detail/${id}`)}
+											onClick={() => router.push(`/liquidity-pools/detail?poolId=${id}`)}
 										>
 											{row.getVisibleCells().map((cell) => (
 												<TableCell key={cell.id} className="py-3">
@@ -887,7 +887,7 @@ export function DataTable<TData, TValue>({
 														Swap
 													</Link>
 													<Link
-														href={`/liquidity-pools/deposit/${id}`}
+														href={`/liquidity-pools/deposit?poolId=${id}`}
 														onClick={(e) => e.stopPropagation()}
 														className={cn(
 															buttonVariants({ variant: 'default', size: 'lg' }),

@@ -241,7 +241,7 @@ export const useGetUserPoolStats = ({ pool }: { pool: TOnchainPoolData | null | 
 				data
 			}
 		},
-		enabled: !!pool,
+		enabled: !!pool && !!ownerAddress,
 		refetchInterval: 300000,
 		staleTime: 60000
 	})

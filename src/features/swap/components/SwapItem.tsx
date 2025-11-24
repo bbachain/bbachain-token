@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { IoIosArrowDown } from 'react-icons/io'
 import { capitalCase } from 'text-case'
 
@@ -34,8 +35,10 @@ export default function SwapItem({
 	setTokenProps,
 	setInputAmount
 }: SwapItemProps) {
-	const onMaxClick = () => setInputAmount(balance.toString())
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
 
+	const onMaxClick = () => setInputAmount(balance.toString())
 	return (
 		<div className="bg-box rounded-[10px] p-2.5 flex flex-col space-y-1.5">
 			{!noTitle && <h5 className="text-xs text-main-black">{capitalCase(type)}</h5>}
@@ -87,18 +90,18 @@ export default function SwapItem({
 							type="button"
 							className="px-1 text-dark-grey text-xs font-normal"
 							onClick={onMaxClick}
-							disabled={isTokenLoading}
+							disabled={!isWalletConnected || isTokenLoading}
 						>
 							Max
 						</Button>
 					)}
 				</div>
 			</section>
-			<section className="w-full flex justify-between">
+			<section className="w-full relative">
 				<div className="flex items-center space-x-1 text-xs text-main-black">
 					<p>Balance:</p>
 					{isTokenLoading ? (
-						<Skeleton className='h-4 w-14' />
+						<Skeleton className="h-4 w-14" />
 					) : (
 						<p>
 							{balance.toLocaleString(undefined, {
@@ -109,7 +112,7 @@ export default function SwapItem({
 						</p>
 					)}
 				</div>
-				<p className="text-dark-grey text-xs">
+				<p className="absolute right-0 top-0 text-dark-grey text-xs">
 					≈${' '}
 					{price.toLocaleString(undefined, {
 						minimumFractionDigits: 2,

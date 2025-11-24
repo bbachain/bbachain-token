@@ -1,10 +1,12 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { CiWallet } from 'react-icons/ci'
 import { HiOutlineArrowNarrowLeft } from 'react-icons/hi'
 import { HiOutlineAdjustmentsHorizontal } from 'react-icons/hi2'
 import { IoCheckmarkCircle } from 'react-icons/io5'
@@ -30,6 +32,7 @@ import { useGetTokenPriceByCoinGeckoId } from '@/features/tokens/services'
 import { formatTokenBalance, getCoinGeckoId } from '@/lib/token'
 import { cn } from '@/lib/utils'
 import { useGetTokenBalanceByMint } from '@/services/wallet'
+import { useWalletListDialog } from '@/stores/walletDialog'
 
 const initialTokeProps: MintInfo = {
 	chainId: 101,
@@ -43,8 +46,9 @@ const initialTokeProps: MintInfo = {
 	extensions: {}
 }
 
-export default function LiquidityPoolDeposit({ params }: { params: { poolId: string } }) {
-	const poolId = params.poolId
+export default function LiquidityPoolDeposit() {
+	const searchParams = useSearchParams()
+	const poolId = searchParams.get('poolId') ?? ''
 	const router = useRouter()
 
 	const getPoolByIdQuery = useGetPoolById({ poolId })
@@ -52,6 +56,10 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 
 	const getUserPoolStats = useGetUserPoolStats({ pool: poolDetailData })
 	const userStatsData = getUserPoolStats.data?.data
+
+	const openWalletList = useWalletListDialog((state) => state.openWalletList)
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
 
 	const [fromAmount, setFromAmount] = useState<string>('')
 	const [toAmount, setToAmount] = useState<string>('')
@@ -320,14 +328,16 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 						<Button
 							type="button"
 							size="lg"
-							className={cn(
-								'rounded-[26px] h-12 text-lg font-medium text-main-white py-3 w-full transition-all',
-								canDeposit ? 'bg-main-green hover:bg-hover-green ' : 'bg-light-grey'
-							)}
-							disabled={!canDeposit}
-							onClick={handleDeposit}
+							className="rounded-[26px] bg-main-green hover:bg-hover-green h-12 text-lg font-medium text-main-white py-3 w-full transition-all"
+							disabled={isWalletConnected && !canDeposit}
+							onClick={!isWalletConnected ? openWalletList : handleDeposit}
 						>
-							{depositMutation.isPending ? (
+							{!isWalletConnected ? (
+								<div className="flex items-center gap-2">
+									<CiWallet width={18} height={18} />
+									Connect Wallet
+								</div>
+							) : depositMutation.isPending ? (
 								<div className="flex items-center gap-2">
 									<Loader2 className="animate-spin" />
 									Depositing...
@@ -406,25 +416,33 @@ export default function LiquidityPoolDeposit({ params }: { params: { poolId: str
 					</Card>
 					<Card className="md:w-80 w-full border-hover-green border-[1px] rounded-[12px] p-6 drop-shadow-lg">
 						<CardContent className="p-0 flex flex-col space-y-[18px]">
-							<div className="flex justify-between items-center font-normal text-sm text-dark-grey">
-								<h4>My Position</h4>
-								{getUserPoolStats.isLoading ? (
-									<Skeleton className="h-4 w-12" />
-								) : (
-									<p>${userStatsData?.userReserveTotalPrice.toLocaleString()}</p>
-								)}
-							</div>
-							<div className="flex flex-col space-y-3 text-dark-grey">
-								<h3 className="text-main-black">LP Token Balances</h3>
-								<div className="flex items-center justify-between">
-									<h4>Staked/Unstaked</h4>
-									{getUserPoolStats.isLoading ? (
-										<Skeleton className="h-4 w-12" />
-									) : (
-										<p>{userStatsData?.userLPToken} LP</p>
-									)}
-								</div>
-							</div>
+							{isWalletConnected ? (
+								<>
+									<div className="flex justify-between items-center font-normal text-sm text-dark-grey">
+										<h4>My Position</h4>
+										{getUserPoolStats.isLoading ? (
+											<Skeleton className="h-4 w-12" />
+										) : (
+											<p>${userStatsData?.userReserveTotalPrice.toLocaleString()}</p>
+										)}
+									</div>
+									<div className="flex flex-col space-y-3 text-dark-grey">
+										<h3 className="text-main-black">LP Token Balances</h3>
+										<div className="flex items-center justify-between">
+											<h4>Staked/Unstaked</h4>
+											{getUserPoolStats.isLoading ? (
+												<Skeleton className="h-4 w-12" />
+											) : (
+												<p>{userStatsData?.userLPToken} LP</p>
+											)}
+										</div>
+									</div>
+								</>
+							) : (
+								<p className="text-sm">
+									Please connect your wallet to see your position on this pool
+								</p>
+							)}
 						</CardContent>
 					</Card>
 				</div>

@@ -1,9 +1,11 @@
 'use client'
 
+import { useWallet } from '@bbachain/wallet-adapter-react'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
+import WalletNotConnectedCard from '@/components/common/WalletNotConnectedCard'
 import { buttonVariants } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TokenListColumns, TokenListProps } from '@/features/tokens/components/Columns'
@@ -34,6 +36,9 @@ export default function Tokens() {
 	const getTokenDataQuery = useGetTokens()
 	const getLPTokenDataQuery = useGetLPTokens()
 
+	const { publicKey: ownerAddress } = useWallet()
+	const isWalletConnected = Boolean(ownerAddress)
+
 	const tokenData = getTokenDataQuery.data
 		? mapToTokenListPropsList(getTokenDataQuery.data.data)
 		: []
@@ -42,7 +47,9 @@ export default function Tokens() {
 		: []
 
 	const isLoading =
-		getTokenDataQuery.isPending || (activeTab === 'lp-tokens' && getLPTokenDataQuery.isPending)
+		isWalletConnected &&
+		((activeTab === 'tokens' && getTokenDataQuery.isPending) ||
+			(activeTab === 'lp-tokens' && getLPTokenDataQuery.isPending))
 
 	return (
 		<div className="xl:px-48 md:px-16 px-4 flex flex-col w-full h-full items-center lg:space-y-14 md:space-y-9 space-y-3">
@@ -64,33 +71,32 @@ export default function Tokens() {
 					<span>Create Token</span>
 				</Link>
 			</div>
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-				<TabsList className="flex w-full justify-center space-x-6 md:mb-10 mb-5 p-0 bg-transparent">
-					<TabsTrigger
-						value="tokens"
-						className="relative p-2.5 md:max-w-36 bg-transparent border-none shadow-none font-medium text-xl text-main-black hover:text-main-green hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:h-[2px] hover:after:w-full hover:after:bg-main-green  data-[state=active]:shadow-none data-[state=active]:text-main-green data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-[2px] data-[state=active]:after:w-full data-[state=active]:after:bg-main-green"
-					>
-						Regular Tokens
-					</TabsTrigger>
-					<TabsTrigger
-						value="lp-tokens"
-						className="relative p-2.5 md:max-w-36 bg-transparent border-none shadow-none font-medium text-xl text-main-black hover:text-main-green hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:h-[2px] hover:after:w-full hover:after:bg-main-green  data-[state=active]:shadow-none data-[state=active]:text-main-green data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-[2px] data-[state=active]:after:w-full data-[state=active]:after:bg-main-green"
-					>
-						LP Tokens
-					</TabsTrigger>
-				</TabsList>
-
-				<TabsContent value="tokens">
-					<TokenListTable
-						onRefresh={() => getTokenDataQuery.refetch()}
-						isRefreshing={getTokenDataQuery.isRefetching}
-						isLoading={isLoading}
-						columns={TokenListColumns}
-						data={tokenData}
-					/>
-				</TabsContent>
-				<TabsContent value="lp-tokens">
-					{lpTokenData.length > 0 ? (
+			{isWalletConnected && (
+				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+					<TabsList className="flex w-full justify-center space-x-6 md:mb-10 mb-5 p-0 bg-transparent">
+						<TabsTrigger
+							value="tokens"
+							className="relative p-2.5 md:max-w-36 bg-transparent border-none shadow-none font-medium text-xl text-main-black hover:text-main-green hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:h-[2px] hover:after:w-full hover:after:bg-main-green  data-[state=active]:shadow-none data-[state=active]:text-main-green data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-[2px] data-[state=active]:after:w-full data-[state=active]:after:bg-main-green"
+						>
+							Regular Tokens
+						</TabsTrigger>
+						<TabsTrigger
+							value="lp-tokens"
+							className="relative p-2.5 md:max-w-36 bg-transparent border-none shadow-none font-medium text-xl text-main-black hover:text-main-green hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:h-[2px] hover:after:w-full hover:after:bg-main-green  data-[state=active]:shadow-none data-[state=active]:text-main-green data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:h-[2px] data-[state=active]:after:w-full data-[state=active]:after:bg-main-green"
+						>
+							LP Tokens
+						</TabsTrigger>
+					</TabsList>
+					<TabsContent value="tokens">
+						<TokenListTable
+							onRefresh={() => getTokenDataQuery.refetch()}
+							isRefreshing={getTokenDataQuery.isRefetching}
+							isLoading={isLoading}
+							columns={TokenListColumns}
+							data={tokenData}
+						/>
+					</TabsContent>
+					<TabsContent value="lp-tokens">
 						<TokenListTable
 							withoutAction
 							onRefresh={() => getLPTokenDataQuery.refetch()}
@@ -99,16 +105,10 @@ export default function Tokens() {
 							columns={TokenListColumns}
 							data={lpTokenData}
 						/>
-					) : (
-						<div className="text-center py-8">
-							<p className="text-gray-500">No LP tokens found</p>
-							<p className="text-sm text-gray-400 mt-2">
-								LP tokens are earned when you provide liquidity to pools
-							</p>
-						</div>
-					)}
-				</TabsContent>
-			</Tabs>
+					</TabsContent>
+				</Tabs>
+			)}
+			{!isWalletConnected && <WalletNotConnectedCard />}
 		</div>
 	)
 }
