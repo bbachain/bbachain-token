@@ -460,7 +460,7 @@ export default function CreateToken() {
 						</Button>
 					</section>
 				) : (
-					<Button className="bg-main-green hover:bg-hover-green text-center h-14 w-full text-base rounded-[43px]">
+					<Button type='button' className="bg-main-green hover:bg-hover-green text-center h-14 w-full text-base rounded-[43px]">
 						<CiWallet width={18} height={18} />
 						Connect Wallet
 					</Button>
